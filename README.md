@@ -55,8 +55,9 @@
 ## 🏃 Getting Started
 
 ### Prerequisites
-- Python 3.10+
-- Docker & Docker Compose (for container execution)
+- Python 3.9.6
+- Node.js v25.2.1
+- Docker & Docker Compose
 - OpenAI API Key
 
 ### Backend Setup
