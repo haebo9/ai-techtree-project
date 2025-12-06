@@ -1,4 +1,4 @@
-# 📝 핵심 기능 명세 (Product Spec)
+# 핵심 기능 명세 (Product Spec)
 
 ## 📑 목차 (Table of Contents)
 1. [개요 (Overview)](#1-개요-overview)
