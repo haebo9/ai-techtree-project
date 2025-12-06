@@ -1,6 +1,6 @@
 # 핵심 기능 명세 (Product Spec)
 
-## 📑 목차 (Table of Contents)
+## `📑 목차 (Table of Contents)`
 1. [개요 (Overview)](#1-개요-overview)
     - [MVP 목표 및 범위](#11-mvp-목표-및-범위-mvp-goals--scope)
 2. [유저 스토리 (User Stories)](#2-유저-스토리-user-stories)
@@ -13,7 +13,7 @@
 5. [데이터 요구사항 (Data Requirements)](#5-데이터-요구사항-data-requirements)
 6. [성공 지표 (Success Metrics)](#6-성공-지표-success-metrics)
 
-## 1. 개요 (Overview)
+## `1. 개요 (Overview)`
 > 프로젝트의 정의와 목표를 간략히 기술합니다.
 - **프로젝트명**: AI TechTree
 - **한 줄 소개**: AI 에이전트 면접관과 함께 성장하는 RPG형 개발자 로드맵
@@ -34,15 +34,14 @@
     - 커리어 코칭 및 강의 추천 (Phase 2 예정)
     - 유저 간 랭킹 경쟁 및 소셜 기능
 
-## 2. 유저 스토리 (User Stories)
+## `2. 유저 스토리 (User Stories)`
 > 유저가 서비스를 사용하며 얻고자 하는 가치를 시나리오 형태로 작성합니다.
 - **취업 준비생**은 자신의 Python 실력이 단순히 '아는 정도'인지 '응용 가능한지' 확인하기 위해 **2차 전직 심사에 도전하여 별 2개를 획득**하고 싶어한다.
 - **현업 개발자**는 MLOps 트랙의 모든 기술을 마스터했음을 증명하기 위해 **통합 퀴즈(Boss)를 통과하고 트랙을 황금색으로 빛내어** 포트폴리오에 첨부하고 싶어한다.
 - **비전공자**는 어떤 기술부터 배워야 할지 모르므로, **활성화된 1차 전직 노드**를 따라가며 게임 퀘스트를 깨듯이 자연스럽게 학습하고 싶어한다.
 
-## 3. 핵심 기능 (Key Features)
+## `3. 핵심 기능 (Key Features)`
 > 서비스가 제공해야 할 구체적인 기능들을 나열합니다.
-
 ### 3.1. 초기 역량 배치고사 (Initial Skill Calibration)
 - **기능 설명**: 설문조사 및 간단한 종합 퀴즈를 통해 여러 기술 스택의 **1차 전직(⭐)** 상태를 한 번에 부여.
 - **목적**: 모든 기술에 대해 일일이 1차 심사를 받는 피로감을 줄이고, 사용자가 빠르게 자신의 Tech Tree를 형성하도록 도움.
@@ -79,7 +78,7 @@
     - **Track Glow**: 트랙 마스터 합격 시, 해당 트랙의 모든 노드와 연결선이 **밝은 금색(Golden Glow)으로 발광**하는 애니메이션 효과 적용.
 - **기술 스택**: `React Flow` (Custom Node 개발), `Framer Motion` (애니메이션).
 
-## 4. 비기능 요구사항 (Non-Functional Requirements)
+## `4. 비기능 요구사항 (Non-Functional Requirements)`
 > 성능, 보안, 사용성 등 기능 외적인 요구사항을 정의합니다.
 - **사용성 (UX)**:
     - 전직 심사 중 AI의 답변 생성 딜레이가 느껴지지 않도록 **Streaming Response** 적용.
@@ -89,7 +88,7 @@
 - **확장성**:
     - 추후 '4차 전직(신/God 등급)'이나 '히든 트랙'을 추가할 수 있도록 DB 스키마를 유연하게 설계.
 
-## 5. 데이터 요구사항 (Data Requirements)
+## `5. 데이터 요구사항 (Data Requirements)`
 > 서비스 운영에 필요한 핵심 데이터 구조를 정의합니다.
 - **UserSkill (Collection)**:
     - `user_id`: 사용자 ID
@@ -98,7 +97,7 @@
     - `is_track_master`: 해당 트랙 마스터 여부 (Boolean)
 - **InterviewLog**: 면접 대화 내용 및 AI 평가 결과 저장 (추후 RAG 데이터로 활용 가능).
 
-## 6. 성공 지표 (Success Metrics)
+## `6. 성공 지표 (Success Metrics)`
 > 프로젝트의 성공 여부를 판단할 기준입니다.
 - **승급 도전율**: 1차 전직 완료 유저가 2차 전직 심사에 도전하는 비율.
 - **트랙 완주 수**: 통합 퀴즈(Boss)를 통과하여 'Golden Glow'를 획득한 유저 수.
