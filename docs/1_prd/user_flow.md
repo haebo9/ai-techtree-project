@@ -22,12 +22,12 @@ graph TD
     Dashboard --> ClickNode[노드/기술 선택]
     ClickNode --> CheckStatus{상태 확인}
     
-    CheckStatus -->|Locked| Disabled[진입 불가 (선행 학습 필요)]
-    CheckStatus -->|Available| SelectLevel[도전 등급 선택 (2차/3차)]
+    CheckStatus -->|Locked| Disabled["진입 불가 (선행 학습 필요)"]
+    CheckStatus -->|Available| SelectLevel["도전 등급 선택 (2차/3차)"]
     CheckStatus -->|Mastered| Review[복습 하기]
     
     SelectLevel --> InterviewStart[🤖 AI 면접관 연결]
-    InterviewStart --> ChatLoop[인터뷰 진행 (Q&A)]
+    InterviewStart --> ChatLoop["인터뷰 진행 (Q&A)"]
     ChatLoop --> Eval[평가 및 채점]
     
     Eval --> Result{합격 여부?}
