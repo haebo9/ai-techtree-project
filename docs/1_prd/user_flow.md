@@ -5,7 +5,7 @@
 >서비스 흐름은 크게 세 가지 단계의 유기적인 연결로 구성됩니다.
 1. **🟢 온보딩 (Onboarding)**: 배치고사를 통해 사용자의 현재 실력을 빠르게 진단하고 초기 시작점(Tech Tree)을 설정합니다.
 2. **🔵 성장 루프 (Growth Loop)**: 원하는 기술 노드를 선택하여 AI 심층 면접을 진행하고, 즉각적인 피드백과 함께 승급(별 획득)에 도전합니다.
-3. **🟡 마스터리 (Mastery)**: 트랙 내 모든 기술을 정복한 후, 최종 보스 챌린지(통합 퀴즈)를 통해 'Golden Glow'라는 시각적 명예를 획득합니다.
+3. **🟡 마스터리 (Mastery)**: 트랙 내 모든 기술을 정복한 후, 트랙 마스터 챌린지(통합 퀴즈)를 통해 'Golden Glow'라는 시각적 명예를 획득합니다.
 
 ## 1. Flowchart Overview (Mermaid)
 
@@ -62,11 +62,14 @@ graph TD
     BossResult -->|Yes| GoldGlow["🌟 Golden Glow<br/>이펙트 해금"]:::gold
     BossResult -->|No| Retry["재도전<br/>(쿨타임)"]:::fail
 
+    %% [Viral Loop]
+    StarGet --> Share["SNS 공유하기<br/>(자랑하기)"]:::main
+    GoldGlow --> Share
+    Share --> Dashboard
+
     %% [UI Fix] Spacer
-    StarGet ~~~ Spacer1[ ]
-    GoldGlow ~~~ Spacer2[ ]
+    Share ~~~ Spacer1[ ]
     style Spacer1 fill:none,stroke:none,color:#00000000,height:50px
-    style Spacer2 fill:none,stroke:none,color:#00000000,height:50px
 ```
 
 ## 2. 상세 흐름 설명
@@ -102,7 +105,7 @@ graph TD
 특정 직무(예: Backend Track)의 모든 기술을 마스터했을 때 주어지는 최종 도전입니다.
 
 1.  **마스터 조건 달성**: 트랙 내 모든 필수 노드가 3차 전직(⭐⭐⭐) 상태가 됨.
-2.  **Boss Challenge (통합 퀴즈)**:
+2.  **Track Master Challenge**:
     *   단일 기술이 아닌, 트랙 내 여러 기술이 복합된 시나리오 문제 출제.
     *   예: "Django와 Redis를 사용하여 실시간 채팅 서버를 구축할 때의 동시성 처리 전략을 설명하시오."
 3.  **Golden Glow**:
