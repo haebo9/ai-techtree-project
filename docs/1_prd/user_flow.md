@@ -42,6 +42,10 @@ graph TD
     BossRaid --> BossResult{성공?}
     BossResult -->|Yes| GoldGlow["🌟 Golden Glow 이펙트 해금"]
     BossResult -->|No| Retry[재도전]
+
+    %% --- [UI Fix] 툴바 가림 방지용 투명 노드 ---
+    LevelUp ~~~ Spacer[ ]
+    style Spacer fill:none,stroke:none,color:#00000000
 ```
 
 ## 2. 상세 흐름 설명
