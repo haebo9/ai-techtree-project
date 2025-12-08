@@ -62,14 +62,11 @@ graph TD
     BossResult -->|Yes| GoldGlow["🌟 Golden Glow<br/>이펙트 해금"]:::gold
     BossResult -->|No| Retry["재도전<br/>(쿨타임)"]:::fail
 
-    %% [Viral Loop]
-    StarGet --> Share["SNS 공유하기<br/>(자랑하기)"]:::main
-    GoldGlow --> Share
-    Share --> Dashboard
-
     %% [UI Fix] Spacer
-    Share ~~~ Spacer1[ ]
+    StarGet ~~~ Spacer1[ ]
+    GoldGlow ~~~ Spacer2[ ]
     style Spacer1 fill:none,stroke:none,color:#00000000,height:50px
+    style Spacer2 fill:none,stroke:none,color:#00000000,height:50px
 ```
 
 ## 2. 상세 흐름 설명
