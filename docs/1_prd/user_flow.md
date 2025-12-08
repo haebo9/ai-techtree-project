@@ -8,18 +8,12 @@
 
 ```mermaid
 graph TD
-    %% --- [Color Palette Definition] ---
-    %% 1. 기본/시작 (회색)
+    %% --- [Color Palette] ---
     classDef default fill:#fff,stroke:#333,stroke-width:1px;
-    %% 2. 온보딩/초기화 (파란색 계열)
     classDef init fill:#e3f2fd,stroke:#1e88e5,stroke-width:2px,color:#0d47a1;
-    %% 3. 대시보드/메인 (초록색 계열)
     classDef main fill:#e8f5e9,stroke:#43a047,stroke-width:2px,color:#1b5e20;
-    %% 4. AI 면접/평가 (보라색 계열)
     classDef ai fill:#f3e5f5,stroke:#8e24aa,stroke-width:2px,color:#4a148c;
-    %% 5. 마스터/보상 (금색/주황색 계열)
     classDef gold fill:#fff8e1,stroke:#ff8f00,stroke-width:2px,color:#bf360c;
-    %% 6. 실패/재시도 (붉은색 계열)
     classDef fail fill:#ffebee,stroke:#e53935,stroke-width:2px,color:#b71c1c;
 
     %% Nodes
@@ -32,7 +26,6 @@ graph TD
     
     %% [Reflect] 대시보드에서 재응시 가능
     Dashboard -->|실력 재측정 요청| InitTest
-    
     InitTest -->|결과 분석| SetBaseStats[기본 레벨 부여/갱신]:::init
     SetBaseStats --> Dashboard
     
@@ -45,28 +38,31 @@ graph TD
     
     SelectLevel --> InterviewStart[🤖 AI 면접관 연결]:::ai
     InterviewStart --> ChatLoop["인터뷰 진행 (Streaming Q&A)"]:::ai
-    ChatLoop -->|중도 포기/이탈| Dashboard
-    
     ChatLoop --> Eval["평가 및 채점 (One-Shot JSON)"]:::ai
     
-    Eval --> ResultReport["📄 결과 리포트 확인 (피드백 & 승급 반영)"]:::ai
+    %% [Unified] 결과 리포트 통합
+    Eval --> ResultReport["📄 결과 리포트 확인 (점수/피드백)"]:::main
     
-    ResultReport --> Dashboard
+    %% [Conditional] 리포트 확인 후 승급 여부 결정
+    ResultReport --> CheckPass{"기준 점수 달성?"}
     
-    Dashboard --> CheckTrack{트랙 모든 노드 3성?}
+    CheckPass -->|No (Fail)| RetryGuide["재도전 가이드 확인"]:::fail
+    CheckPass -->|Yes (Pass)| StarGet["승급 확정 & 별(⭐) 지급"]:::gold
+    
+    RetryGuide --> Dashboard
+    StarGet --> Dashboard
+    
+    Dashboard --> CheckTrack{"트랙 모든 노드 ⭐⭐⭐?"}
     CheckTrack -->|Yes| BossRaid["☠️ 트랙 마스터 통합 퀴즈"]:::gold
     BossRaid --> BossResult{성공?}
     BossResult -->|Yes| GoldGlow["🌟 Golden Glow 이펙트 해금"]:::gold
-    
     BossResult -->|No| Retry["재도전 (쿨타임)"]:::fail
 
-    %% [UI Fix] 툴바 가림 방지
-    ResultReport ~~~ Spacer1[ ]
+    %% [UI Fix] Spacer (툴바 가림 방지)
+    StarGet ~~~ Spacer1[ ]
     GoldGlow ~~~ Spacer2[ ]
-    Retry ~~~ Spacer3[ ]
     style Spacer1 fill:none,stroke:none,color:#00000000,height:50px
     style Spacer2 fill:none,stroke:none,color:#00000000,height:50px
-    style Spacer3 fill:none,stroke:none,color:#00000000,height:50px
 ```
 
 ## 2. 상세 흐름 설명
