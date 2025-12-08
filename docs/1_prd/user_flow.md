@@ -27,12 +27,14 @@ graph TD
     
     CheckStatus -->|Locked| Disabled["진입 불가 (선행 학습 필요)"]
     CheckStatus -->|Available| SelectLevel["도전 등급 선택 (2차/3차)"]
-    CheckStatus -->|Mastered| Review[복습 하기/기록 보기]
+    CheckStatus -->|Mastered| Review["복습 하기/기록 보기"]
     
     SelectLevel --> InterviewStart[🤖 AI 면접관 연결]
     InterviewStart --> ChatLoop["인터뷰 진행 (Streaming Q&A)"]
     ChatLoop -->|중도 포기/이탈| Dashboard
-    ChatLoop --> Eval[평가 및 채점 (One-Shot JSON)]
+    
+    %% [FIX] 괄호가 들어가는 텍스트에 따옴표 추가
+    ChatLoop --> Eval["평가 및 채점 (One-Shot JSON)"]
     
     Eval --> Result{합격 여부?}
     Result -->|Fail| Feedback[불합격 피드백 & 학습 자료 추천]
@@ -45,7 +47,7 @@ graph TD
     CheckTrack -->|Yes| BossRaid["☠️ 트랙 마스터 통합 퀴즈"]
     BossRaid --> BossResult{성공?}
     BossResult -->|Yes| GoldGlow["🌟 Golden Glow 이펙트 해금"]
-    BossResult -->|No| Retry[재도전 (쿨타임)]
+    BossResult -->|No| Retry["재도전 (쿨타임)"]
 
     %% [UI Fix] 툴바 가림 방지용 투명 노드
     LevelUp ~~~ Spacer[ ]
