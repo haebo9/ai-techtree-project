@@ -159,7 +159,25 @@ sequenceDiagram
     end
     
     Backend-->>Frontend: Show Feedback Report
-
-    %% 하단 여백 추가 (투명 노트 활용)
-    Note over User, DB: <br/><br/><br/>
 ```
+
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
