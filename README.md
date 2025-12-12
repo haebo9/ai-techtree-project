@@ -37,9 +37,21 @@
 ## 🏗 System Architecture
 
 - **Frontend**: Next.js로 구축되어 **Vercel**을 통해 배포됩니다.
-- **Backend**: FastAPI 서버를 **Docker** 컨테이너로 빌드하여 **AWS (EC2)**에서 실행합니다.
-- **Database**: **MongoDB Atlas (Cloud)**를 사용하여 데이터 안정성을 확보합니다.
+- **Backend**: FastAPI 서버를 **Docker** 컨테이너로 빌드하여 **AWS (EC2)** 에서 실행합니다.
+- **Database**: **MongoDB Atlas (Cloud)** 를 사용하여 데이터 안정성을 확보합니다.
 - **AI Engine**: LangGraph 기반의 Multi-Agent 시스템이 코드 분석 및 평가를 수행합니다.
+
+---
+## 🚀 Git Strategy & Deployment
+
+> 본 프로젝트는 1인 개발의 효율성과 서비스 안정성을 위해 **GitHub Flow**를 변형한 **3-Tier 전략**을 따릅니다.
+> **로컬 중심의 개발**과 **Vercel/AWS의 무료 티어**를 적극 활용하여 비용 '0원'의 인프라를 구축했습니다.
+
+| Branch | Action & Role | Frontend | Backend | Database |
+| :--- | :--- | :--- | :--- | :--- |
+| **`feature/*`** | **Develop**<br/>기능 단위 개발 | **Localhost :3000**<br/>(Hot Reloading) | **Localhost :8000**<br/>(Docker Compose) | **MongoDB Atlas<br/>**(Dev) |
+| **`main`** | **Staging**<br/>PR 통합 및 테스트 | **Vercel Preview**<br/>(PR 시 자동 배포) | **Local Docker**<br/>(Prod simulation) | **MongoDB Atlas<br/>**(Dev) |
+| **`production`** | **Release**<br/>실제 사용자 배포 | **Vercel Prod**<br/>(Edge Network + CDN) | **AWS EC2**<br/>(t3.small + Docker) | **MongoDB Atlas<br/>**(Prod) |
 
 ---
 
