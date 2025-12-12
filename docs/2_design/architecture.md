@@ -5,7 +5,7 @@
 
 
 1.  [High-Level Architecture](#high-level-architecture)
-2.  [Architecture Components & Data Flow](#architecture-components--data-flow)
+2.  [Architecture Components](#architecture-components)
 3.  [Security & Standards](#security--standards)
 4.  [Glossary](#glossary)
 
@@ -65,7 +65,7 @@ graph TD
 | 🟡 | **Database** | MongoDB Atlas |
 
 ---
-## Architecture Components & Data Flow
+## Architecture Components
 
 이 아키텍처는 사용자 경험을 최적화하고 AI 에이전트 간의 효율적인 협업을 지원하기 위해 설계되었습니다. 주요 구성 요소와 흐름은 다음과 같습니다.
 
