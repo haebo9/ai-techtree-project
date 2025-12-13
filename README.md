@@ -75,13 +75,14 @@
 ## Roadmap
 > 상세한 개발 일정과 스프린트 계획은 [Sprint Roadmap](docs/1_prd/sprint_roadmap.md) 문서를 참고하세요.
 
+
 | Phase | Focus & Sprints | Period |
 | :--- | :--- | :--- |
-| **Phase 1** | **Discovery & Basics**<br>(Sprint 1-2) 기획, 인프라, Deep Dive | 2025.12 |
-| **Phase 2** | **AI Core Development**<br>(Sprint 3-4) LangGraph 에이전트 & State 설계 | 2026.01 |
-| **Phase 3** | **Backend & Data Layer**<br>(Sprint 5-6) FastAPI 서버 & MongoDB 연동 | 2026.02 |
-| **Phase 4** | **Frontend Implementation**<br>(Sprint 7-8) UI 시스템 & 시각화 연동 | 2026.03 |
-| **Phase 5** | **Deploy & Launch**<br>(Sprint 9-10) Docker 최적화 & Vercel 배포 | 2026.04 |
+| **Phase 0** | **Planning & Design**<br>(Sprint 0) 기획 및 기술 조사 | 2025.12 초 ~ 중순 |
+| **Phase 1** | **Foundation & Walking Skeleton**<br>(Sprint 1-2) 인프라 구축 및 E2E 연결 | 2025.12 말 ~ 2026.01 초 |
+| **Phase 2** | **MVP Development**<br>(Sprint 3-5) 핵심 기능 구현 및 v1.0.0 런칭 | 2026.01 중순 ~ 02 말 |
+| **Phase 3** | **Iteration & Deep Dive**<br>(Sprint 6-7) LangGraph 고도화 및 최적화 | 2026.03 |
+| **Phase 4** | **Polish & Stabilization**<br>(Sprint 8-9) 안정성 확보 및 문서화 | 2026.04 ~ 05 |
 
 ---
 
