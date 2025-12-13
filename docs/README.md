@@ -5,6 +5,7 @@
 ## 📘 1. prd (기획)
 **"무엇을, 왜 만드는가?"** (요구사항 및 서비스 흐름)
 
+* `sprint_roadmap.md`: 스프린트 로드맵 [[바로가기](https://github.com/haebo9/ai_techtree_project/blob/main/docs/1_prd/sprint_roadmap.md)]
 * `product_spec.md`: 핵심 기능 명세 [[바로가기](https://github.com/haebo9/ai_techtree_project/blob/main/docs/1_prd/product_spec.md)]
 * `personas.md`: 타겟 유저 정의 [[바로가기](https://github.com/haebo9/ai_techtree_project/blob/main/docs/1_prd/personas.md)]
 * `user_flow.md`: 서비스 흐름도 [[바로가기](https://github.com/haebo9/ai_techtree_project/blob/main/docs/1_prd/user_flow.md)]

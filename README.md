@@ -34,7 +34,7 @@
 | --- | --- | --- |
 | [**1_prd**](docs/1_prd) | **기획 (Product Spec)**<br>요구사항 및 서비스 흐름 정의 | • [핵심 기능 명세](docs/1_prd/product_spec.md)<br>• [페르소나 정의](docs/1_prd/personas.md)<br>• [서비스 흐름도](docs/1_prd/user_flow.md) |
 | [**2_design**](docs/2_design) | **설계 (System Design)**<br>시스템 아키텍처 및 기술 설계 | • [시스템 아키텍처](docs/2_design/architecture.md)<br>• [AI 에이전트 설계](docs/2_design/agent_workflow.md)<br>• [DB 스키마](docs/2_design/db_schema.md) |
-| [**3_knowledge**](docs/3_knowledge) | **지식 (Knowledge Base)**<br>기술 의사결정 및 트러블슈팅 | • [기술 스택 선정](docs/3_knowledge/tech_decisions.md)<br>• [트러블슈팅 로그](docs/3_knowledge/troubleshooting/README.md)<br>• [참고 자료](docs/3_knowledge/references.md) |
+| [**3_knowledge**](docs/3_knowledge) | **지식 (Knowledge Base)**<br>기술 의사결정 및 트러블슈팅 | • [기술 스택 선정](docs/3_knowledge/tech_decisions.md)<br>• [트러블슈팅 로그](docs/3_knowledge/troubleshooting/README.md) |
 
 👉 [전체 문서 목록 보기](docs/README.md)
 
@@ -73,54 +73,15 @@
 ---
 
 ## Roadmap
-> *각 단계는 Agile 스프린트 단위로 진행되며, 상황에 따라 유동적으로 변경될 수 있습니다.*
-> **(2025.12 ~ 2026.04)**
+> 상세한 개발 일정과 스프린트 계획은 [Sprint Roadmap](docs/1_prd/sprint_roadmap.md) 문서를 참고하세요.
 
-### **Phase 1: Discovery & Basics (2025.12)**
-- [x] **기획 및 설계 (Docs)**
-    - [x] 서비스 기획 (PRD, User Flow, Persona)
-    - [x] 시스템 아키텍처 및 DB 설계
-    - [x] 기술 스택 선정 및 ADR 작성
-- [x] **개발 환경 및 전략 수립 (Infra)**
-    - [x] Monorepo 구조 셋업 (Frontend, Backend, Docs)
-    - [x] Git Branch 전략 (Feature -> Main -> Prod) 및 문서화
-- [ ] **프로젝트 초기화 (Scaffolding)**
-    - [ ] **Backend**: FastAPI 프로젝트 생성 및 의존성 관리(Poetry/Pip)
-    - [ ] **Frontend**: Next.js 15 + Shadcn/ui 설치 및 실행 확인
-    - [ ] **Code Quality**: Lint/Formatter 설정 (Ruff, ESLint, Prettier)
-    
-
-### **Phase 2: AI Core Development (2026.01)**
-- [ ] **AI 에이전트 프로토타이핑**
-    - [ ] LangGraph 기반 State Graph 설계 (면접관/평가자)
-    - [ ] OpenAI API 연동 및 Prompt Engineering 테스트
-- [ ] **에이전트 기능 구현**
-    - [ ] 1:1 인터뷰 진행 로직 (Interviewer Agent)
-    - [ ] 실시간 답변 분석 및 꼬리 질문 생성
-    - [ ] 최종 피드백 및 등급 평가 로직 (Evaluator Agent)
-
-### **Phase 3: Backend & DB (2026.02)**
-- [ ] **API 서버 구축 (FastAPI)**
-    - [ ] FastAPI 기본 라우팅 및 Pydantic 모델 정의
-    - [ ] SSE(Server-Sent Events) 기반 스트리밍 API 구현
-- [ ] **데이터베이스 연동 (MongoDB)**
-    - [ ] Atlas 클라우드 연동 및 CRUD 구현
-    - [ ] Chat History 및 스킬 트리 데이터 저장 로직
-
-### **Phase 4: Frontend Implementation (2026.03)**
-- [ ] **UI/UX 구현 (Next.js)**
-    - [ ] Shadcn/ui 기반 공통 컴포넌트 개발
-    - [ ] 채팅 인터페이스 (Streaming 텍스트 렌더링)
-    - [ ] ReactFlow 기반 스킬 트리 시각화 (Interactive Graph)
-- [ ] **연동 및 최적화**
-    - [ ] Backend API 연동 및 상태 관리 (Zustand/TanStack Query)
-
-### **Phase 5: Dockerizing & AWS Deploy (2026.04)**
-- [ ] **배포 및 운영 (DevOps)**
-    - [ ] Backend Docker 이미지 빌드 및 최적화
-    - [ ] AWS EC2 인스턴스 셋업 및 Docker Compose 배포
-    - [ ] Vercel 프로덕션 배포 및 도메인 연결
-    - [ ] 최종 E2E 테스트 및 서비스 런칭 (v1.0)
+| Phase | Focus & Sprints | Period |
+| :--- | :--- | :--- |
+| **Phase 1** | **Discovery & Basics**<br>(Sprint 1-2) 기획, 인프라, Deep Dive | 2025.12 |
+| **Phase 2** | **AI Core Development**<br>(Sprint 3-4) LangGraph 에이전트 & State 설계 | 2026.01 |
+| **Phase 3** | **Backend & Data Layer**<br>(Sprint 5-6) FastAPI 서버 & MongoDB 연동 | 2026.02 |
+| **Phase 4** | **Frontend Implementation**<br>(Sprint 7-8) UI 시스템 & 시각화 연동 | 2026.03 |
+| **Phase 5** | **Deploy & Launch**<br>(Sprint 9-10) Docker 최적화 & Vercel 배포 | 2026.04 |
 
 ---
 

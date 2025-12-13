@@ -9,7 +9,7 @@
 
 ---
 ## 2025년 12월
-- 25.12.13(토) : 🔵 troubleshooting, references 문서 작성
+- 25.12.13(토) : 🔵 Sprint Roadmap 구체화, troubleshooting & references 문서 작성
 - 25.12.12(금) : 🔵 architecture & tech_decisions 문서 작성, git-flow & roadmap 수립 
 - 25.12.10(수) : 🔵 agent_workflow, db_schema 문서 작성
 - 25.12.08(월) : 🔵 user_flow(flowchart) 작성, Main README 개선
