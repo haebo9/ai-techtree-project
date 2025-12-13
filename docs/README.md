@@ -20,5 +20,5 @@
 **"무엇을 참고하고 배웠는가?"** (기술 의사결정 및 트러블슈팅)
 
 * `tech_decisions.md`: 기술 스택 선정 이유 [[바로가기](https://github.com/haebo9/ai_techtree_project/blob/main/docs/3_knowledge/tech_decisions.md)]
-* `troubleshooting.md`: 개발 중 마주친 에러와 해결 과정 기록 [[바로가기](https://github.com/haebo9/ai_techtree_project/blob/main/docs/3_knowledge/troubleshooting.md)]
+* `troubleshooting`: 개발 중 마주친 에러와 해결 과정 기록 [[바로가기](https://github.com/haebo9/ai_techtree_project/blob/main/docs/3_knowledge/troubleshooting)]
 * `references.md`: 주요 참고 문서 및 튜토리얼 링크 모음 [[바로가기](https://github.com/haebo9/ai_techtree_project/blob/main/docs/3_knowledge/references.md)]
