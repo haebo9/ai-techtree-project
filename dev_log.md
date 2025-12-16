@@ -9,6 +9,7 @@
 
 ---
 ## 2025년 12월
+- 25.12.15(월) : 🔵 AI Agent workflow 검토 및 수정
 - 25.12.13(토) : 🔵 Sprint Roadmap 구체화, troubleshooting & references 문서 작성
 - 25.12.12(금) : 🔵 architecture & tech_decisions 문서 작성, git-flow & roadmap 수립 
 - 25.12.10(수) : 🔵 agent_workflow, db_schema 문서 작성
