@@ -9,6 +9,7 @@
 
 ---
 ## 2025년 12월
+- 25.12.20(금) : 🔴 Roadmap 전면 수정, mcp_server 문서 작성 (for MCP-player-10)
 - 25.12.17(수) : 🔵 tech_decisions 문서 검토 및 수정
 - 25.12.15(월) : 🔵 AI Agent workflow 검토 및 수정
 - 25.12.13(토) : 🔵 Sprint Roadmap 구체화, troubleshooting & references 문서 작성
