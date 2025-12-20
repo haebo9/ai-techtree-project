@@ -15,6 +15,7 @@
 
 * `architecture.md`: 시스템 전체 구조 [[바로가기](https://github.com/haebo9/ai_techtree_project/blob/main/docs/2_design/architecture.md)]
 * `agent_workflow.md`: AI 에이전트 동작 흐름 [[바로가기](https://github.com/haebo9/ai_techtree_project/blob/main/docs/2_design/agent_workflow.md)]
+* `mcp_server.md`: MCP 서버 설계 [[바로가기](https://github.com/haebo9/ai_techtree_project/blob/main/docs/2_design/mcp_server.md)]
 * `db_schema.md`: MongoDB 데이터 모델 [[바로가기](https://github.com/haebo9/ai_techtree_project/blob/main/docs/2_design/db_schema.md)]
 
 ## 📚 3. knowledge (지식)

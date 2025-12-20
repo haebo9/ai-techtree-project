@@ -79,10 +79,10 @@
 | Phase | Focus & Sprints | Period |
 | :--- | :--- | :--- |
 | **Phase 0** | **Planning & Design**<br>(Sprint 0) 기획 및 기술 조사 | 2025.12 초 ~ 중순 |
-| **Phase 1** | **Foundation & Walking Skeleton**<br>(Sprint 1-2) 인프라 구축 및 E2E 연결 | 2025.12 말 ~ 2026.01 초 |
-| **Phase 2** | **MVP Development**<br>(Sprint 3-5) 핵심 기능 구현 및 v1.0.0 런칭 | 2026.01 중순 ~ 02 말 |
-| **Phase 3** | **Iteration & Deep Dive**<br>(Sprint 6-7) LangGraph 고도화 및 최적화 | 2026.03 |
-| **Phase 4** | **Polish & Stabilization**<br>(Sprint 8-9) 안정성 확보 및 문서화 | 2026.04 ~ 05 |
+| **Phase 1** | **Core Logic & MCP Server**<br>(Sprint 1-4) Agent 기능 및 MCP 서버 구현 | 2025.12 말 ~ 2026.01 중순 |
+| **Phase 2** | **Web Service Integration**<br>(Sprint 5-7) 웹 프론트엔드 통합 및 MVP 런칭 | 2026.01 말 ~ 02 말 |
+| **Phase 3** | **Iteration & Scale-up**<br>(Sprint 8-9) 성능 개선 및 고도화 | 2026.03 ~ 04 |
+| **Phase 4** | **Polish & Stabilization**<br>(Sprint 10) 안정성 확보 및 유지보수 | 2026.05 ~ |
 
 ---
 
