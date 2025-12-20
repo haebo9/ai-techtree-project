@@ -1,16 +1,16 @@
 # TechTree Nexus: Kakao PlayMCP Edition
 
-> **Target**: Kakao MCP Player 10 Contest
-> **Concept**: 카카오톡/PlayMCP 채팅창에서 만나는 **"내 손안의 AI 기술 면접관"**
+> **Target**: Kakao MCP Player 10 Contest <br/>
+> **Concept**: PlayMCP 채팅창에서 만나는 **"내 손안의 AI 기술 면접관"**
 
 ## 1. 아키텍처 (어떻게 연결되는가?)
 
-사용자는 내가 만든 서버에 직접 접속하지 않습니다. **Kakao PlayMCP**가 중간 다리가 되어줍니다.
+사용자는 내가 만든 서버에 직접 접속하지 않습니다. **PlayMCP**가 중간 다리가 되어줍니다.
 
 ```mermaid
 sequenceDiagram
     participant User as 사용자 (Kakao/Web)
-    participant PlayMCP as 🟡 Kakao PlayMCP (Client)
+    participant PlayMCP as 🟡 PlayMCP (Client)
     participant MyServer as ☁️ My Server (AWS EC2)
 
     Note over User, MyServer: 1. 면접 시작
@@ -34,7 +34,7 @@ sequenceDiagram
 
 ## 2. PlayMCP 연동 필수 조건
 
-Kakao PlayMCP 서버가 내 서버를 호출할 수 있어야 하므로, **공개된 인터넷 주소**가 필수입니다.
+PlayMCP 서버가 내 서버를 호출할 수 있어야 하므로, **공개된 인터넷 주소**가 필수입니다.
 
 1.  **통신 방식**: `SSE (Server-Sent Events)` over HTTP
     *   로컬 전용(`stdio`)이 아닌 **웹 서버 모드**로 띄워야 함.
@@ -43,7 +43,7 @@ Kakao PlayMCP 서버가 내 서버를 호출할 수 있어야 하므로, **공�
     *   `http://{MY_PUBLIC_IP}:8000/messages` (메시지 처리)
 3.  **배포 환경**:
     *   **AWS EC2** (t2.micro) 사용.
-    *   **Public IP** 할당 필수 (카카오 서버가 접속해야 하므로).
+    *   **Public IP** 할당 필수 (PlayMCP가 접속해야 하므로).
 
 ---
 
@@ -99,4 +99,4 @@ PlayMCP 채팅창에서 AI가 자동으로 호출할 함수들입니다.
 
 - [ ] `FastAPI`로 웹 서버 띄우기 (SSE 지원).
 - [ ] AWS EC2 보안 그룹에서 **8000번 포트 개방**.
-- [ ] Kakao PlayMCP 개발자 센터에 내 서버 URL (`http://.../sse`) 등록.
+- [ ] PlayMCP 개발자 센터에 내 서버 URL (`http://.../sse`) 등록.
