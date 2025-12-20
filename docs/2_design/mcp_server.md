@@ -9,25 +9,39 @@
 
 ```mermaid
 sequenceDiagram
-    participant User as 사용자 (Kakao/Web)
+    participant User as 사용자 (Web)
     participant PlayMCP as 🟡 PlayMCP (Client)
     participant MyServer as ☁️ My Server (AWS EC2)
+    participant DB as 🗄️ MongoDB Atlas
 
-    Note over User, MyServer: 1. 면접 시작
-    User->>PlayMCP: "파이썬 레벨 2 면접 시작해줘"
-    PlayMCP->>MyServer: start_interview(skill="python", level=2)
-    MyServer-->>PlayMCP: 접속 성공 (Session ID 발급)
+    Note over User, DB: 1. 진단 시작
+    User->>PlayMCP: "나 개발자인데 AI 실력 테스트 할래"
+    PlayMCP->>MyServer: start_assessment(user_type="developer")
+    MyServer->>DB: 맞춤형 문제 세트(5문제) 로드
+    MyServer-->>PlayMCP: 세션 생성 완료 (Session ID)
 
-    Note over User, MyServer: 2. 실시간 문답 (SSE)
-    loop 인터뷰 진행
-        PlayMCP->>MyServer: get_next_question()
-        MyServer-->>PlayMCP: "제너레이터의 장점은?"
-        PlayMCP->>User: 채팅으로 질문 전송
+    Note over User, DB: 2. 실시간 문답 (SSE Loop)
+    loop 테스트 진행
+        PlayMCP->>MyServer: get_next_problem()
+        MyServer-->>PlayMCP: "Q1. Overfitting 해결 방법은?"
+        PlayMCP->>User: 질문 전송
         
-        User->>PlayMCP: "메모리 효율이 좋습니다."
-        PlayMCP->>MyServer: submit_answer("메모리 효율...")
-        MyServer-->>PlayMCP: (채점 및 다음 질문 준비)
+        User->>PlayMCP: "Dropout과 데이터 증강..."
+        PlayMCP->>MyServer: submit_response("Dropout...")
+        MyServer->>DB: 답변 저장 및 실시간 평가
+        
+        opt 힌트 요청
+            User->>PlayMCP: "힌트 좀 줘"
+            PlayMCP->>MyServer: request_hint()
+            MyServer-->>PlayMCP: "모델의 복잡도를 줄이는 방법..."
+        end
     end
+
+    Note over User, DB: 3. 결과 리포트
+    PlayMCP->>MyServer: get_final_report()
+    MyServer->>DB: 종합 분석 결과 조회
+    MyServer-->>PlayMCP: "Lv.3 실전형 엔지니어 (강점: RAG)"
+    PlayMCP->>User: 결과 리포트 출력
 ```
 
 ---
@@ -97,6 +111,7 @@ PlayMCP 채팅창에서 AI가 자동으로 호출할 함수들입니다.
 
 ## 5. 개발 체크리스트
 
+- [ ] **Data Layer**: MongoDB Atlas 클러스터 생성 및 연결 (`backend/.env`).
 - [ ] `FastAPI`로 웹 서버 띄우기 (SSE 지원).
 - [ ] AWS EC2 보안 그룹에서 **8000번 포트 개방**.
 - [ ] PlayMCP 개발자 센터에 내 서버 URL (`http://.../sse`) 등록.
