@@ -22,7 +22,7 @@
 
 - [ ] **Sprint 1 (12월 3주~4주): 환경 구축 및 기본 로직**
     - [ ] **DB**: MongoDB Atlas 클러스터 생성 및 스키마 설계 (`questions`, `sessions`)
-    - [ ] **Backend**: FastAPI 프로젝트 Scaffolding 및 환경 변수 설정
+    - [x] **Backend**: FastAPI 프로젝트 Scaffolding 및 환경 변수 설정
     - [ ] **AI Core**: LangChain 기반의 단순 질의응답(Interviewer) 로직 구현 (CLI 테스트)
 
 - [ ] **Sprint 2 (1월 1주): AI 에이전트 고도화 (LangGraph)**
