@@ -18,7 +18,14 @@ backend/
 │   │       └── endpoints/
 │   │           ├── mcp.py      # PlayMCP 연동용 SSE 엔드포인트
 │   │           └── users.py    # 유저 관리 API
-│   ├── schemas/                # Pydantic 모델 (DTO, 데이터 검증)
+│   ├── models/                 # DB 모델 (MongoDB Document 구조 정의)
+│   │   ├── common.py           # 공통 모델 (ObjectId 등)
+│   │   ├── user.py             # User Collection (Skill Tree 포함)
+│   │   ├── interview.py        # Interview Collection
+│   │   ├── question.py         # Question Collection
+│   │   ├── track.py            # Track Collection
+│   │   └── skill.py            # Skill Collection
+│   ├── schemas/                # API 스키마 (DTO, Request/Response 검증)
 │   │   ├── common.py
 │   │   └── interview.py
 │   ├── services/               # 비즈니스 로직 계층 (DB CRUD, 단순 로직)
