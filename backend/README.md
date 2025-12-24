@@ -18,18 +18,20 @@ backend/
 │   │       └── endpoints/                  # API 엔드포인트
 │   │           ├── mcp.py                      # PlayMCP 연동용 SSE 엔드포인트
 │   │           └── users.py                    # 유저 관리 API
-│   ├── db_schemas/                     # DB 데이터 구조 (MongoDB)
+│   ├── schemas_db/                     # DB 데이터 구조 (MongoDB)
 │   │   ├── common.py                       # 공통 설정 (ObjectId 처리 등)
 │   │   ├── user.py                         # 유저 정보 + 개인별 스킬트리 상태
 │   │   ├── interview.py                    # 면접 대화 로그 & 평가 결과표
 │   │   ├── question.py                     # 면접 문제 은행 (질문 & 모범답안)
 │   │   ├── track.py                        # 직무별 로드맵 커리큘럼 (Backend Basic 등)
 │   │   └── skill.py                        # 기술 상세 정보 (아이콘, 설명 등)
-│   ├── api_schemas/                    # API 스키마 (DTO, Request/Response 검증)
+│   ├── schemas_api/                    # API 스키마 (DTO, Request/Response 검증)
 │   │   ├── common.py                       # 공통 응답 모델 (에러, 성공 메시지 등)
 │   │   └── interview.py                    # 면접 관련 유효성 검사
-│   ├── services/                       # 비즈니스 로직 계층 (DB CRUD, 단순 로직)
-│   │   └── interview_service.py            # 면접 진행 관리 및 상태 업데이트
+│   ├── services/                       # 비즈니스 로직 + DB CRUD 계층
+│   │   ├── crud_base.py                    # CRUD 공통 부모 클래스
+│   │   ├── crud_user.py                    # User DB 처리
+│   │   └── crud_interview.py               # Interview DB 처리
 │   └── ai/                             # AI/LangChain 핵심 로직
 │       ├── agents/                         # 개별 AI 에이전트 정의
 │       │   ├── interviewer.py                  # 면접관 페르소나 및 대화 로직
