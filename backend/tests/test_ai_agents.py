@@ -7,6 +7,29 @@ load_dotenv(dotenv_path="backend/.env")
 
 from app.ai.agents.interviewer import generate_interview_response
 from app.ai.agents.evaluator import evaluate_answer
+from app.ai.agents.question_generator import generate_single_question
+
+@pytest.mark.asyncio
+async def test_question_generator_agent():
+    """문제 출제 에이전트가 JSON 형식으로 문제를 잘 생성하는지 테스트"""
+    print("\n[Test] Question Generator Agent 시작...")
+    
+    skill = "Python"
+    topic = "Decorator"
+    level = "Intermediate"
+    
+    result = await generate_single_question(skill, topic, level)
+    
+    print(f"Generated Question: {result}")
+    
+    # 필수 필드 존재 여부 확인
+    assert "question_text" in result
+    assert "model_answer" in result
+    assert "evaluation_criteria" in result
+    assert isinstance(result["evaluation_criteria"], list)
+    assert len(result["evaluation_criteria"]) >= 3
+    
+    print("✅ Question Generator Agent 테스트 통과")
 
 @pytest.mark.asyncio
 async def test_interviewer_agent():
