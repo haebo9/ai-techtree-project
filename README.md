@@ -192,7 +192,7 @@ docker-compose -f docker-compose.local.yml exec backend sh -c "python scripts/in
 To monitor and interact with the LangGraph agent locally using LangSmith (LangGraph Studio):
 
 1. **Setup Agent Environment**
-   Create a `.env` file in `backend/app/engine/agents/langgraph/` with the following:
+   Create a `.env` file in `backend/` (or copy from root) with the following:
    ```env
    OPENAI_API_KEY=sk-...
    LANGCHAIN_TRACING_V2=true
@@ -210,7 +210,8 @@ To monitor and interact with the LangGraph agent locally using LangSmith (LangGr
    pip install langgraph-cli
    
    # Run Server (Ensure backend root is in PYTHONPATH)
-   export PYTHONPATH=$PYTHONPATH:../../../../..
+   # We need 'backend' directory in path to import 'app'
+   export PYTHONPATH=$PYTHONPATH:../../../..
    langgraph dev
    ```
 
