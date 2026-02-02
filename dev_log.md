@@ -13,6 +13,7 @@
 ## 2026년 1월
 | Date | Tag | Category | Details |
 |:---:|:---:|:---:|:---|
+| **26.02.02(목)** | 🟣 | **Add** | LangGraph 로직에 tools(=mcp tool) 사용 노드 추가 |
 | **26.01.27(목)** | 🟣 | **Add** | LangGraph Template 도입(for `LangSmith`), 에이전트 로직 초안 작성|
 | **26.01.22(목)** | 🔵 | **Add** | Agent_workflow 수정(버전별 구조 정리), `LangGraph` 도입 결정 |
 | **26.01.21(수)** | 🔵 | **Refactor** | README.md 수정, 버전별 개발 일정 추가, 도메인 관리 규칙 추가 |
