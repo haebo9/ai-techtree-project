@@ -17,25 +17,25 @@ class RouterOutput(BaseModel):
 
 # 2. Prompt
 ROUTER_SYSTEM_PROMPT = """
-You are the 'Router' of an AI Interviewer System.
-Your job is to analyze the user's latest input and conversation context to decide the next action.
+    You are the 'Router' of an AI Interviewer System.
+    Your job is to analyze the user's latest input and conversation context to decide the next action.
 
-[Context]
-- Current Topic: {current_topic}
-- Last Question: {last_question}
+    [Context]
+    - Current Topic: {current_topic}
+    - Last Question: {last_question}
 
-[Intents]
-- ANSWER: The user is attempting to answer the interview question. (e.g., "It is a mechanism...", "I don't know", Code snippets)
-- NEXT_QUESTION: The user wants to skip or simply asks for the next problem. (e.g., "Next", "Pass", "Give me another one")
-- CHANGE_TOPIC: The user explicitly wants to change the subject. (e.g., "Let's do Java", "Can we ask about DB?")
-- CONSULT: The user is asking general questions, seeking advice, or just chatting, unrelated to the specific interview question. (e.g., "What should I study?", "Hi")
-- QUIT: The user wants to end the session. (e.g., "Stop", "Bye", "End")
+    [Intents]
+    - ANSWER: The user is attempting to answer the interview question. (e.g., "It is a mechanism...", "I don't know", Code snippets)
+    - NEXT_QUESTION: The user wants to skip or simply asks for the next problem. (e.g., "Next", "Pass", "Give me another one")
+    - CHANGE_TOPIC: The user explicitly wants to change the subject. (e.g., "Let's do Java", "Can we ask about DB?")
+    - CONSULT: The user is asking general questions, seeking advice, or just chatting, unrelated to the specific interview question. (e.g., "What should I study?", "Hi")
+    - QUIT: The user wants to end the session. (e.g., "Stop", "Bye", "End")
 
-[Instruction]
-- If the user provides an answer (even if wrong or short), classify as ANSWER.
-- If the user just says "Start" or "Begin" at the very beginning, classify as CHANGE_TOPIC (if topic implied) or NEXT_QUESTION (to start).
-- Output JSON strictly matching the schema.
-"""
+    [Instruction]
+    - If the user provides an answer (even if wrong or short), classify as ANSWER.
+    - If the user just says "Start" or "Begin" at the very beginning, classify as CHANGE_TOPIC (if topic implied) or NEXT_QUESTION (to start).
+    - Output JSON strictly matching the schema.
+    """
 
 router_prompt = ChatPromptTemplate.from_messages([
     ("system", ROUTER_SYSTEM_PROMPT),

@@ -188,4 +188,32 @@ MongoDB에 필요한 인덱스를 생성하고 TechTree 데이터를 동기화�
 docker-compose -f docker-compose.local.yml exec backend sh -c "python scripts/init_db.py && python scripts/sync_track_to_db.py"
 ```
 
+### 5. LangSmith Server (Local Test)
+To monitor and interact with the LangGraph agent locally using LangSmith (LangGraph Studio):
+
+1. **Setup Agent Environment**
+   Create a `.env` file in `backend/app/engine/agents/langgraph/` with the following:
+   ```env
+   OPENAI_API_KEY=sk-...
+   LANGCHAIN_TRACING_V2=true
+   LANGCHAIN_PROJECT=ai-techtree-agent
+   LANGCHAIN_API_KEY=lsv2_...
+   MONGODB_URL=mongodb://root:example@localhost:27017/ai_techtree?authSource=admin
+   ```
+
+2. **Install Dependencies & Run Server**
+   ```bash
+   cd backend/app/engine/agents/langgraph
+   
+   # Install project in editable mode
+   pip install -e .
+   pip install langgraph-cli
+   
+   # Run Server (Ensure backend root is in PYTHONPATH)
+   export PYTHONPATH=$PYTHONPATH:../../../../..
+   langgraph dev
+   ```
+
+3. **Access Studio**
+   Open [http://localhost:2024](http://localhost:2024) in your browser.
 

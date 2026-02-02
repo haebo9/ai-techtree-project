@@ -17,11 +17,21 @@ class InterviewService:
             return existing_user
         
         # Create new user
-        new_user_in = UserCreate(
-            auth={"email": email, "provider": "guest", "uid": email},
-            profile={"nickname": nickname}
-        )
-        created_user = await user_crud.create(new_user_in)
+        # Direct DB structure mapping since UserCreate is flat API schema
+        user_in_data = {
+            "auth": {
+                "email": email,
+                "provider": "guest",
+                "uid": email
+            },
+            "profile": {
+                "nickname": nickname,
+                "avatar_url": None,
+                "job_title": "Guest User"
+            }
+        }
+        
+        created_user = await user_crud.create(user_in_data)
         return created_user
 
     async def update_skill_status(self, user_id: str, subject: str, passed: bool, score: int) -> bool:
@@ -55,16 +65,11 @@ class InterviewService:
                 progress.level += 1
                 
         # 2. Update User DB
-        # We need to construct an update dict.
-        # Ideally, we should use $set atomic operators, but CRUDBase usually does full update or specific fields.
-        # Assuming we can pass the specific fields to update.
-        
-        # Since 'skill_tree' is a Dict, we might overwrite other keys if we are not careful with some ODMs.
-        # Beanie/Motor usually handles partial updates if we use $set.
-        # But CRUDBase 'update' takes a schema or dict.
+        # We need to serialize Pydantic models to dicts for MongoDB
+        skills_dict = {k: v.dict() for k, v in skills.items()}
         
         update_data = {
-            "skill_tree": skills,
+            "skill_tree": skills_dict,
             "stats": user.stats.dict(),
             "updated_at": datetime.utcnow()
         }

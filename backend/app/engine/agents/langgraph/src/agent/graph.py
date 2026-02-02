@@ -20,21 +20,9 @@ from agent.evaluator_agent import evaluate_answer, analyze_interview_result
 from agent.interviewer_agent import generate_feedback_message, format_final_report, recommend_topic_response
 from agent.router_agent import route_user_input
 
-# --- Mock Service for Standalone Execution ---
-class MockInterviewService:
-    async def get_or_create_user(self, email: str, nickname: str):
-        print(f"[MockDB] Get/Create User: {email}")
-        return type("User", (), {"id": "mock_user_id_123"})()
-
-    async def update_skill_status(self, user_id, subject, passed, score):
-        print(f"[MockDB] Update Skill: {subject}, Passed: {passed}, Score: {score}")
-        return passed and score >= 80 # Fake star logic
-
-    async def save_questions(self, questions):
-        print(f"[MockDB] Saving {len(questions)} questions")
-
-interview_service = MockInterviewService()
-# ---------------------------------------------
+# Import real backend services
+# Note: Ensure that the 'backend' directory is in PYTHONPATH for 'app' imports to work.
+from app.services.interview_service import interview_service
 
 
 # 1. State Definition
