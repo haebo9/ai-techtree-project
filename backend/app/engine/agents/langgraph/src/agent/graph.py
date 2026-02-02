@@ -16,11 +16,11 @@ from langgraph.prebuilt import ToolNode, tools_condition
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 
 # 로컬 에이전트 모듈 임포트
-from agent.qamaker_agent import generate_questions
-from agent.evaluator_agent import evaluate_answer, analyze_interview_result
-from agent.interviewer_agent import generate_feedback_message, format_final_report
-from agent.router_agent import route_user_input
-from agent.tools_agent import techtree_tools # Defined Tools
+from agent.agent_qamaker import generate_questions
+from agent.agent_evaluator import evaluate_answer, analyze_interview_result
+from agent.agent_interviewer import generate_feedback_message, format_final_report
+from agent.agent_router import route_user_input
+from agent.agent_tools import techtree_tools # Defined Tools
 
 # 실제 백엔드 서비스 연동
 # 주의: 실행 시 backend 경로가 PYTHONPATH에 포함되어야 함
