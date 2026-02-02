@@ -9,15 +9,18 @@ from dotenv import load_dotenv, find_dotenv
 # .env 파일 로드 (환경 변수 설정)
 load_dotenv(find_dotenv('.env'))
 
+from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, END, START
 from langgraph.graph.message import add_messages
+from langgraph.prebuilt import ToolNode, tools_condition
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 
 # 로컬 에이전트 모듈 임포트
 from agent.qamaker_agent import generate_questions
 from agent.evaluator_agent import evaluate_answer, analyze_interview_result
-from agent.interviewer_agent import generate_feedback_message, format_final_report, recommend_topic_response
+from agent.interviewer_agent import generate_feedback_message, format_final_report
 from agent.router_agent import route_user_input
+from agent.tools_agent import techtree_tools # Defined Tools
 
 # 실제 백엔드 서비스 연동
 # 주의: 실행 시 backend 경로가 PYTHONPATH에 포함되어야 함
@@ -90,12 +93,16 @@ async def router_node(state: InterviewState):
     """
     messages = state["messages"]
     if not messages:
+        # 첫 메시지가 없으면 상담(인사) 모드로 시작
         return {"user_intent": "CONSULT"}
         
     last_msg = messages[-1]
     
     # AI가 마지막으로 말했으면 사용자 응답 대기 (WAIT)
+    # LangGraph Loop 방지용: 마지막 메시지가 AI면 멈춤
     if isinstance(last_msg, AIMessage):
+        # 단, ToolMessage가 마지막인 경우는 제외 (Consult 루프 중일 수 있음)
+        # 하지만 router는 전체 흐름의 앞단이므로 AI 메시지면 멈추는 게 맞음
         return {"user_intent": "WAIT"}
 
     user_input = last_msg.content
@@ -109,24 +116,29 @@ async def router_node(state: InterviewState):
     
     updates = {"user_intent": intent}
     
-    # 주제 변경 요청 시 관련 상태 초기화
+    # 주제 변경 요청 시 관련 상태 초기화 -> 새로운 질문 생성 유도
     if intent == "CHANGE_TOPIC" and new_topic:
         updates["topic"] = new_topic
         updates["generated_questions"] = [] # 기존 질문 큐 비우기
         
     return updates
 
+# [Consult LLM 설정]
+# 도구를 사용할 수 있는 상담 전용 LLM 인스턴스
+# 주의: Model Should match what allows function calling well (gpt-4o)
+advisor_llm = ChatOpenAI(model="gpt-4o", temperature=0.5).bind_tools(techtree_tools)
+
 async def consult_node(state: InterviewState):
     """
-    [상담] 면접 질문 외의 일반 대화나 주제 추천을 처리합니다.
+    [상담] 사용자의 질문에 대해 Tool을 사용하거나 직접 답변합니다.
+    (Consult -> Tools -> Consult 루프 가능)
     """
-    last_message = state["messages"][-1]
-    user_input = last_message.content
-    
-    response_text = await recommend_topic_response(user_input)
+    # 1. 이전 대화 기록 전체 전달 (문맥 파악)
+    # LangGraph가 자동으로 tool_result 메시지를 state["messages"]에 추가해줌
+    response = await advisor_llm.ainvoke(state["messages"])
     
     return {
-        "messages": [AIMessage(content=response_text)]
+        "messages": [response]
     }
 
 async def generate_question_node(state: InterviewState):
@@ -249,7 +261,11 @@ def check_router_intent(state: InterviewState) -> Literal["generate", "evaluate"
     """라우터 결과에 따라 다음 노드를 결정합니다."""
     intent = state.get("user_intent")
     
-    if intent == "ANSWER":
+    if intent == "WAIT":
+        # AI가 답변을 한 상태이므로 사용자 입력을 기다림 (사이클 종료)
+        return "end"
+
+    elif intent == "ANSWER":
         # 질문이 활성화된 상태여야 평가 가능
         if state.get("current_question"):
             return "evaluate"
@@ -290,6 +306,7 @@ workflow = StateGraph(InterviewState)
 workflow.add_node("load_state", load_state_node)
 workflow.add_node("router", router_node)
 workflow.add_node("consult", consult_node)
+workflow.add_node("tools", ToolNode(techtree_tools)) # Tool 실행 노드 추가
 workflow.add_node("generate_question", generate_question_node)
 workflow.add_node("evaluate_answer", evaluate_answer_node)
 workflow.add_node("provide_feedback", feedback_node)
@@ -313,6 +330,20 @@ workflow.add_conditional_edges(
     }
 )
 
+# [상담 <-> 도구] 순환 구조
+# consult가 tool calls를 반환하면 'tools'로, 아니면 END(답변 완료)
+workflow.add_conditional_edges(
+    "consult",
+    tools_condition,
+    {
+        "tools": "tools",  # 도구 실행 필요 시 tools 노드로 이동
+        END: END           # 답변 완료 시 종료
+    }
+)
+# 도구 실행 후 다시 상담 노드로 돌아와 결과를 보고 답변 생성
+workflow.add_edge("tools", "consult")
+
+
 # 평가 -> 피드백 순차 연결
 workflow.add_edge("evaluate_answer", "provide_feedback")
 
@@ -328,7 +359,7 @@ workflow.add_conditional_edges(
 
 # 끝 지점 설정 (Turn 종료 후 대기)
 workflow.add_edge("generate_question", END) # 질문 던지고 사용자 입력 대기
-workflow.add_edge("consult", END)           # 상담 답변 후 대기
+# consult는 tools_condition에 의해 END 처리됨
 workflow.add_edge("final_report", END)      # 리포트 후 종료
 
 # (3) 컴파일
