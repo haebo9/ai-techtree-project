@@ -1,76 +1,84 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Literal, TypedDict
 from typing_extensions import Annotated
 import os
 from dotenv import load_dotenv, find_dotenv
 
-# Automatically find and load the .env file from the project root or parents
+# .env 파일 로드 (환경 변수 설정)
 load_dotenv(find_dotenv('.env'))
 
 from langgraph.graph import StateGraph, END, START
 from langgraph.graph.message import add_messages
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 
-# Import local agents (ported from legacy)
+# 로컬 에이전트 모듈 임포트
 from agent.qamaker_agent import generate_questions
 from agent.evaluator_agent import evaluate_answer, analyze_interview_result
 from agent.interviewer_agent import generate_feedback_message, format_final_report, recommend_topic_response
 from agent.router_agent import route_user_input
 
-# Import real backend services
-# Note: Ensure that the 'backend' directory is in PYTHONPATH for 'app' imports to work.
+# 실제 백엔드 서비스 연동
+# 주의: 실행 시 backend 경로가 PYTHONPATH에 포함되어야 함
 from app.services.interview_service import interview_service
 
 
-# 1. State Definition
+# ==========================================
+# 1. 상태(State) 정의
+# ==========================================
 class InterviewState(TypedDict, total=False):
-    # Standard LangChain/LangGraph message history
+    """
+    LangGraph에서 관리하는 인터뷰 세션의 전체 상태입니다.
+    """
+    # 대화 기록 (LangChain Message 객체 리스트, append 방식)
     messages: Annotated[List[BaseMessage], add_messages]
     
-    # Session Context
-    user_id: str
-    user_db_id: str
-    track: str
-    topic: str
-    level: str
+    # 사용자 및 학습 세션 정보
+    user_id: str          # 세션 상의 사용자 ID
+    user_db_id: str       # 실제 DB의 ObjectId (문자열)
+    track: str            # 현재 진행 중인 트랙 (예: Python, AI)
+    topic: str            # 세부 주제 (예: Generator, overfitting)
+    level: str            # 난이도 (Basic, Intermediate, Advanced)
     
-    # Internal State
-    generated_questions: List[dict]  # Queue of questions
-    current_question: Optional[dict] # Currently active question (that the user is answering)
-    evaluation_result: Optional[dict] # Result of the last evaluation
-    star_gained: bool # Flag to check if star was gained in parsing turn
-    user_intent: Optional[str] # Router decision: ANSWER, NEXT_QUESTION, CHANGE_TOPIC, CONSULT, QUIT
+    # 내부 로직 상태
+    generated_questions: List[dict]   # 미리 생성된 질문 큐 (Cache)
+    current_question: Optional[dict]  # 현재 사용자에게 던져진 질문 정보
+    evaluation_result: Optional[dict] # 가장 최근 답변에 대한 평가 결과
+    star_gained: bool                 # 방금 질문에서 별(점수)을 획득했는지 여부
+    user_intent: Optional[str]        # 라우터가 파악한 사용자 의도 (ANSWER, NEXT...)
     
-    # Progress
-    question_count: int
-    max_questions: int
-    interview_complete: bool
+    # 진행도 제어
+    question_count: int   # 현재까지 진행한 질문 수
+    max_questions: int    # 최대 질문 수 (세션 종료 기준)
+    interview_complete: bool # 인터뷰 종료 플래그
 
 
-# 2. Nodes
+# ==========================================
+# 2. 노드(Node) 함수 정의
+# ==========================================
 
 async def load_state_node(state: InterviewState):
     """
-    [Init] Ensure User Exists and Load State
+    [초기화] 사용자 정보를 DB에서 조회하거나 생성하여 상태에 로드합니다.
     """
-    # Initialize defaults if not present
     params = {}
+    
+    # 기본값 설정
+    uid = state.get("user_id", "guest")
     if not state.get("user_id"):
-        params["user_id"] = "guest"
+        params["user_id"] = uid
         
+    # 사용자 DB 조회 (이메일 기반 가상 조회)
     if not state.get("user_db_id"):
-        # For prototype, use a fixed guest email or derive from user_id if possible
-        uid = state.get("user_id", "guest")
         email = f"{uid}@techtree.com"
         nickname = f"User_{uid}"
         
+        # 실제 DB 서비스 호출
         user = await interview_service.get_or_create_user(email, nickname)
         params["user_db_id"] = str(user.id)
     
-    # Set default config if missing
+    # 인터뷰 설정 기본값
     if not state.get("max_questions"):
         params["max_questions"] = 5
         
@@ -78,16 +86,15 @@ async def load_state_node(state: InterviewState):
 
 async def router_node(state: InterviewState):
     """
-    [Router] Analyze User Intent and Route
+    [라우터] 사용자의 최신 입력을 분석하여 다음 의도(Intent)를 결정합니다.
     """
     messages = state["messages"]
     if not messages:
-        # Should not happen if initiated correctly, but default to CONSULT
         return {"user_intent": "CONSULT"}
         
     last_msg = messages[-1]
     
-    # If the last message is AI, we are waiting for User.
+    # AI가 마지막으로 말했으면 사용자 응답 대기 (WAIT)
     if isinstance(last_msg, AIMessage):
         return {"user_intent": "WAIT"}
 
@@ -95,22 +102,23 @@ async def router_node(state: InterviewState):
     curr_topic = state.get("topic", "General")
     last_q_text = state.get("current_question", {}).get("question_text", "")
     
-    # Use Router Agent
+    # LLM Router 호출
     route_result = await route_user_input(user_input, curr_topic, last_q_text)
     intent = route_result.get("intent", "CONSULT")
     new_topic = route_result.get("topic")
     
     updates = {"user_intent": intent}
     
+    # 주제 변경 요청 시 관련 상태 초기화
     if intent == "CHANGE_TOPIC" and new_topic:
         updates["topic"] = new_topic
-        updates["generated_questions"] = [] # Clear cache on topic switch
+        updates["generated_questions"] = [] # 기존 질문 큐 비우기
         
     return updates
 
 async def consult_node(state: InterviewState):
     """
-    [Phase 1] Consultation / General Chat
+    [상담] 면접 질문 외의 일반 대화나 주제 추천을 처리합니다.
     """
     last_message = state["messages"][-1]
     user_input = last_message.content
@@ -123,45 +131,38 @@ async def consult_node(state: InterviewState):
 
 async def generate_question_node(state: InterviewState):
     """
-    [Phase 2] Generate Question
+    [질문 생성] 현재 트랙/주제에 맞는 기술 면접 질문을 생성합니다.
     """
-    # Initialize defaults if missing
     track = state.get("track", "Common")
     topic = state.get("topic", "General")
     level = state.get("level", "Intermediate")
     
-    # Check Cache (generated_questions queue)
+    # 1. 캐시된 질문 확인
     questions = state.get("generated_questions", [])
     
+    # 2. 없으면 새로 생성 (LLM 호출)
     if not questions:
-        # Cache Miss -> Generate New
-        # v1.2 Plan: Use RAG / Offline Worker. v1.1: Live Generation
         new_questions = await generate_questions(skill=track, topic=topic, level=level, count=1)
-        
         if not new_questions:
              return {
                 "messages": [AIMessage(content=f"죄송합니다. '{topic}' 주제에 대한 질문을 생성하는데 일시적인 문제가 발생했습니다.")],
              }
-             
         questions = new_questions
         
-    # Deliver Question
-    if not questions:
-        return {"messages": [AIMessage(content="질문 목록이 비어있습니다.")]}
-        
+    # 3. 질문 하나 꺼내기
     next_q = questions.pop(0)
     current_q_text = next_q.get("question_text", "")
     
     return {
-        "generated_questions": questions,
-        "current_question": next_q,
-        "star_gained": False, # Reset star flag for new question
+        "generated_questions": questions, # 남은 질문 업데이트
+        "current_question": next_q,       # 현재 활성 질문 설정
+        "star_gained": False,             # 별 획득 플래그 초기화
         "messages": [AIMessage(content=current_q_text)]
     }
 
 async def evaluate_answer_node(state: InterviewState):
     """
-    [Phase 2] Evaluate and Update DB
+    [평가] 사용자의 답변을 채점하고 DB에 결과를 반영합니다.
     """
     current_q = state.get("current_question")
     if not current_q:
@@ -170,7 +171,7 @@ async def evaluate_answer_node(state: InterviewState):
     last_message = state["messages"][-1]
     user_answer = last_message.content
         
-    # 1. AI Evaluation
+    # 1. AI 평가 수행
     eval_result = await evaluate_answer(
         question=current_q.get("question_text", ""),
         user_answer=user_answer,
@@ -178,13 +179,14 @@ async def evaluate_answer_node(state: InterviewState):
         evaluation_criteria=current_q.get("evaluation_criteria", [])
     )
     
-    # 2. DB Update (Skill & Stars)
+    # 2. DB 업데이트 (별 부여 로직)
     star_gained = False
     if state.get("user_db_id"):
         subject = current_q.get("topic", state.get("topic", "General"))
         is_passed = eval_result.get("is_passed", False)
         score = eval_result.get("score", 0)
         
+        # 실제 DB 서비스 호출
         star_gained = await interview_service.update_skill_status(
             user_id=state["user_db_id"], 
             subject=subject, 
@@ -200,12 +202,13 @@ async def evaluate_answer_node(state: InterviewState):
 
 async def feedback_node(state: InterviewState):
     """
-    [Phase 2] Feedback
+    [피드백] 평가 결과에 따라 피드백 메시지(꼬리 질문 포함)를 생성합니다.
     """
     eval_result = state.get("evaluation_result", {})
     current_q = state.get("current_question", {})
     star_gained = state.get("star_gained", False)
     
+    # 피드백 문구 생성
     feedback_msg = await generate_feedback_message(
         question=current_q.get("question_text", ""),
         user_answer=state["messages"][-1].content,
@@ -215,6 +218,7 @@ async def feedback_node(state: InterviewState):
     )
     
     final_output = feedback_msg
+    # 별 획득 시 축하 메시지 추가
     if star_gained:
         final_output = f"🎉 **[별 획득!]** 축하합니다! 해당 주제({current_q.get('topic', 'General')})의 숙련도가 상승했습니다. ⭐\n\n" + final_output
     
@@ -224,7 +228,7 @@ async def feedback_node(state: InterviewState):
 
 async def final_report_node(state: InterviewState):
     """
-    [Phase 3] Final Report
+    [리포트] 인터뷰 세선 종료 후 종합 리포트를 제공합니다.
     """
     history = [f"{m.type}: {m.content}" for m in state["messages"]]
     analysis_data = await analyze_interview_result(history)
@@ -237,17 +241,20 @@ async def final_report_node(state: InterviewState):
     }
 
 
-# 3. Conditional Logic
+# ==========================================
+# 3. 조건부 엣지(Edge) 로직
+# ==========================================
 
 def check_router_intent(state: InterviewState) -> Literal["generate", "evaluate", "consult", "report", "end"]:
+    """라우터 결과에 따라 다음 노드를 결정합니다."""
     intent = state.get("user_intent")
     
     if intent == "ANSWER":
-        # Check if we actually have a question to answer
+        # 질문이 활성화된 상태여야 평가 가능
         if state.get("current_question"):
             return "evaluate"
         else:
-            return "generate" # Treat as next/start if no question active
+            return "generate" # 질문이 없으면 새로 생성
             
     elif intent in ["NEXT_QUESTION", "CHANGE_TOPIC"]:
         return "generate"
@@ -258,23 +265,28 @@ def check_router_intent(state: InterviewState) -> Literal["generate", "evaluate"
     elif intent == "QUIT":
         return "report"
         
-    return "consult" # Default
+    return "consult" # 기본값
 
 def check_continue_interview(state: InterviewState) -> Literal["generate", "report"]:
+    """피드백 후 인터뷰를 계속할지 종료할지 결정합니다."""
     count = state.get("question_count", 0)
     max_q = state.get("max_questions", 10) 
     
+    # 최대 질문 수 도달 시 종료
     if count >= max_q:
         return "report"
     
+    # 연속 진행 (Momentum 유지)
     return "generate"
 
 
-# 4. Graph Construction
+# ==========================================
+# 4. 그래프 구성 (Workflow Construction)
+# ==========================================
 
 workflow = StateGraph(InterviewState)
 
-# Add Nodes
+# (1) 노드 등록
 workflow.add_node("load_state", load_state_node)
 workflow.add_node("router", router_node)
 workflow.add_node("consult", consult_node)
@@ -283,11 +295,12 @@ workflow.add_node("evaluate_answer", evaluate_answer_node)
 workflow.add_node("provide_feedback", feedback_node)
 workflow.add_node("final_report", final_report_node)
 
-# Entry Point
+# (2) 엣지 연결
+# 시작 -> 상태 로드 -> 라우터
 workflow.add_edge(START, "load_state")
 workflow.add_edge("load_state", "router")
 
-# Router Edges
+# 라우터 분기
 workflow.add_conditional_edges(
     "router",
     check_router_intent,
@@ -300,15 +313,10 @@ workflow.add_conditional_edges(
     }
 )
 
-# Interview Loop
+# 평가 -> 피드백 순차 연결
 workflow.add_edge("evaluate_answer", "provide_feedback")
 
-# After feedback, usually we want to give the NEXT question immediately in this flow's design?
-# "GenQ -> Deliver -> Wait -> Eval -> Reward -> Feedback -> PROBABLY_WAIT_OR_NEXT"
-# If we simply END after feedback, the user has to say "Next".
-# Include Logic: If answer was Good, auto-next? Or just end.
-# v1.1 Design says "Router -- Continue --> CheckDB ...".
-# Let's simple chain to GenerateQuestion to keep momentum (Continuous Interview).
+# 피드백 이후 (계속 진행 vs 종료)
 workflow.add_conditional_edges(
     "provide_feedback",
     check_continue_interview,
@@ -318,14 +326,10 @@ workflow.add_conditional_edges(
     }
 )
 
-# After generating question, we stop and wait for user.
-workflow.add_edge("generate_question", END)
+# 끝 지점 설정 (Turn 종료 후 대기)
+workflow.add_edge("generate_question", END) # 질문 던지고 사용자 입력 대기
+workflow.add_edge("consult", END)           # 상담 답변 후 대기
+workflow.add_edge("final_report", END)      # 리포트 후 종료
 
-# After Consult, we stop
-workflow.add_edge("consult", END)
-
-# After Report, we stop
-workflow.add_edge("final_report", END)
-
-# Compile
+# (3) 컴파일
 graph = workflow.compile()

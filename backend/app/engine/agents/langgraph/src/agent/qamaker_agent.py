@@ -5,29 +5,39 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import PydanticOutputParser
 from pydantic import BaseModel, Field
 
-# 1. 생성될 문제의 구조 정의 (Pydantic)
+# ==========================================
+# 1. 문제 데이터 구조 (Schema)
+# ==========================================
 class GeneratedQuestion(BaseModel):
-    skill: str = Field(description="Target skill name (e.g., Python)")
-    topic: str = Field(description="Specific topic within the skill (e.g., Generator)")
-    level: str = Field(description="Difficulty level (e.g., Basic, Intermediate, Advanced)")
-    question_text: str = Field(description="The interview question text")
-    model_answer: str = Field(description="A comprehensive model answer")
-    evaluation_criteria: List[str] = Field(description="List of 3-5 key points to check in user's answer")
+    """생성된 단일 면접 질문 구조"""
+    skill: str = Field(description="대상 기술 스택 (예: Python)")
+    topic: str = Field(description="세부 주제 (예: Generator)")
+    level: str = Field(description="난이도 (Basic, Intermediate, Advanced)")
+    question_text: str = Field(description="면접 질문 본문")
+    model_answer: str = Field(description="질문에 대한 모범 답안")
+    evaluation_criteria: List[str] = Field(description="채점 시 확인해야 할 핵심 키워드 3~5개")
 
 class QuestionList(BaseModel):
-    questions: List[GeneratedQuestion] = Field(description="List of generated interview questions")
+    """질문 리스트 (LLM 출력 파싱용)"""
+    questions: List[GeneratedQuestion] = Field(description="생성된 면접 질문 목록")
 
-# 2. 모델 설정
+# ==========================================
+# 2. 모델 및 파서 설정
+# ==========================================
 api_key = os.getenv("OPENAI_API_KEY")
+
+# 창의적인 문제 생성을 위해 온도(Temperature)를 약간 높게 설정 (0.7)
 llm = ChatOpenAI(
-    model="gpt-4o",  # Using gpt-4o as 'gpt-5-mini' might not be available or valid alias in this context yet
-    temperature=0.7,     # 다양한 문제를 위해 창의성 허용
+    model="gpt-4o", 
+    temperature=0.7, 
     api_key=api_key
 )
 
 parser = PydanticOutputParser(pydantic_object=QuestionList)
 
-# 3. 프롬프트 정의
+# ==========================================
+# 3. 프롬프트 정의 (Prompt Engineering)
+# ==========================================
 GENERATOR_SYSTEM_PROMPT = """
 당신은 IT 기술 면접 문제 출제 위원입니다.
 주어진 주제와 난이도에 맞춰 고품질의 기술 면접 문제를 {count}개 생성하세요.
@@ -53,13 +63,24 @@ prompt = ChatPromptTemplate.from_messages([
     """),
 ])
 
-# 4. 체인 생성
+# LCEL 체인 구성
 generator_chain = prompt | llm | parser
 
-# 5. 실행 함수
+# ==========================================
+# 4. 실행 함수 (Execution Function)
+# ==========================================
 async def generate_questions(skill: str, topic: str, level: str = "Intermediate", count: int = 1) -> List[dict]:
     """
-    조건에 맞는 면접 문제를 지정된 수만큼 생성하여 리스트로 반환합니다.
+    조건에 맞는 기술 면접 문제를 생성합니다.
+    
+    Args:
+        skill (str): 기술 스택 (예: Python)
+        topic (str): 세부 주제 (예: GIL)
+        level (str): 난이도
+        count (int): 생성할 문제 수
+        
+    Returns:
+        List[dict]: 생성된 질문들의 딕셔너리 리스트
     """
     try:
         result = await generator_chain.ainvoke({
@@ -70,10 +91,10 @@ async def generate_questions(skill: str, topic: str, level: str = "Intermediate"
             "format_instructions": parser.get_format_instructions()
         })
         
-        # Pydantic 모델을 dict 리스트로 변환
+        # Pydantic 모델을 dict 리스트로 변환하여 반환
         return [q.model_dump() for q in result.questions]
         
     except Exception as e:
         print(f"⚠️ [QAMaker] Error generating questions: {e}")
-        # 에러 발생 시 빈 리스트 반환 (Main Agent에서 처리)
+        # 실패 시 빈 리스트 반환 (호출부에서 처리)
         return []
