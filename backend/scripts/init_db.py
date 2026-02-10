@@ -23,53 +23,31 @@ def init_db():
     print("   - Created index: auth.email (Unique)")
     print("   - Created index: auth.uid")
 
-    # 2. Interviews Collection
-    # Index: {"user_id": 1}
-    # Index: {"meta.status": 1}
-    print("🔹 Setting up 'interviews' collection...")
-    db.interviews.create_index([("user_id", ASCENDING)])
-    db.interviews.create_index([("meta.status", ASCENDING)])
-    print("   - Created index: user_id")
-    print("   - Created index: meta.status")
+    # 2. Keywords Collection (New v1.1 Core)
+    # Index: {"keyword_key": 1} (Unique)
+    # Index: {"cluster_id": 1}
+    print("🔹 Setting up 'keywords' collection...")
+    db.keywords.create_index([("keyword_key", ASCENDING)], unique=True)
+    # db.keywords.create_index([("cluster_id", ASCENDING)])
+    print("   - Created index: keyword_key (Unique)")
+    # print("   - Created index: cluster_id")
 
-    # 3. Tracks Collection
-    # Index: {"title": 1} (Unique)
-    print("🔹 Setting up 'tracks' collection...")
-    db.tracks.create_index([("title", ASCENDING)], unique=True)
-    print("   - Created index: title (Unique)")
+    # 3. Questions Collection
+    # Index: {"primary_keyword": 1}
+    print("🔹 Setting up 'questions' collection...")
+    db.questions.create_index([("primary_keyword", ASCENDING)])
+    print("   - Created index: primary_keyword")
 
-    # 4. Trends Collection (Refactored)
-    # Structure: TrendCategory (Grouped by category)
+    # 4. Trends Collection
     # Index: {"category": 1} (Unique)
-    # Index: {"items.link": 1} (For duplicate checking within category)
+    # Index: {"items.link": 1}
     print("🔹 Setting up 'trends' collection...")
-    
-    # Drop legacy indexes if needed (Manual intervention might be safer, but here we define the target state)
-    # If standard indexes exist on 'category', create_index with unique=True might fail or convert depending on driver/version.
-    # It is recommended to drop the 'trends' collection if the schema changed drastically.
-    
     db.trends.create_index([("category", ASCENDING)], unique=True)
     db.trends.create_index([("items.link", ASCENDING)])
     db.trends.create_index([("items.tags", ASCENDING)])
-    
     print("   - Created index: category (Unique)")
     print("   - Created index: items.link")
     print("   - Created index: items.tags")
-
-    # 5. Questions Collection
-    # Index: {"subject": 1, "level": 1}
-    print("🔹 Setting up 'questions' collection...")
-    db.questions.create_index([("subject", ASCENDING), ("level", ASCENDING)])
-    print("   - Created index: subject + level")
-    
-    # 6. Concepts Collection
-    # Index: {"subject": 1, "level": 1}
-    # Index: {"name": 1}
-    print("🔹 Setting up 'concepts' collection...")
-    db.concepts.create_index([("subject", ASCENDING), ("level", ASCENDING)])
-    db.concepts.create_index([("name", ASCENDING)])
-    print("   - Created index: subject + level")
-    print("   - Created index: name")
 
     print("\n✅ Database Initialization Completed!")
 
