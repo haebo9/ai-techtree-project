@@ -102,7 +102,7 @@ graph TD
     subgraph "Real-Time Layer"
         API --> Cache{Redis Cache}
         Cache -- Hit --> Delivery[Immediate Response]
-        Cache -- Miss --> Agent[agent_search]
+        Cache -- Miss --> Manager{agent_manager}
     end
     
     subgraph "Background Layer (Offline)"
@@ -111,6 +111,7 @@ graph TD
         DB --> Cache
     end
     
-    Agent -->|Retrieve| VectorStore
-    Agent -->|Fallback| LLM
+    Manager -->|Hybrid Search| Search[agent_search]
+    Search -->|Retrieve| VectorStore
+    Search -->|Fallback| LLM
 ```
