@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import List, Optional
 from pydantic import BaseModel, Field
 from .common import MongoDBModel
@@ -6,36 +7,20 @@ class Question(MongoDBModel):
     """
     [Collection]: questions
     면접 질문 은행 (Static Data)
-    각 Subject 및 Level에 해당하는 면접 질문과 모범 답안
+    각 Subject 및 Level, Keyword에 해당하는 면접 질문과 모범 답안
     """
-    subject: str            # e.g., 'FastAPI Essentials' (Category/Subject Title)
-    level: str              # e.g., 'Lv2' (String per db_schema.md example, though mostly int in usage. MD example says "Lv2". sticking to MD)
-                            # Wait, MD example says "level": "Lv2". But concepts say "level": "Lv1". 
-                            # Question schema in MD -> "level": "Lv2".
-    topic: str              # e.g., 'Dependency Injection'
-    
-    question_text: str
-    model_answer: str       # 모범 답안
-    
-    # 채점 및 검색용 키워드
-    keywords: List[str] = []
-    
-    created_at: str = "" # ISO Date string or datetime? MD says ISODate. Let's use datetime.
-    
-from datetime import datetime
-class Question(MongoDBModel):
-    """
-    [Collection]: questions
-    면접 질문 은행 (Static Data)
-    각 Subject 및 Level에 해당하는 면접 질문과 모범 답안
-    """
-    subject: str            # tracks.steps.subjects.title 과 매핑
+    subject: Optional[str] = None # Legacy
     level: str              # 'Lv1', 'Lv2', 'Lv3'
-    topic: str              # e.g., 'Dependency Injection'
+    topic: Optional[str] = None # Legacy
+    
+    # [v1.1] Primary Keyword Link (For direct graph association)
+    # Links directly to the `keywords` collection's `keyword_key`
+    primary_keyword: Optional[str] = None 
     
     question_text: str
     model_answer: str       # 모범 답안
     
+    # 채점 및 검색용 키워드 (Tags associated with the question)
     keywords: List[str] = []
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -46,8 +31,9 @@ class Question(MongoDBModel):
                 "subject": "FastAPI Essentials",
                 "level": "Lv2",
                 "topic": "Dependency Injection",
+                "primary_keyword": "Dependency Injection",
                 "question_text": "FastAPI에서 DI의 장점은?",
-                "model_answer": "...",
-                "keywords": ["IoC", "Testability"]
+                "model_answer": "DI(Dependency Injection)는 의존성을 외부에서 주입받아 결합도를 낮추는 패턴입니다...",
+                "keywords": ["IoC", "Testability", "Coupling"]
             }
         }

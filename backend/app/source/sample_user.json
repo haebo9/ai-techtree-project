@@ -1,0 +1,38 @@
+[
+    {
+        "auth": {
+            "email": "dev.user@techtree.com",
+            "provider": "local",
+            "uid": "dev_uid_001"
+        },
+        "profile": {
+            "nickname": "Dev_Learner",
+            "avatar_url": "https://api.dicebear.com/7.x/avataaars/svg?seed=Dev",
+            "job_title": "Backend Developer"
+        },
+        "stats": {
+            "total_stars": 10,
+            "completed_tracks": []
+        },
+        "keyword_progress": {
+            "Python": {
+                "level": 2,
+                "score": 45.5,
+                "successful_attempts": 5,
+                "last_reviewed_at": "2024-01-01T12:00:00Z"
+            },
+            "Docker": {
+                "level": 1,
+                "score": 10.0,
+                "successful_attempts": 1,
+                "last_reviewed_at": "2024-01-02T09:30:00Z"
+            },
+            "FastAPI": {
+                "level": 0,
+                "score": 0.0,
+                "successful_attempts": 0,
+                "last_reviewed_at": null
+            }
+        }
+    }
+]

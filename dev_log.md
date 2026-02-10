@@ -10,10 +10,15 @@
 > **+ Category** : **Feat**(기능), **Fix**(수정), **Refactor**(개선), **Add**(추가), **Update**(갱신), **Remove**(삭제), **Init**(초기화)
 
 ---
+## 2026년 2월 
+| Date | Tag | Category | Details |
+|:---:|:---:|:---:|:---|
+| **26.02.10(화)** | 🟣 | **Refactor** | Keyword 기반 Agent 로직 초기화 (단순화) |
+| **26.02.02(목)** | 🟣 | **Add** | LangGraph 로직에 tools 사용 노드 추가 |
+
 ## 2026년 1월
 | Date | Tag | Category | Details |
 |:---:|:---:|:---:|:---|
-| **26.02.02(목)** | 🟣 | **Add** | LangGraph 로직에 tools(=mcp tool) 사용 노드 추가 |
 | **26.01.27(목)** | 🟣 | **Add** | LangGraph Template 도입(for `LangSmith`), 에이전트 로직 초안 작성|
 | **26.01.22(목)** | 🔵 | **Add** | Agent_workflow 수정(버전별 구조 정리), `LangGraph` 도입 결정 |
 | **26.01.21(수)** | 🔵 | **Refactor** | README.md 수정, 버전별 개발 일정 추가, 도메인 관리 규칙 추가 |
@@ -21,20 +26,17 @@
 | **26.01.18(일)** | 🟢 | **Refactor** | Ver2 개발을 위한 폴더 리팩토링 v1, v2 분리 (DB, API 등) |
 | **26.01.15(목)** | 🔴 | **v1.0.0** | `v1.0.0` 릴리즈 및 kakao playmcp 등록 (심사 대기) |
 | | ⚪️ | **Fix** | AWS 배포 및 playmcp 등록을 위한 https 인증서 발급 (`certbot`) |
-| | 🟣 | **Add** | MCP tool docstring 수정 (playmcp 도구 가독성 개선) |
 | | 🟢 | **Fix** | MCP server를 완전한 Stateless 구조로 변경 (mcp 등록 규정 준수) |
-| | 🟢 | **Fix** | Docker-compose 에러 수정 및 FastMCP Host 설정 변경 (421 에러 해결) |
 | **26.01.14(수)** | ⚪️ | **Add** | AWS EC2 연결(도메인 연결) 및 Docker 빌드 테스트 |
 | | 🟣 | **Add** | MCP tool 코드 완성 및 테스트, Source 데이터 보강 및 동기화 |
-| | 🟢 | **Add** | 서버 포트 정리 및 `Nginx` 도입 및 테스트 (mcp server 에러 수정중) |
+| | 🟢 | **Add** | 서버 포트 정리 및 `Nginx` 도입 및 테스트 |
 | **26.01.13(화)** | ⚪️ | **Init** | `"haebo.pro"` 도메인 구매 |
 | | 🟣 | **Feat** | Pydantic Model 구현 (Structured Output) |
 | | 🔵 | **Feat** | mcp Tool(survey) 추가 및 mcp_schema 문서 수정 |
 | **26.01.12(월)** | 🟢 | **Add** | Dockerfile 수정 및 테스트, Ver1 서버 빌드 및 로컬 테스트 |
 | | 🟣 | **Fix** | MCP-SDK 구조로 변경(playmcp 규정), tool docstring 수정 |
 | **26.01.11(일)** | 🟢 | **Add** | Langserve API 도입(for mcp), docker file 작성 |
-|  | 🟢 | **Feat** | Source Data를 DB로 이관, Trend 분류 도입 |
-| | 🟠 | **Feat** | Streamlit 및 requrements을 Frontend 폴더로 분리 |
+| | 🟢 | **Feat** | Source Data를 DB로 이관, Trend 분류 도입 |
 | **26.01.10(토)** | 🟢 | **Feat** | DB collection 생성 및 track 데이터 동기화 로직 구현 |
 | **26.01.09(금)** | 🔵 | **Update** | Source Data에 맞춰 db schema 구조 변경 |
 | | 🟢 | **Update** | db_schema.md 에 맞춰 pydantic model 코드 수정 |
@@ -43,11 +45,9 @@
 | **26.01.06(화)** | 🟣 | **Add** | MCP Trend Search 기능 구현 및 Streamlit 테스트 |
 | **26.01.05(월)** | 🟣 | **Add** | Evaluator, QAmaker agent 로직 구현 및 연결 |
 | | 🔵 | **Init** | MCP 문서 초기화 (Agent와의 기능분리) |
-| **26.01.04(일)** | 🟣 | **Update** | topic Track/Tier/Level별 기술 트리 작성 |
-| | 🟣 | **Add** | Interviewer Agent 초기 대화 흐름 구현 / 테스트 코드 추가 |
-| | 🔵 | **Update** | track.md(TechTree 구조) 문서 검토 및 수정 |
+| **26.01.04(일)**| 🟣 | **Add** | Interviewer Agent 초기 대화 흐름 구현 / 테스트 코드 추가 |
+| | 🔵 | **Update** | track.md 문서 검토 / topic Track-Tier-Level 구조 추가 |
 | **26.01.03(토)** | 🟢 | **Refactor** | Stateless MCP와 Stateful api server 폴더 분리 |
-| | 🟣 | **Feat** | main_agent 로직 구현, sub_agent 코드 검토 |
 | | 🔵 | **Refactor** | Agent 아키텍처(Main-sub) 및 MCP 구조 변경 문서 작성|
 
 ## 2025년 12월

@@ -1,366 +1,247 @@
 from __future__ import annotations
-
 import asyncio
 from typing import Any, Dict, List, Optional, Literal, TypedDict
 from typing_extensions import Annotated
 import os
 from dotenv import load_dotenv, find_dotenv
 
-# .env 파일 로드 (환경 변수 설정)
 load_dotenv(find_dotenv('.env'))
 
-from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, END, START
 from langgraph.graph.message import add_messages
-from langgraph.prebuilt import ToolNode, tools_condition
-from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
+from langchain_core.messages import BaseMessage, AIMessage, HumanMessage
 
-# 로컬 에이전트 모듈 임포트
-from agent.agent_qamaker import generate_questions
-from agent.agent_evaluator import evaluate_answer, analyze_interview_result
-from agent.agent_interviewer import generate_feedback_message, format_final_report
-from agent.agent_router import route_user_input
-from agent.agent_tools import techtree_tools # Defined Tools
-
-# 실제 백엔드 서비스 연동
-# 주의: 실행 시 backend 경로가 PYTHONPATH에 포함되어야 함
-from app.services.interview_service import interview_service
-
+# Local Modules
+from agent.agent_router import route_keyword_intent
+from agent.agent_tutor import explain_keyword
+from agent.agent_quiz import generate_keyword_questions
+from agent.agent_evaluator import evaluate_answer # Reusing existing evaluator
+from agent.agent_navigator import recommend_next_keywords
+from app.services.keyword_service import keyword_service
 
 # ==========================================
-# 1. 상태(State) 정의
+# 1. State Definition
 # ==========================================
-class InterviewState(TypedDict, total=False):
+class KeywordState(TypedDict, total=False):
     """
-    LangGraph에서 관리하는 인터뷰 세션의 전체 상태입니다.
+    State for the Keyword-Driven Learning Flow.
     """
-    # 대화 기록 (LangChain Message 객체 리스트, append 방식)
     messages: Annotated[List[BaseMessage], add_messages]
     
-    # 사용자 및 학습 세션 정보
-    user_id: str          # 세션 상의 사용자 ID
-    user_db_id: str       # 실제 DB의 ObjectId (문자열)
-    track: str            # 현재 진행 중인 트랙 (예: Python, AI)
-    topic: str            # 세부 주제 (예: Generator, overfitting)
-    level: str            # 난이도 (Basic, Intermediate, Advanced)
+    # User Context
+    user_id: str
+    user_db_id: str
     
-    # 내부 로직 상태
-    generated_questions: List[dict]   # 미리 생성된 질문 큐 (Cache)
-    current_question: Optional[dict]  # 현재 사용자에게 던져진 질문 정보
-    evaluation_result: Optional[dict] # 가장 최근 답변에 대한 평가 결과
-    star_gained: bool                 # 방금 질문에서 별(점수)을 획득했는지 여부
-    user_intent: Optional[str]        # 라우터가 파악한 사용자 의도 (ANSWER, NEXT...)
+    # Current Focus
+    keyword: str             # The active keyword
+    keyword_data: dict       # Extracted/Generated content (def, summary)
     
-    # 진행도 제어
-    question_count: int   # 현재까지 진행한 질문 수
-    max_questions: int    # 최대 질문 수 (세션 종료 기준)
-    interview_complete: bool # 인터뷰 종료 플래그
-
+    # Quiz Context
+    current_question: Optional[dict]
+    evaluation_result: Optional[dict]
+    
+    # Navigation
+    next_recommendations: List[str]
+    user_intent: str         # From Router
 
 # ==========================================
-# 2. 노드(Node) 함수 정의
+# 2. Nodes
 # ==========================================
 
-async def load_state_node(state: InterviewState):
+async def router_node(state: KeywordState):
     """
-    [초기화] 사용자 정보를 DB에서 조회하거나 생성하여 상태에 로드합니다.
-    """
-    params = {}
-    
-    # 기본값 설정
-    uid = state.get("user_id", "guest")
-    if not state.get("user_id"):
-        params["user_id"] = uid
-        
-    # 사용자 DB 조회 (이메일 기반 가상 조회)
-    if not state.get("user_db_id"):
-        email = f"{uid}@techtree.com"
-        nickname = f"User_{uid}"
-        
-        # 실제 DB 서비스 호출
-        user = await interview_service.get_or_create_user(email, nickname)
-        params["user_db_id"] = str(user.id)
-    
-    # 인터뷰 설정 기본값
-    if not state.get("max_questions"):
-        params["max_questions"] = 5
-        
-    return params
-
-async def router_node(state: InterviewState):
-    """
-    [라우터] 사용자의 최신 입력을 분석하여 다음 의도(Intent)를 결정합니다.
+    Analyzes input to decide the next step.
     """
     messages = state["messages"]
-    if not messages:
-        # 첫 메시지가 없으면 상담(인사) 모드로 시작
-        return {"user_intent": "CONSULT"}
-        
     last_msg = messages[-1]
     
-    # AI가 마지막으로 말했으면 사용자 응답 대기 (WAIT)
-    # LangGraph Loop 방지용: 마지막 메시지가 AI면 멈춤
     if isinstance(last_msg, AIMessage):
-        # 단, ToolMessage가 마지막인 경우는 제외 (Consult 루프 중일 수 있음)
-        # 하지만 router는 전체 흐름의 앞단이므로 AI 메시지면 멈추는 게 맞음
         return {"user_intent": "WAIT"}
-
+        
     user_input = last_msg.content
-    curr_topic = state.get("topic", "General")
-    last_q_text = state.get("current_question", {}).get("question_text", "")
+    curr_kw = state.get("keyword", "None")
     
-    # LLM Router 호출
-    route_result = await route_user_input(user_input, curr_topic, last_q_text)
-    intent = route_result.get("intent", "CONSULT")
-    new_topic = route_result.get("topic")
+    # Determine intent
+    router_out = await route_keyword_intent(user_input, curr_kw)
+    intent = router_out.get("intent", "CHIT_CHAT")
+    extracted_kw = router_out.get("keyword")
     
     updates = {"user_intent": intent}
-    
-    # 주제 변경 요청 시 관련 상태 초기화 -> 새로운 질문 생성 유도
-    if intent == "CHANGE_TOPIC" and new_topic:
-        updates["topic"] = new_topic
-        updates["generated_questions"] = [] # 기존 질문 큐 비우기
+    if intent == "KEYWORD_SEARCH" and extracted_kw:
+        updates["keyword"] = extracted_kw
+        # Reset context for new keyword
+        updates["keyword_data"] = {} 
+        updates["current_question"] = None
         
     return updates
 
-# [Consult LLM 설정]
-# 도구를 사용할 수 있는 상담 전용 LLM 인스턴스
-# 주의: Model Should match what allows function calling well (gpt-4o)
-advisor_llm = ChatOpenAI(model="gpt-4o", temperature=0.5).bind_tools(techtree_tools)
-
-async def consult_node(state: InterviewState):
+async def search_and_explain_node(state: KeywordState):
     """
-    [상담] 사용자의 질문에 대해 Tool을 사용하거나 직접 답변합니다.
-    (Consult -> Tools -> Consult 루프 가능)
+    [Content Phase] 
+    1. Searches (or generates) info for the keyword.
+    2. Explains it to the user.
     """
-    # 1. 이전 대화 기록 전체 전달 (문맥 파악)
-    # LangGraph가 자동으로 tool_result 메시지를 state["messages"]에 추가해줌
-    response = await advisor_llm.ainvoke(state["messages"])
+    kw = state.get("keyword")
+    if not kw:
+        return {"messages": [AIMessage(content="Please specify a keyword to learn.")]}
     
+    # 1. Check DB first
+    kw_data_db = await keyword_service.get_keyword(kw)
+    
+    if kw_data_db:
+        kw_data = kw_data_db
+    else:
+        # 2. If miss, generate content
+        kw_data = await explain_keyword(kw)
+        # Save newly generated keyword to DB
+        await keyword_service.create_keyword(kw_data)
+    
+    # Construct explanation message
+    
+    # Construct explanation message
+    msg_content = f"## 📚 Concept: {kw}\n\n" \
+                  f"**Definition**: {kw_data.get('definition')}\n\n" \
+                  f"**Summary**: {kw_data.get('summary')}\n\n" \
+                  f"*(Preparing a quiz for you...)*"
+                  
     return {
-        "messages": [response]
+        "keyword_data": kw_data,
+        "messages": [AIMessage(content=msg_content)]
     }
 
-async def generate_question_node(state: InterviewState):
+async def generate_quiz_node(state: KeywordState):
     """
-    [질문 생성] 현재 트랙/주제에 맞는 기술 면접 질문을 생성합니다.
+    [Assessment Phase] Generates a question based on valid content.
     """
-    track = state.get("track", "Common")
-    topic = state.get("topic", "General")
-    level = state.get("level", "Intermediate")
+    kw = state.get("keyword")
+    kw_data = state.get("keyword_data", {})
     
-    # 1. 캐시된 질문 확인
-    questions = state.get("generated_questions", [])
+    # Use definitions to generate targeted Q
+    questions = await generate_keyword_questions(
+        keyword=kw,
+        definition=kw_data.get("definition", ""),
+        level="Intermediate" # Could comprise from user profile
+    )
     
-    # 2. 없으면 새로 생성 (LLM 호출)
     if not questions:
-        new_questions = await generate_questions(skill=track, topic=topic, level=level, count=1)
-        if not new_questions:
-             return {
-                "messages": [AIMessage(content=f"죄송합니다. '{topic}' 주제에 대한 질문을 생성하는데 일시적인 문제가 발생했습니다.")],
-             }
-        questions = new_questions
-        
-    # 3. 질문 하나 꺼내기
-    next_q = questions.pop(0)
-    current_q_text = next_q.get("question_text", "")
-    
+         return {"messages": [AIMessage(content="Could not generate a quiz at this moment.")]}
+         
+    question = questions[0]
     return {
-        "generated_questions": questions, # 남은 질문 업데이트
-        "current_question": next_q,       # 현재 활성 질문 설정
-        "star_gained": False,             # 별 획득 플래그 초기화
-        "messages": [AIMessage(content=current_q_text)]
+        "current_question": question,
+        "messages": [AIMessage(content=f"**Q. {question['question_text']}**")]
     }
 
-async def evaluate_answer_node(state: InterviewState):
+async def evaluate_answer_node(state: KeywordState):
     """
-    [평가] 사용자의 답변을 채점하고 DB에 결과를 반영합니다.
+    [Evaluation Phase] Checks user answer.
     """
     current_q = state.get("current_question")
     if not current_q:
-        return {"messages": [AIMessage(content="평가할 질문이 없습니다. 넘어갑니다.")]}
-        
-    last_message = state["messages"][-1]
-    user_answer = last_message.content
-        
-    # 1. AI 평가 수행
+         return {"messages": [AIMessage(content="No active question to evaluate.")]}
+         
+    user_ans = state["messages"][-1].content
+    
     eval_result = await evaluate_answer(
-        question=current_q.get("question_text", ""),
-        user_answer=user_answer,
-        model_answer=current_q.get("model_answer", "N/A"),
+        question=current_q.get("question_text"),
+        user_answer=user_ans,
+        model_answer=current_q.get("model_answer"),
         evaluation_criteria=current_q.get("evaluation_criteria", [])
     )
     
-    # 2. DB 업데이트 (별 부여 로직)
-    star_gained = False
+    # Update Mastery in DB
     if state.get("user_db_id"):
-        subject = current_q.get("topic", state.get("topic", "General"))
-        is_passed = eval_result.get("is_passed", False)
-        score = eval_result.get("score", 0)
-        
-        # 실제 DB 서비스 호출
-        star_gained = await interview_service.update_skill_status(
+        await keyword_service.update_user_mastery(
             user_id=state["user_db_id"], 
-            subject=subject, 
-            passed=is_passed, 
-            score=score
+            keyword_key=current_q.get("primary_keyword", state.get("keyword")),
+            result=eval_result
         )
+    
+    feedback = eval_result.get("feedback", "")
+    score = eval_result.get("score", 0)
+    passed = eval_result.get("is_passed", False)
+    
+    msg = f"**Assessment Result**: {'PASS ✅' if passed else 'TRY AGAIN ⚠️'} (Score: {score})\n\n{feedback}"
     
     return {
         "evaluation_result": eval_result,
-        "question_count": state.get("question_count", 0) + 1,
-        "star_gained": star_gained
+        "messages": [AIMessage(content=msg)]
     }
 
-async def feedback_node(state: InterviewState):
+async def recommend_node(state: KeywordState):
     """
-    [피드백] 평가 결과에 따라 피드백 메시지(꼬리 질문 포함)를 생성합니다.
+    [Navigation Phase] Suggests next steps.
     """
-    eval_result = state.get("evaluation_result", {})
-    current_q = state.get("current_question", {})
-    star_gained = state.get("star_gained", False)
+    kw_data = state.get("keyword_data", {})
+    related = kw_data.get("related_keywords", [])
     
-    # 피드백 문구 생성
-    feedback_msg = await generate_feedback_message(
-        question=current_q.get("question_text", ""),
-        user_answer=state["messages"][-1].content,
-        score=eval_result.get("score", 0),
-        is_pass=eval_result.get("is_passed", False),
-        feedback=eval_result.get("feedback", "")
+    # If DB available, we could check user history to filter out learned topics
+    
+    # Call Navigator Agent
+    result = await recommend_next_keywords(
+        keyword=state.get("keyword", "None"),
+        related_keywords=related
     )
     
-    final_output = feedback_msg
-    # 별 획득 시 축하 메시지 추가
-    if star_gained:
-        final_output = f"🎉 **[별 획득!]** 축하합니다! 해당 주제({current_q.get('topic', 'General')})의 숙련도가 상승했습니다. ⭐\n\n" + final_output
+    recs = result.get("recommendations", [])
+    reason = result.get("reasoning", "")
     
+    if recs:
+        rec_text = f"**Next Keywords** (Reason: {reason})\n" + \
+                   "\n".join([f"- {r}" for r in recs])
+    else:
+        rec_text = "What would you like to learn next?"
+        
     return {
-        "messages": [AIMessage(content=final_output)]
+        "next_recommendations": recs,
+        "messages": [AIMessage(content=rec_text)]
     }
 
-async def final_report_node(state: InterviewState):
-    """
-    [리포트] 인터뷰 세선 종료 후 종합 리포트를 제공합니다.
-    """
-    history = [f"{m.type}: {m.content}" for m in state["messages"]]
-    analysis_data = await analyze_interview_result(history)
-    analysis_str = str(analysis_data) 
-    final_report = await format_final_report(analysis_str)
-    
-    return {
-        "messages": [AIMessage(content=final_report)],
-        "interview_complete": True
-    }
-
-
 # ==========================================
-# 3. 조건부 엣지(Edge) 로직
+# 3. Edges & Graph
 # ==========================================
 
-def check_router_intent(state: InterviewState) -> Literal["generate", "evaluate", "consult", "report", "end"]:
-    """라우터 결과에 따라 다음 노드를 결정합니다."""
+def route_next(state: KeywordState):
     intent = state.get("user_intent")
-    
-    if intent == "WAIT":
-        # AI가 답변을 한 상태이므로 사용자 입력을 기다림 (사이클 종료)
-        return "end"
-
+    if intent == "KEYWORD_SEARCH":
+        return "explain"
     elif intent == "ANSWER":
-        # 질문이 활성화된 상태여야 평가 가능
-        if state.get("current_question"):
-            return "evaluate"
-        else:
-            return "generate" # 질문이 없으면 새로 생성
-            
-    elif intent in ["NEXT_QUESTION", "CHANGE_TOPIC"]:
-        return "generate"
-        
-    elif intent == "CONSULT":
-        return "consult"
-        
-    elif intent == "QUIT":
-        return "report"
-        
-    return "consult" # 기본값
+        return "evaluate"
+    elif intent == "NAVIGATION":
+        return "recommend"
+    elif intent == "WAIT":
+        return END
+    return END # Chit chat or others
 
-def check_continue_interview(state: InterviewState) -> Literal["generate", "report"]:
-    """피드백 후 인터뷰를 계속할지 종료할지 결정합니다."""
-    count = state.get("question_count", 0)
-    max_q = state.get("max_questions", 10) 
-    
-    # 최대 질문 수 도달 시 종료
-    if count >= max_q:
-        return "report"
-    
-    # 연속 진행 (Momentum 유지)
-    return "generate"
+workflow = StateGraph(KeywordState)
 
-
-# ==========================================
-# 4. 그래프 구성 (Workflow Construction)
-# ==========================================
-
-workflow = StateGraph(InterviewState)
-
-# (1) 노드 등록
-workflow.add_node("load_state", load_state_node)
+# Nodes
 workflow.add_node("router", router_node)
-workflow.add_node("consult", consult_node)
-workflow.add_node("tools", ToolNode(techtree_tools)) # Tool 실행 노드 추가
-workflow.add_node("generate_question", generate_question_node)
-workflow.add_node("evaluate_answer", evaluate_answer_node)
-workflow.add_node("provide_feedback", feedback_node)
-workflow.add_node("final_report", final_report_node)
+workflow.add_node("explain", search_and_explain_node)
+workflow.add_node("quiz", generate_quiz_node)
+workflow.add_node("evaluate", evaluate_answer_node)
+workflow.add_node("recommend", recommend_node)
 
-# (2) 엣지 연결
-# 시작 -> 상태 로드 -> 라우터
-workflow.add_edge(START, "load_state")
-workflow.add_edge("load_state", "router")
+# Edges
+workflow.add_edge(START, "router")
 
-# 라우터 분기
 workflow.add_conditional_edges(
     "router",
-    check_router_intent,
+    route_next,
     {
-        "evaluate": "evaluate_answer",
-        "generate": "generate_question",
-        "consult": "consult",
-        "report": "final_report",
-        "end": END
+        "explain": "explain",
+        "evaluate": "evaluate",
+        "recommend": "recommend",
+        END: END
     }
 )
 
-# [상담 <-> 도구] 순환 구조
-# consult가 tool calls를 반환하면 'tools'로, 아니면 END(답변 완료)
-workflow.add_conditional_edges(
-    "consult",
-    tools_condition,
-    {
-        "tools": "tools",  # 도구 실행 필요 시 tools 노드로 이동
-        END: END           # 답변 완료 시 종료
-    }
-)
-# 도구 실행 후 다시 상담 노드로 돌아와 결과를 보고 답변 생성
-workflow.add_edge("tools", "consult")
+# Flow: Explain -> Quiz -> WAIT
+workflow.add_edge("explain", "quiz")
+workflow.add_edge("quiz", END) # Wait for answer
 
+# Flow: Evaluate -> Recommend -> WAIT
+workflow.add_edge("evaluate", "recommend")
+workflow.add_edge("recommend", END)
 
-# 평가 -> 피드백 순차 연결
-workflow.add_edge("evaluate_answer", "provide_feedback")
-
-# 피드백 이후 (계속 진행 vs 종료)
-workflow.add_conditional_edges(
-    "provide_feedback",
-    check_continue_interview,
-    {
-        "generate": "generate_question",
-        "report": "final_report"
-    }
-)
-
-# 끝 지점 설정 (Turn 종료 후 대기)
-workflow.add_edge("generate_question", END) # 질문 던지고 사용자 입력 대기
-# consult는 tools_condition에 의해 END 처리됨
-workflow.add_edge("final_report", END)      # 리포트 후 종료
-
-# (3) 컴파일
-graph = workflow.compile()
+keyword_graph = workflow.compile()

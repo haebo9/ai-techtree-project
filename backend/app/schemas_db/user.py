@@ -19,13 +19,16 @@ class UserStats(BaseModel):
     total_stars: int = 0
     completed_tracks: List[str] = []
 
-class SubjectProgress(BaseModel):
+
+
+class KeywordProgress(BaseModel):
     """
-    사용자의 과목(Subject)별 진행 상황
+    사용자의 키워드(Keyword)별 숙련도 (v1.1)
     """
-    level: int = 0  # 0: Locked, 1: Basic, 2: Adv, 3: Master
-    stars: int = 0
-    last_tested_at: Optional[datetime] = None
+    level: int = 0  # 0~5 (0: New, 1: Novice, 2: Intermediate, 3: Advanced, 4: Expert, 5: Master)
+    score: float = 0.0 # Continuous score based on evaluation
+    last_reviewed_at: Optional[datetime] = None
+    successful_attempts: int = 0
 
 # --- Main Collection Model ---
 
@@ -40,7 +43,11 @@ class User(MongoDBModel):
     
     # [User State] 학습 진행도
     # Key: Subject Title (e.g., 'FastAPI Essentials') -> 빠른 조회를 위해 Map 구조 사용
-    skill_tree: Dict[str, SubjectProgress] = Field(default_factory=dict)
+    # Legacy: skill_tree: Dict[str, SubjectProgress] = Field(default_factory=dict)
+
+    # [User State v1.1] 키워드별 학습 숙련도
+    # Key: Keyword Key (e.g. "Dependency Injection")
+    keyword_progress: Dict[str, KeywordProgress] = Field(default_factory=dict)
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
