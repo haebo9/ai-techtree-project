@@ -63,6 +63,30 @@ prompt = ChatPromptTemplate.from_messages([
     """),
 ])
 
+KEYWORD_QUESTION_PROMPT = """
+You are an expert Interviewer.
+Create a targeted technical interview question about the keyword: "{keyword}".
+Use the provided context to ensure the question is relevant.
+
+[Context]
+Definition: {definition}
+
+[Requirements]
+1. Generate ONE high-quality question that test understanding of this specific concept.
+2. The question should be suitable for a {level} learner.
+3. Provide a clear model answer and evaluation criteria.
+
+Output JSON format:
+{format_instructions}
+"""
+
+keyword_q_prompt = ChatPromptTemplate.from_messages([
+    ("system", KEYWORD_QUESTION_PROMPT),
+    ("human", "Generate a question for: {keyword}")
+])
+
+keyword_chain = keyword_q_prompt | llm | parser
+
 # LCEL 체인 구성
 generator_chain = prompt | llm | parser
 
@@ -97,4 +121,29 @@ async def generate_questions(skill: str, topic: str, level: str = "Intermediate"
     except Exception as e:
         print(f"⚠️ [QAMaker] Error generating questions: {e}")
         # 실패 시 빈 리스트 반환 (호출부에서 처리)
+        return []
+
+async def generate_keyword_questions(keyword: str, definition: str, level: str = "Intermediate") -> List[dict]:
+    """
+    Generates a question specifically targeting the given keyword and context.
+    
+    Returns:
+        List[dict]: A list containing one question dictionary.
+    """
+    try:
+        result = await keyword_chain.ainvoke({
+            "keyword": keyword,
+            "definition": definition,
+            "level": level,
+            "format_instructions": parser.get_format_instructions()
+        })
+        # Override fields to be keyword-specific if needed
+        questions = [q.model_dump() for q in result.questions]
+        for q in questions:
+            q['topic'] = keyword # Ensure topic matches keyword
+            q['skill'] = "KeywordMastery" 
+        return questions
+        
+    except Exception as e:
+        print(f"⚠️ [QAMaker] Error generating keyword question: {e}")
         return []

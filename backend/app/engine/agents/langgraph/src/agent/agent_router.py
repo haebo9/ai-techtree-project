@@ -1,4 +1,4 @@
-from typing import Literal, Optional, TypedDict
+from typing import Literal, Optional
 import os
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
@@ -6,44 +6,52 @@ from langchain_core.output_parsers import JsonOutputParser
 from pydantic import BaseModel, Field
 
 # ==========================================
-# 1. 라우터 출력 구조 (Schema)
+# Router Schema
 # ==========================================
-class RouterOutput(BaseModel):
+class KeywordRouterOutput(BaseModel):
     """
-    사용자 입력 분석 결과
+    User intent classification for Keyword-based learning flow.
     """
-    intent: Literal["ANSWER", "NEXT_QUESTION", "CHANGE_TOPIC", "CONSULT", "QUIT"] = Field(
-        ..., description="사용자의 주요 의도 (답변, 다음 질문, 주제 변경, 상담, 종료)"
+    intent: Literal["KEYWORD_SEARCH", "ANSWER", "NAVIGATION", "CHIT_CHAT"] = Field(
+        ..., description="Classified intent: KEYWORD_SEARCH, ANSWER, NAVIGATION, CHIT_CHAT"
     )
-    topic: Optional[str] = Field(
-        None, description="CHANGE_TOPIC인 경우 변경할 새로운 주제 (예: 'Python', 'React'). 그 외엔 null."
+    keyword: Optional[str] = Field(
+        None, description="Extracted keyword if intent is KEYWORD_SEARCH (e.g., 'BFS', 'Docker')"
     )
-    reasoning: str = Field(..., description="이 분류를 선택한 간략한 이유")
+    reasoning: str = Field(..., description="Reason for classification")
 
 # ==========================================
-# 2. 프롬프트 정의
+# Prompt Definition
 # ==========================================
 ROUTER_SYSTEM_PROMPT = """
-당신은 AI Interviewer System의 'Router(방향 결정자)'입니다.
-사용자의 최근 발화와 대화 맥락을 분석하여 다음 행동을 결정하세요.
+You are the 'Router' for an AI TechTree Learning Agent. 
+Your goal is to direct the user based on their input in a Keyword-Driven Learning Session.
 
 [Context]
-- 현재 주제: {current_topic}
-- 마지막 질문: {last_question}
+- Current Keyword: {current_keyword} (The concept currently being discussed/learned)
+- Last System Action: {last_action} (e.g., 'EXPLAINED', 'ASKED_QUESTION', 'RECOMMENDED')
 
-[Intent 분류 가이드]
-1. ANSWER: 면접 질문에 대한 답변을 시도함 (오답이나 "모르겠다" 포함)
-2. NEXT_QUESTION: 면접을 진행하거나 새로운 문제를 요청함 (예: "패스", "다음", "문제 내줘", "시작하자")
-3. CHANGE_TOPIC: 특정 주제로 면접을 원함 (예: "자바로 할래", "DB 문제 줘", "에이전트 관련 문제 내줘")
-4. CONSULT: 면접 문제 풀이가 아닌 일반 대화, 정보 검색 요청, 질문 (예: "LangGraph 정보 찾아줘", "이게 뭐야?", "공부법 알려줘")
-5. QUIT: 인터뷰 종료 요청 (예: "그만", "종료")
+[Intent Classification Rules]
+1. **KEYWORD_SEARCH**: 
+   - User explicitly mentions a topic, concept, or technology they want to learn.
+   - Examples: "BFS", "Tell me about React", "Docker containers", "What is a heap?"
+   - Action: Set 'keyword' field to the extracted technical term.
 
-[주의사항]
-- 사용자가 답을 시도했다면 무조건 ANSWER입니다.
-- "문제 내줘", "시작해줘", "면접 볼래" 등, **문제를 풀겠다는 의도**가 보이면 반드시 NEXT_QUESTION 또는 CHANGE_TOPIC으로 분류하세요. (CONSULT 아님!)
-- "~~ 정보 찾아줘" 같은 검색 요청만 CONSULT입니다.
-- "에이전트 관련 문제 내줘" -> CHANGE_TOPIC (topic="Agent")
-- JSON 형식으로만 응답하세요.
+2. **ANSWER**: 
+   - User is responding to a question asked by the system.
+   - Examples: "It is a LIFO structure", "I don't know", "Option 3", "2.5"
+   - Condition: Likely if Last System Action was 'ASKED_QUESTION'.
+
+3. **NAVIGATION**: 
+   - User asks for recommendations, next steps, or related topics *without* specifying a name.
+   - Examples: "Next", "What should I learn next?", "Recommend related topics", "Pass"
+
+4. **CHIT_CHAT**: 
+   - Greetings, general conversation, or off-topic queries.
+   - Examples: "Hi", "Hello", "Who are you?", "Thanks"
+
+[Output Format]
+Return a JSON object conforming to the KeywordRouterOutput schema.
 """
 
 router_prompt = ChatPromptTemplate.from_messages([
@@ -52,33 +60,32 @@ router_prompt = ChatPromptTemplate.from_messages([
 ])
 
 # ==========================================
-# 3. 모델 및 체인 설정
+# Model Setup
 # ==========================================
-# 라우팅은 속도가 중요하므로 가벼운 모델 권장 (gpt-4o-mini 등)
 api_key = os.getenv("OPENAI_API_KEY")
 llm = ChatOpenAI(
     model="gpt-4o-mini", 
-    temperature=0.0, # 분류 작업은 일관성이 중요
+    temperature=0.0,
     api_key=api_key
 )
 
-router_chain = router_prompt | llm | JsonOutputParser(pydantic_object=RouterOutput)
+router_chain = router_prompt | llm | JsonOutputParser(pydantic_object=KeywordRouterOutput)
 
 # ==========================================
-# 4. 실행 함수 (Execution Function)
+# Execution Function
 # ==========================================
-async def route_user_input(user_input: str, current_topic: str = "General", last_question: str = "") -> dict:
+async def route_keyword_intent(user_input: str, current_keyword: str = "None", last_action: str = "None") -> dict:
     """
-    사용자 입력을 분석하여 그래프의 다음 경로(Intent)를 반환합니다.
+    Analyzes user input to determine the next step in the keyword learning graph.
     """
     try:
         result = await router_chain.ainvoke({
             "user_input": user_input,
-            "current_topic": current_topic,
-            "last_question": last_question
+            "current_keyword": current_keyword,
+            "last_action": last_action
         })
         return result
     except Exception as e:
-        # 파싱 에러나 API 오류 시 기본값(상담 모드)으로 안전하게 처리
-        print(f"⚠️ [Router] Error routing input: {e}")
-        return {"intent": "CONSULT", "topic": None, "reasoning": "System Error Fallback"}
+        print(f"⚠️ [KeywordRouter] Error: {e}")
+        # Fallback to CHIT_CHAT if parsing fails
+        return {"intent": "CHIT_CHAT", "keyword": None, "reasoning": "Error Fallback"}
