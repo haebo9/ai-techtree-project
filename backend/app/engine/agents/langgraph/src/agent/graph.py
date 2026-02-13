@@ -171,7 +171,7 @@ workflow.add_conditional_edges(
     }
 )
 workflow.add_edge("search_keyword_node", "generate_quiz_node")
-workflow.add_edge("chit_chat_node", "router")
+workflow.add_edge("chit_chat_node", END)
 workflow.add_edge("generate_quiz_node", END)
 
 # Compile
