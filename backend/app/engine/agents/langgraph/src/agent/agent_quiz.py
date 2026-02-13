@@ -32,6 +32,10 @@ keyword_q_prompt = ChatPromptTemplate.from_messages([
     ("human", "Generate a question for: {keyword}")
 ])
 
+api_key = os.getenv("OPENAI_API_KEY")
+llm = ChatOpenAI(model="gpt-4o", temperature=0.5, api_key=api_key)
+parser = PydanticOutputParser(pydantic_object=KeywordContent)
+
 keyword_chain = keyword_q_prompt | llm | parser
 
 # LCEL 체인 구성
