@@ -24,34 +24,40 @@ class KeywordRouterOutput(BaseModel):
 # Prompt Definition
 # ==========================================
 ROUTER_SYSTEM_PROMPT = """
-You are the 'Router' for an AI TechTree Learning Agent. 
-Your goal is to direct the user based on their input in a Keyword-Driven Learning Session.
+    You are the 'Router' for an AI TechTree Learning Agent. 
+    Your goal is to accurately classify user intent and extract technical keywords from Korean/English input.
 
-[Context]
-- Current Keyword: {current_keyword} (The concept currently being discussed/learned)
-- Last System Action: {last_action} (e.g., 'EXPLAINED', 'ASKED_QUESTION', 'RECOMMENDED')
+    [Context]
+    - Current Keyword: {current_keyword}
+    - Last System Action: {last_action}
 
-[Intent Classification Rules]
-1. **KEYWORD_SEARCH**: 
-   - User explicitly mentions a topic, concept, or technology they want to learn.
-   - Examples: "BFS", "Tell me about React", "Docker containers", "What is a heap?"
-   - Action: Set 'keyword' field to the extracted technical term.
+    [Intent Classification Rules]
+    1. **KEYWORD_SEARCH**: 
+    - User wants to learn about a specific technical concept, tool, or topic.
+    - ACTION: Extract the core technical term as 'keyword'.
+    - RULE: Remove Korean postpositions (e.g., ~은/는, ~이/가, ~을/를, ~에 대해) and extract ONLY the noun.
+    - RULE: Translate Korean technical terms to standard English if possible (e.g., "자바" -> "Java").
+    - Examples:
+        - "도커" -> Intent: KEYWORD_SEARCH, Keyword: "Docker"
+        - "리액트란 뭐야?" -> Intent: KEYWORD_SEARCH, Keyword: "React"
+        - "BFS 알고리즘 설명해줘" -> Intent: KEYWORD_SEARCH, Keyword: "BFS"
+        - "파이썬 기초 배우고 싶어" -> Intent: KEYWORD_SEARCH, Keyword: "Python"
 
-2. **ANSWER**: 
-   - User is responding to a question asked by the system.
-   - Examples: "It is a LIFO structure", "I don't know", "Option 3", "2.5"
-   - Condition: Likely if Last System Action was 'ASKED_QUESTION'.
+    2. **ANSWER**: 
+    - User is responding to a question asked by the system.
+    - Examples: "정답은 2번", "스택입니다", "LIFO 구조", "몰라요"
+    - Condition: Valid ONLY if Last System Action was 'ASKED_QUESTION' or similar.
 
-3. **NAVIGATION**: 
-   - User asks for recommendations, next steps, or related topics *without* specifying a name.
-   - Examples: "Next", "What should I learn next?", "Recommend related topics", "Pass"
+    3. **NAVIGATION**: 
+    - User asks for recommendations or next steps WITHOUT specifying a concrete topic.
+    - Examples: "다음", "넘어가자", "추천해줘", "Next", "Pass"
 
-4. **CHIT_CHAT**: 
-   - Greetings, general conversation, or off-topic queries.
-   - Examples: "Hi", "Hello", "Who are you?", "Thanks"
+    4. **CHIT_CHAT**: 
+    - Greetings, gratitude, or general conversation unrelated to learning.
+    - Examples: "안녕", "반가워", "고마워", "Hi", "Hello"
 
-[Output Format]
-Return a JSON object conforming to the KeywordRouterOutput schema.
+    [Output Format]
+    Return a JSON object conforming to the KeywordRouterOutput schema.
 """
 
 router_prompt = ChatPromptTemplate.from_messages([
@@ -65,7 +71,7 @@ router_prompt = ChatPromptTemplate.from_messages([
 api_key = os.getenv("OPENAI_API_KEY")
 llm = ChatOpenAI(
     model="gpt-4o-mini", 
-    temperature=0.0,
+    temperature=0.5,
     api_key=api_key
 )
 

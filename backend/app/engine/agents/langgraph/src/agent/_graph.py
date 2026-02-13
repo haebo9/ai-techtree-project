@@ -13,7 +13,7 @@ from langchain_core.messages import BaseMessage, AIMessage, HumanMessage
 
 # Local Modules
 from agent.agent_router import route_keyword_intent
-from agent.agent_tutor import explain_keyword
+from agent._agent_tutor import explain_keyword
 from agent.agent_quiz import generate_keyword_questions
 from agent._agent_evaluator import evaluate_answer # Reusing existing evaluator
 from agent._agent_navigator import recommend_next_keywords

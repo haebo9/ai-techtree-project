@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 import os
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
@@ -6,86 +6,73 @@ from langchain_core.output_parsers import PydanticOutputParser
 from pydantic import BaseModel, Field
 
 # ==========================================
-# 1. 문제 데이터 구조 (Schema)
+# Schema (Integrated)
 # ==========================================
+class KeywordAndQuiz(BaseModel):
+    """
+    Content generated for a specific keyword, including explanation and assessment.
+    """
+    keyword: str = Field(description="The keyword being explained")
+    
+    # Content Part (Tutor)
+    definition: str = Field(description="A precise, academic definition (1-2 sentences).")
+    summary: str = Field(description="A easy-to-understand summary for a learner using analogies if helpful.")
+    core_concepts: List[str] = Field(description="3-5 key concepts associated with this keyword.")
+    
+    # Assessment Part (Quiz)
+    quiz_question: str = Field(description="A single technical question to test understanding of the keyword.")
+    quiz_options: Optional[List[str]] = Field(description="For multiple choice, list options. Empty if open-ended.")
+    quiz_answer: str = Field(description="The correct answer and brief explanation.")
 
+# ==========================================
+# Prompt & Chain
+# ==========================================
+INTEGRATED_SYSTEM_PROMPT = """
+    You are an expert AI Tech Tutor and Interviewer.
+    Your goal is to teach a concept and immediately assess the learner's understanding.
 
-KEYWORD_QUESTION_PROMPT = """
-You are an expert Interviewer.
-Create a targeted technical interview question about the keyword: "{keyword}".
-Use the provided context to ensure the question is relevant.
+    [Instructions]
+    1. Explain the given keyword clearly (Definition & Summary).
+    2. Generate ONE high-quality quiz question based on your explanation.
+    3. The question should be suitable for an intermediate learner.
 
-[Context]
-Definition: {definition}
+    [Language Requirement]
+    - **MUST** provide definition, summary, quiz question, options, and answer explanation in **KOREAN (한국어)**.
+    - The 'keyword' itself can be English or Korean.
 
-[Requirements]
-1. Generate ONE high-quality question that test understanding of this specific concept.
-2. The question should be suitable for a {level} learner.
-3. Provide a clear model answer and evaluation criteria.
-
-Output JSON format:
-{format_instructions}
+    [Output Format]
+    Return a JSON object conforming to the KeywordAndQuiz schema.
+    {format_instructions}
 """
 
-keyword_q_prompt = ChatPromptTemplate.from_messages([
-    ("system", KEYWORD_QUESTION_PROMPT),
-    ("human", "Generate a question for: {keyword}")
-])
+parser = PydanticOutputParser(pydantic_object=KeywordAndQuiz)
 
-api_key = os.getenv("OPENAI_API_KEY")
-llm = ChatOpenAI(model="gpt-4o", temperature=0.5, api_key=api_key)
-parser = PydanticOutputParser(pydantic_object=KeywordContent)
+prompt = ChatPromptTemplate.from_messages([
+    ("system", INTEGRATED_SYSTEM_PROMPT),
+    ("human", "Teach me about: {keyword}")
+]).partial(format_instructions=parser.get_format_instructions())
 
-keyword_chain = keyword_q_prompt | llm | parser
-
-# LCEL 체인 구성
-class GeneratedQuestion(BaseModel):
-    """생성된 단일 면접 질문 구조"""
-    skill: Optional[str] = Field(description="대상 기술 스택 (예: Python)")
-    topic: Optional[str] = Field(description="세부 주제 (예: Generator)")
-    level: str = Field(description="난이도 (Basic, Intermediate, Advanced)")
-    question_text: str = Field(description="면접 질문 본문")
-    model_answer: str = Field(description="질문에 대한 모범 답안")
-    evaluation_criteria: List[str] = Field(description="채점 시 확인해야 할 핵심 키워드 3~5개")
-
-class QuestionList(BaseModel):
-    """질문 리스트 (LLM 출력 파싱용)"""
-    questions: List[GeneratedQuestion] = Field(description="생성된 면접 질문 목록")
+llm = ChatOpenAI(model="gpt-4o", temperature=0.5, api_key=os.getenv("OPENAI_API_KEY"))
+chain = prompt | llm | parser
 
 # ==========================================
-# 2. 모델 및 파서 설정
+# Execution Function
 # ==========================================
-api_key = os.getenv("OPENAI_API_KEY")
-
-llm = ChatOpenAI(
-    model="gpt-4o", 
-    temperature=0.7, 
-    api_key=api_key
-)
-
-parser = PydanticOutputParser(pydantic_object=QuestionList)
-
-async def generate_keyword_questions(keyword: str, definition: str, level: str = "Intermediate") -> List[dict]:
+async def generate_quiz_and_explanation(keyword: str) -> dict:
     """
-    Generates a question specifically targeting the given keyword and context.
-    
-    Returns:
-        List[dict]: A list containing one question dictionary.
+    Generates both explanation and a quiz for a given keyword in one go.
     """
     try:
-        result = await keyword_chain.ainvoke({
-            "keyword": keyword,
-            "definition": definition,
-            "level": level,
-            "format_instructions": parser.get_format_instructions()
-        })
-        # Override fields to be keyword-specific if needed
-        questions = [q.model_dump() for q in result.questions]
-        for q in questions:
-            q['topic'] = keyword # Ensure topic matches keyword
-            q['skill'] = "KeywordMastery" 
-        return questions
-        
+        result = await chain.ainvoke({"keyword": keyword})
+        return result.model_dump()
     except Exception as e:
-        print(f"⚠️ [QAMaker] Error generating keyword question: {e}")
-        return []
+        print(f"⚠️ [IntegratedAgent] Error: {e}")
+        return {
+            "keyword": keyword,
+            "definition": "Content unavailable.",
+            "summary": "Could not generate content.",
+            "core_concepts": [],
+            "quiz_question": "Quiz generation failed.",
+            "quiz_options": [],
+            "quiz_answer": ""
+        }
