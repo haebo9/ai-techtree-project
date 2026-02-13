@@ -13,6 +13,7 @@
 ## 2026년 2월 
 | Date | Tag | Category | Details |
 |:---:|:---:|:---:|:---|
+| **26.02.13(금)** | 🟣 | **Refactor** | LangGraph Agent 로직 단순화 (키워드 기반 문제 생성) |
 | **26.02.10(화)** | 🟣 | **Refactor** | Keyword 기반 Agent 로직 초기화 (단순화) |
 | **26.02.02(목)** | 🟣 | **Add** | LangGraph 로직에 tools 사용 노드 추가 |
 
