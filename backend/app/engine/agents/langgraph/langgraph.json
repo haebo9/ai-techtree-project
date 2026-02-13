@@ -4,7 +4,7 @@
     "."
   ],
   "graphs": {
-    "keyword_agent": "./src/agent/keyword_graph.py:keyword_graph"
+    "agent": "./src/agent/graph.py:keyword_workflow"
   },
   "env": ".env",
   "image_distro": "wolfi"

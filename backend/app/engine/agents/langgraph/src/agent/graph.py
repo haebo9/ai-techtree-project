@@ -1,27 +1,19 @@
-from __future__ import annotations
-import asyncio
-from typing import Any, Dict, List, Optional, Literal, TypedDict
+# global module
+from typing import TypedDict, List, Optional
 from typing_extensions import Annotated
-import os
-from dotenv import load_dotenv, find_dotenv
-
-load_dotenv(find_dotenv('.env'))
-
-from langgraph.graph import StateGraph, END, START
+from langchain_core.messages import BaseMessage, AIMessage
+from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
-from langchain_core.messages import BaseMessage, AIMessage, HumanMessage
 
-# Local Modules
-from agent.agent_router import route_keyword_intent
-from agent.agent_tutor import explain_keyword
-from agent.agent_quiz import generate_keyword_questions
-from agent.agent_evaluator import evaluate_answer # Reusing existing evaluator
-from agent.agent_navigator import recommend_next_keywords
+# local module
+from app.engine.agents.langgraph.src.agent.agent_router import route_keyword_intent
+from app.engine.agents.langgraph.src.agent.agent_quiz import generate_quiz_and_explanation
 from app.services.keyword_service import keyword_service
 
 # ==========================================
 # 1. State Definition
 # ==========================================
+# 키워드 관련 상태 저장 클래스
 class KeywordState(TypedDict, total=False):
     """
     State for the Keyword-Driven Learning Flow.
@@ -47,35 +39,31 @@ class KeywordState(TypedDict, total=False):
 # ==========================================
 # 2. Nodes
 # ==========================================
-
+# 라우터 노드 : 초기 대화 방향 설정 라우터
 async def router_node(state: KeywordState):
-    """
-    Analyzes input to decide the next step.
-    """
-    messages = state["messages"]
-    last_msg = messages[-1]
-    
+    """analyzes user intent and prepares for new keyword learning."""
+    last_msg = state["messages"][-1]
     if isinstance(last_msg, AIMessage):
         return {"user_intent": "WAIT"}
         
-    user_input = last_msg.content
-    curr_kw = state.get("keyword", "None")
-    
-    # Determine intent
-    router_out = await route_keyword_intent(user_input, curr_kw)
-    intent = router_out.get("intent", "CHIT_CHAT")
-    extracted_kw = router_out.get("keyword")
+    # 의도 분석
+    res = await route_keyword_intent(last_msg.content, state.get("keyword", "None"))
+    intent = res.get("intent", "CHIT_CHAT")
     
     updates = {"user_intent": intent}
-    if intent == "KEYWORD_SEARCH" and extracted_kw:
-        updates["keyword"] = extracted_kw
-        # Reset context for new keyword
-        updates["keyword_data"] = {} 
-        updates["current_question"] = None
+    
+    # 키워드 검색 시 상태 초기화
+    if intent == "KEYWORD_SEARCH" and res.get("keyword"):
+        updates.update({
+            "keyword": res["keyword"],
+            "keyword_data": {}, # reset
+            "current_question": None # reset
+        })
         
     return updates
 
-async def search_and_explain_node(state: KeywordState):
+# 사용자 요청과 관련된 키워드를 DB에서 찾고 없으면 새롭게 생성
+async def search_keyword_node(state: KeywordState):
     """
     [Content Phase] 
     1. Searches (or generates) info for the keyword.
@@ -85,163 +73,106 @@ async def search_and_explain_node(state: KeywordState):
     if not kw:
         return {"messages": [AIMessage(content="Please specify a keyword to learn.")]}
     
-    # 1. Check DB first
-    kw_data_db = await keyword_service.get_keyword(kw)
+    # DB 조회 시도
+    kw_data = await keyword_service.get_keyword(kw)
     
-    if kw_data_db:
-        kw_data = kw_data_db
-    else:
-        # 2. If miss, generate content
-        kw_data = await explain_keyword(kw)
-        # Save newly generated keyword to DB
+    # 없으면 새로 생성 후 저장
+    if not kw_data:
+        # 통합 생성 (설명 + 퀴즈)
+        kw_data = await generate_quiz_and_explanation(kw)
         await keyword_service.create_keyword(kw_data)
+    elif not kw_data.get("quiz_question"):
+        # 퀴즈 정보가 없으면 보충 (기존 데이터 유지)
+        new_data = await generate_quiz_and_explanation(kw)
+        kw_data.update({
+            "quiz_question": new_data.get("quiz_question"),
+            "quiz_options": new_data.get("quiz_options"),
+            "quiz_answer": new_data.get("quiz_answer")
+        })
+        # (Optional) DB 업데이트가 필요하지만, 일단 메모리상에서만 사용
     
-    # Construct explanation message
-    
-    # Construct explanation message
-    msg_content = f"## 📚 Concept: {kw}\n\n" \
-                  f"**Definition**: {kw_data.get('definition')}\n\n" \
-                  f"**Summary**: {kw_data.get('summary')}\n\n" \
-                  f"*(Preparing a quiz for you...)*"
+    # 퀴즈 정보 추출 및 설정
+    quiz_info = {
+        "question_text": kw_data.get("quiz_question"),
+        "options": kw_data.get("quiz_options"),
+        "answer": kw_data.get("quiz_answer")
+    }
+
+    msg_content = (
+        f"## 📚 Concept: {kw}\n\n"
+        f"**Definition**: {kw_data.get('definition')}\n\n"
+        f"**Summary**: {kw_data.get('summary')}\n\n"
+        f"*(Preparing a quiz for you...)*"
+    )
                   
     return {
         "keyword_data": kw_data,
+        "current_question": quiz_info, # 다음 단계를 위해 저장
         "messages": [AIMessage(content=msg_content)]
     }
 
+# 퀴즈 생성 노드 : 키워드를 기반으로 퀴즈 생성
 async def generate_quiz_node(state: KeywordState):
     """
     [Assessment Phase] Generates a question based on valid content.
     """
-    kw = state.get("keyword")
-    kw_data = state.get("keyword_data", {})
+    # 이미 search_keyword_node에서 생성된 퀴즈를 가져옴
+    question = state.get("current_question")
     
-    # Use definitions to generate targeted Q
-    questions = await generate_keyword_questions(
-        keyword=kw,
-        definition=kw_data.get("definition", ""),
-        level="Intermediate" # Could comprise from user profile
-    )
-    
-    if not questions:
+    if not question or not question.get("question_text"):
          return {"messages": [AIMessage(content="Could not generate a quiz at this moment.")]}
+    
+    # 퀴즈 출력 메시지 구성
+    options_text = ""
+    if question.get("options"):
+        options_text = "\n" + "\n".join([f"- {opt}" for opt in question["options"]])
          
-    question = questions[0]
     return {
-        "current_question": question,
-        "messages": [AIMessage(content=f"**Q. {question['question_text']}**")]
+        "messages": [AIMessage(content=f"**Q. {question['question_text']}**{options_text}")]
     }
 
-async def evaluate_answer_node(state: KeywordState):
+# 일반적인 대화를 위한 노드 
+async def chit_chat_node(state: KeywordState):
     """
-    [Evaluation Phase] Checks user answer.
+    [Chit-Chat Phase] Handles general conversation.
     """
-    current_q = state.get("current_question")
-    if not current_q:
-         return {"messages": [AIMessage(content="No active question to evaluate.")]}
-         
-    user_ans = state["messages"][-1].content
-    
-    eval_result = await evaluate_answer(
-        question=current_q.get("question_text"),
-        user_answer=user_ans,
-        model_answer=current_q.get("model_answer"),
-        evaluation_criteria=current_q.get("evaluation_criteria", [])
-    )
-    
-    # Update Mastery in DB
-    if state.get("user_db_id"):
-        await keyword_service.update_user_mastery(
-            user_id=state["user_db_id"], 
-            keyword_key=current_q.get("primary_keyword", state.get("keyword")),
-            result=eval_result
-        )
-    
-    feedback = eval_result.get("feedback", "")
-    score = eval_result.get("score", 0)
-    passed = eval_result.get("is_passed", False)
-    
-    msg = f"**Assessment Result**: {'PASS ✅' if passed else 'TRY AGAIN ⚠️'} (Score: {score})\n\n{feedback}"
-    
-    return {
-        "evaluation_result": eval_result,
-        "messages": [AIMessage(content=msg)]
-    }
-
-async def recommend_node(state: KeywordState):
-    """
-    [Navigation Phase] Suggests next steps.
-    """
-    kw_data = state.get("keyword_data", {})
-    related = kw_data.get("related_keywords", [])
-    
-    # If DB available, we could check user history to filter out learned topics
-    
-    # Call Navigator Agent
-    result = await recommend_next_keywords(
-        keyword=state.get("keyword", "None"),
-        related_keywords=related
-    )
-    
-    recs = result.get("recommendations", [])
-    reason = result.get("reasoning", "")
-    
-    if recs:
-        rec_text = f"**Next Keywords** (Reason: {reason})\n" + \
-                   "\n".join([f"- {r}" for r in recs])
-    else:
-        rec_text = "What would you like to learn next?"
-        
-    return {
-        "next_recommendations": recs,
-        "messages": [AIMessage(content=rec_text)]
-    }
+    response = "도움이 필요하시면 언제든지 말씀해주세요."
+    return {"messages": [AIMessage(content=response)]}
 
 # ==========================================
 # 3. Edges & Graph
 # ==========================================
-
+# 라우터 노드 : 초기 대화 방향 설정 라우터
 def route_next(state: KeywordState):
-    intent = state.get("user_intent")
-    if intent == "KEYWORD_SEARCH":
-        return "explain"
-    elif intent == "ANSWER":
-        return "evaluate"
-    elif intent == "NAVIGATION":
-        return "recommend"
-    elif intent == "WAIT":
-        return END
-    return END # Chit chat or others
+    intent = state.get("user_intent", "CHIT_CHAT")
+    if intent == "KEYWORD_SEARCH" or intent == "QUIZ":
+        return "search_keyword_node"
+    else:
+        return "chit_chat_node"
+    
 
 workflow = StateGraph(KeywordState)
 
-# Nodes
+# Nodes(노드)
 workflow.add_node("router", router_node)
-workflow.add_node("explain", search_and_explain_node)
-workflow.add_node("quiz", generate_quiz_node)
-workflow.add_node("evaluate", evaluate_answer_node)
-workflow.add_node("recommend", recommend_node)
+workflow.add_node("search_keyword_node", search_keyword_node)
+workflow.add_node("generate_quiz_node", generate_quiz_node)
+workflow.add_node("chit_chat_node", chit_chat_node)
 
-# Edges
+# Edges(-->)
 workflow.add_edge(START, "router")
-
 workflow.add_conditional_edges(
-    "router",
+    "router", 
     route_next,
     {
-        "explain": "explain",
-        "evaluate": "evaluate",
-        "recommend": "recommend",
+        "search_keyword_node": "search_keyword_node",
+        "chit_chat_node": "chit_chat_node",
         END: END
     }
 )
+workflow.add_edge("search_keyword_node", "generate_quiz_node")
+workflow.add_edge("chit_chat_node", END)
+workflow.add_edge("generate_quiz_node", END)
 
-# Flow: Explain -> Quiz -> WAIT
-workflow.add_edge("explain", "quiz")
-workflow.add_edge("quiz", END) # Wait for answer
-
-# Flow: Evaluate -> Recommend -> WAIT
-workflow.add_edge("evaluate", "recommend")
-workflow.add_edge("recommend", END)
-
-keyword_graph = workflow.compile()
+# Compile
+keyword_workflow = workflow.compile()
