@@ -140,12 +140,32 @@ async def generate_quiz_node(state: KeywordState):
 
 async def evaluate_quiz_node(state: KeywordState):
     """
-    [Assessment Phase] Evaluates the user's answer. Simple evaluation.
+    [Assessment Phase] Evaluates the user's answer. Simple evaluation(Correct/Incorrect/Stop).
+    if Stop -> report_star_node
+    else -> generate_quiz_node
+
+    Input: 
+        current_question: dict
+        messages: List[BaseMessage]
+    return: 
+        evaluation_result: str
     """
 
+async def report_star_node(state: KeywordState):
+    """
+    [Assessment Phase] Reports the evaluation result to the user. And Update user's star.
+    """
+
+async def recommend_keyword_node(state: KeywordState):
+    """
+    [Assessment Phase] Recommends a new keyword to the user.
+    """
+
+async def info_keyword_node(state: KeywordState):
+    """
+    [info Phase] Provides information or Trend about the keyword.
+    """
     
-
-
 # 일반적인 대화를 위한 노드 
 async def chit_chat_node(state: KeywordState):
     """
@@ -161,12 +181,20 @@ async def chit_chat_node(state: KeywordState):
 def route_next(state: KeywordState):
     intent = state.get("user_intent", "CHIT_CHAT")
     if intent == "KEYWORD_SEARCH" or intent == "QUIZ":
-        return "search_keyword_node"
+        return "search_keyword"
     elif intent == "EVALUATE":
-        return "evaluate_quiz_node"
+        return "evaluate_quiz"
+    elif intent == "RECOMMEND":
+        return "recommend_keyword"
     else:
-        return "chit_chat_node"
+        return "chit_chat"
     
+def pass_fail(state: KeywordState):
+    pass_fail = state.get("pass_fail")
+    if pass_fail == "pass":
+        return "generate_quiz"
+    else:
+        return "report_star"
 
 workflow = StateGraph(KeywordState)
 
@@ -175,6 +203,9 @@ workflow.add_node("router", router_node)
 workflow.add_node("search_keyword", search_keyword_node)
 workflow.add_node("generate_quiz", generate_quiz_node)
 workflow.add_node("evaluate_quiz", evaluate_quiz_node)
+workflow.add_node("report_star", report_star_node)
+workflow.add_node("recommend_keyword", recommend_keyword_node)
+workflow.add_node("info_keyword", info_keyword_node)
 workflow.add_node("chit_chat", chit_chat_node)
 
 # Edges(-->)
@@ -186,12 +217,23 @@ workflow.add_conditional_edges(
         "search_keyword": "search_keyword",
         "chit_chat": "chit_chat",
         "evaluate_quiz": "evaluate_quiz",
-        END: END
+        "recommend_keyword": "recommend_keyword",
+        "info_keyword": "info_keyword",
+    }
+)
+workflow.add_conditional_edges(
+    "evaluate_quiz", 
+    pass_fail,
+    {
+        "pass": "generate_quiz",
+        "fail": "report_star"
     }
 )
 workflow.add_edge("search_keyword", "generate_quiz")
-workflow.add_edge("evaluate_quiz", "generate_quiz")
-workflow.add_edge("chit_chat", END)
+workflow.add_edge("report_star", "recommend_keyword")
+workflow.add_edge("chit_chat", "recommend_keyword")
+workflow.add_edge("recommend_keyword", END)
+workflow.add_edge("info_keyword", END)
 workflow.add_edge("generate_quiz", END)
 
 # Compile
