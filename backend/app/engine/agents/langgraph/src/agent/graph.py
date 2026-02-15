@@ -6,8 +6,7 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
 
 # local module
-from app.engine.agents.langgraph.src.agent.agent_router import route_keyword_intent
-from app.engine.agents.langgraph.src.agent.agent_quiz import generate_quiz_and_explanation
+from app.engine.agents.langgraph.src.agent import agent_router, agent_quiz
 from app.services.keyword_service import keyword_service
 
 # ==========================================
@@ -27,6 +26,7 @@ class KeywordState(TypedDict, total=False):
     # Current Focus
     keyword: str             # The active keyword
     keyword_data: dict       # Extracted/Generated content (def, summary)
+    level: int          # The level of the keyword
     
     # Quiz Context
     current_question: Optional[dict]
@@ -39,6 +39,13 @@ class KeywordState(TypedDict, total=False):
 # ==========================================
 # 2. Nodes
 # ==========================================
+note = """
+    1. router_node : 어떤 대화를 할지 결정
+    2. search_keyword_node : 키워드를 DB에서 조회하고 없으면 새로 생성
+    3. generate_quiz_node : 키워드 기반으로 퀴즈 생성
+    4. chit_chat_node : 일반적인 대화
+"""
+
 # 라우터 노드 : 초기 대화 방향 설정 라우터
 async def router_node(state: KeywordState):
     """analyzes user intent and prepares for new keyword learning."""
@@ -47,7 +54,7 @@ async def router_node(state: KeywordState):
         return {"user_intent": "WAIT"}
         
     # 의도 분석
-    res = await route_keyword_intent(last_msg.content, state.get("keyword", "None"))
+    res = await agent_router.route_keyword_intent(last_msg.content, state.get("keyword", "None"))
     intent = res.get("intent", "CHIT_CHAT")
     
     updates = {"user_intent": intent}
@@ -79,11 +86,11 @@ async def search_keyword_node(state: KeywordState):
     # 없으면 새로 생성 후 저장
     if not kw_data:
         # 통합 생성 (설명 + 퀴즈)
-        kw_data = await generate_quiz_and_explanation(kw)
+        kw_data = await agent_quiz.generate_quiz_and_explanation(kw)
         await keyword_service.create_keyword(kw_data)
     elif not kw_data.get("quiz_question"):
         # 퀴즈 정보가 없으면 보충 (기존 데이터 유지)
-        new_data = await generate_quiz_and_explanation(kw)
+        new_data = await agent_quiz.generate_quiz_and_explanation(kw)
         kw_data.update({
             "quiz_question": new_data.get("quiz_question"),
             "quiz_options": new_data.get("quiz_options"),
@@ -131,6 +138,14 @@ async def generate_quiz_node(state: KeywordState):
         "messages": [AIMessage(content=f"**Q. {question['question_text']}**{options_text}")]
     }
 
+async def evaluate_quiz_node(state: KeywordState):
+    """
+    [Assessment Phase] Evaluates the user's answer. Simple evaluation.
+    """
+
+    
+
+
 # 일반적인 대화를 위한 노드 
 async def chit_chat_node(state: KeywordState):
     """
@@ -147,6 +162,8 @@ def route_next(state: KeywordState):
     intent = state.get("user_intent", "CHIT_CHAT")
     if intent == "KEYWORD_SEARCH" or intent == "QUIZ":
         return "search_keyword_node"
+    elif intent == "EVALUATE":
+        return "evaluate_quiz_node"
     else:
         return "chit_chat_node"
     
@@ -155,9 +172,10 @@ workflow = StateGraph(KeywordState)
 
 # Nodes(노드)
 workflow.add_node("router", router_node)
-workflow.add_node("search_keyword_node", search_keyword_node)
-workflow.add_node("generate_quiz_node", generate_quiz_node)
-workflow.add_node("chit_chat_node", chit_chat_node)
+workflow.add_node("search_keyword", search_keyword_node)
+workflow.add_node("generate_quiz", generate_quiz_node)
+workflow.add_node("evaluate_quiz", evaluate_quiz_node)
+workflow.add_node("chit_chat", chit_chat_node)
 
 # Edges(-->)
 workflow.add_edge(START, "router")
@@ -165,14 +183,16 @@ workflow.add_conditional_edges(
     "router", 
     route_next,
     {
-        "search_keyword_node": "search_keyword_node",
-        "chit_chat_node": "chit_chat_node",
+        "search_keyword": "search_keyword",
+        "chit_chat": "chit_chat",
+        "evaluate_quiz": "evaluate_quiz",
         END: END
     }
 )
-workflow.add_edge("search_keyword_node", "generate_quiz_node")
-workflow.add_edge("chit_chat_node", END)
-workflow.add_edge("generate_quiz_node", END)
+workflow.add_edge("search_keyword", "generate_quiz")
+workflow.add_edge("evaluate_quiz", "generate_quiz")
+workflow.add_edge("chit_chat", END)
+workflow.add_edge("generate_quiz", END)
 
 # Compile
 keyword_workflow = workflow.compile()
