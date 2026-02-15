@@ -95,3 +95,32 @@ async def route_keyword_intent(user_input: str, current_keyword: str = "None", l
         print(f"⚠️ [KeywordRouter] Error: {e}")
         # Fallback to CHIT_CHAT if parsing fails
         return {"intent": "CHIT_CHAT", "keyword": None, "reasoning": "Error Fallback"}
+
+# ==========================================
+# Nodes
+# ==========================================
+from langchain_core.messages import AIMessage
+from app.engine.agents.langgraph.src.agent.state import KeywordState
+
+# 라우터 노드 : 초기 대화 방향 설정 라우터
+async def router_node(state: KeywordState):
+    """analyzes user intent and prepares for new keyword learning."""
+    last_msg = state["messages"][-1]
+    if isinstance(last_msg, AIMessage):
+        return {"user_intent": "WAIT"}
+        
+    # 의도 분석
+    res = await route_keyword_intent(last_msg.content, state.get("keyword", "None"))
+    intent = res.get("intent", "CHIT_CHAT")
+    
+    updates = {"user_intent": intent}
+    
+    # 키워드 검색 시 상태 초기화
+    if intent == "KEYWORD_SEARCH" and res.get("keyword"):
+        updates.update({
+            "keyword": res["keyword"],
+            "keyword_data": {}, # reset
+            "current_question": None # reset
+        })
+        
+    return updates
