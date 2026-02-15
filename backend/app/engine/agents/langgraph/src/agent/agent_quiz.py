@@ -76,3 +76,52 @@ async def generate_quiz_and_explanation(keyword: str) -> dict:
             "quiz_options": [],
             "quiz_answer": ""
         }
+
+# ==========================================
+# Nodes
+# ==========================================
+from langchain_core.messages import AIMessage
+from app.engine.agents.langgraph.src.agent.state import KeywordState
+
+# 퀴즈 생성 노드 : 키워드를 기반으로 퀴즈 생성
+async def generate_quiz_node(state: KeywordState):
+    """
+    [Assessment Phase] Generates a question based on valid content.
+    """
+    # 이미 search_keyword_node에서 생성된 퀴즈를 가져옴
+    question = state.get("current_question")
+    
+    if not question or not question.get("question_text"):
+         return {"messages": [AIMessage(content="Could not generate a quiz at this moment.")]}
+    
+    # 퀴즈 출력 메시지 구성
+    options_text = ""
+    if question.get("options"):
+        options_text = "\n" + "\n".join([f"- {opt}" for opt in question["options"]])
+         
+    return {
+        "messages": [AIMessage(content=f"**Q. {question['question_text']}**{options_text}")]
+    }
+
+async def evaluate_quiz_node(state: KeywordState):
+    """
+    [Assessment Phase] Evaluates the user's answer. Simple evaluation(Correct/Incorrect/Stop).
+    if Stop -> report_star_node
+    else -> generate_quiz_node
+
+    Input: 
+        current_question: dict
+        messages: List[BaseMessage]
+    return: 
+        evaluation_result: str
+    """
+    # TODO: Implement evaluation logic
+    return {"pass_fail": "fail", "messages": [AIMessage(content="Evaluation logic not implemented yet.")]}
+
+async def report_star_node(state: KeywordState):
+    """
+    [Assessment Phase] Reports the evaluation result to the user. And Update user's star.
+    """
+    # TODO: Implement reporting logic
+    return {"messages": [AIMessage(content="Reporting logic not implemented yet.")]}
+
