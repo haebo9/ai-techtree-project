@@ -36,6 +36,16 @@ eval_parser = PydanticOutputParser(pydantic_object=EvaluationResult)
 # ==========================================
 # 3. 프롬프트: 단일 답변 평가 (Evaluator)
 # ==========================================
+
+# 간단한 평가 프롬프트 (정답/오답 확인)
+SIMPLE_EVALUATOR_SYSTEM_PROMPT = """
+you are a quiz correct/incorrect evaluator.
+evaluate the user's answer using the question and correct answer. 
+
+respond : correct or incorrect
+"""
+
+# 최종 평가 리포트 프롬프트 (세부 평가 항목 포함)
 EVALUATOR_SYSTEM_PROMPT = """
 당신은 시니어 개발자 면접관입니다.
 주어진 면접 질문과 지원자의 답변을 기술적으로 냉정하게 평가하세요.
@@ -45,7 +55,7 @@ EVALUATOR_SYSTEM_PROMPT = """
 2. 논리적 흐름 및 명확성
 3. 구체적인 예시나 코드 사용 여부
 
-다음의 JSON 형식으로만 응답하세요:
+response format:
 {format_instructions}
 """
 
