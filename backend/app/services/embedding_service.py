@@ -3,6 +3,7 @@ import logging
 from typing import List, Dict, Optional
 from langchain_openai import OpenAIEmbeddings
 from app.core.config import settings
+from datetime import datetime
 from app.services.crud_keyword import keyword as keyword_crud
 
 # 로거 설정
@@ -133,15 +134,62 @@ class EmbeddingService:
             logger.error(f"Error checking similar keywords: {e}")
             return []
 
-    async def calculate_recommendation(self, user_id: str):
+    async def calculate_recommendation(self, user_id: str) -> None:
         """
         [Background Task]
         Updates user's recommended keywords based on their learning history.
         """
-        # 추천 로직 (추후 구현 예정)
-        # 1. 사용자가 학습 완료한 키워드 조회
-        # 2. 관련성 높은 미학습 키워드 탐색
-        # 3. 사용자 프로필 업데이트
-        pass
+        if not self.embed_model:
+            return
+
+        try:
+            # 1. 사용자 정보 조회 (순환 참조 방지를 위해 함수 내부 import 고려 or 매개변수로 데이터 전달)
+            # 여기서는 crud_user를 직접 사용
+            from app.services.crud_user import user as user_crud
+            user = await user_crud.get(user_id)
+            if not user:
+                return
+
+            # 2. 사용자가 학습한(Star >= 1) 키워드 추출
+            mastered_keywords = [
+                k for k, v in user.keyword_progress.items() 
+                if v.star >= 1
+            ]
+            
+            if not mastered_keywords:
+                # 학습 데이터가 없으면 기본 추천 (나중에 Popular 키워드로 대체 가능)
+                # 일단은 아무것도 하지 않음 (또는 agent_keyword.py의 fallback 사용)
+                return
+
+            # 3. 최근 학습한 키워드 3개 기반으로 유사 키워드 탐색
+            # 너무 오래된 키워드보다는 최신 관심사 반영
+            # (keyword_progress는 dict라 순서 보장이 안되므로, last_reviewed_at 정렬 필요)
+            sorted_history = sorted(
+                [k for k in user.keyword_progress.items() if k[1].star >= 1],
+                key=lambda x: x[1].last_reviewed_at or datetime.min,
+                reverse=True
+            )
+            recent_keywords = [k[0] for k in sorted_history[:3]]
+            
+            recommendations_set = set()
+            
+            for kw in recent_keywords:
+                sim_items = await self.search_similar(kw, k=3)
+                for item in sim_items:
+                    cand_kw = item["keyword"]
+                    # 이미 학습한 키워드는 제외
+                    if cand_kw not in user.keyword_progress or user.keyword_progress[cand_kw].star == 0:
+                        recommendations_set.add(cand_kw)
+            
+            # 4. 결과 저장 (최대 5개)
+            new_recommendations = list(recommendations_set)[:5]
+            
+            if new_recommendations:
+                # DB 업데이트
+                await user_crud.update(user_id, {"recommended_keywords": new_recommendations})
+                logger.info(f"Updated recommendations for user {user_id}: {new_recommendations}")
+                
+        except Exception as e:
+            logger.error(f"Error calculating recommendations for user {user_id}: {e}")
 
 embedding_service = EmbeddingService()

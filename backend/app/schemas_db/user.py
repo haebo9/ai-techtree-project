@@ -19,35 +19,34 @@ class UserStats(BaseModel):
     total_stars: int = 0
     completed_tracks: List[str] = []
 
-
-
 class KeywordProgress(BaseModel):
     """
-    사용자의 키워드(Keyword)별 숙련도 (v1.1)
+    사용자의 키워드(Keyword)별 학습 이력 (v1.1)
     """
-    level: int = 0  # 0~5 (0: New, 1: Novice, 2: Intermediate, 3: Advanced, 4: Expert, 5: Master)
-    score: float = 0.0 # Continuous score based on evaluation
+    # 학습 결과 (Star Rating: 1~3)
+    # 0: Not started (Learning Started), 1: Bronze, 2: Silver, 3: Gold
+    star: int = 0 
+    
     last_reviewed_at: Optional[datetime] = None
-    successful_attempts: int = 0
 
 # --- Main Collection Model ---
 
 class User(MongoDBModel):
     """
     [Collection]: users
-    사용자 정보 및 학습 상태(Skill Tree)를 저장
+    사용자 정보 및 학습 상태를 저장
     """
     auth: AuthInfo
     profile: UserProfile
     stats: UserStats = Field(default_factory=UserStats)
     
-    # [User State] 학습 진행도
-    # Key: Subject Title (e.g., 'FastAPI Essentials') -> 빠른 조회를 위해 Map 구조 사용
-    # Legacy: skill_tree: Dict[str, SubjectProgress] = Field(default_factory=dict)
-
-    # [User State v1.1] 키워드별 학습 숙련도
+    # [User State] 키워드별 학습 이력
     # Key: Keyword Key (e.g. "Dependency Injection")
     keyword_progress: Dict[str, KeywordProgress] = Field(default_factory=dict)
+    
+    # [User State] 다음 학습 추천 키워드 (Pre-calculated)
+    # 백그라운드에서 계산된 추천 키워드 목록 저장
+    recommended_keywords: List[str] = Field(default_factory=list)
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
@@ -63,8 +62,10 @@ class User(MongoDBModel):
                 "profile": {
                     "nickname": "AI_Master"
                 },
-                "skill_tree": {
-                    "FastAPI Essentials": {"level": 2, "stars": 2}
-                }
+                "keyword_progress": {
+                    "FastAPI": {"star": 3},
+                    "Python": {"star": 2}
+                },
+                "recommended_keywords": ["Pydantic", "AsyncIO"]
             }
         }

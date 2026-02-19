@@ -34,30 +34,56 @@ async def search_keyword_node(state: KeywordState):
 
     # 3. 그래도 없으면 새로 생성 후 저장
     if not kw_data:
-        # 통합 생성 (설명 + 퀴즈)
-        kw_data = await agent_quiz.generate_quiz_and_explanation(kw)
-        created_kw = await keyword_service.create_keyword(kw_data)
+        # A. 키워드 생성 (Only Definition & Summary)
+        # 퀴즈 생성 로직과 분리하여 DB에 저장될 데이터만 먼저 생성
+        # TODO: generate_quiz_and_explanation 함수가 통합되어 있어 분리 필요.
+        #       일단 전체 생성 후, DB 저장 시에만 필터링하도록 수정.
+        generated_data = await agent_quiz.generate_quiz_and_explanation(kw)
+        
+        # DB 저장용 데이터 (퀴즈 정보 제외)
+        db_data = {
+            "keyword_key": generated_data.get("keyword"),
+            "definition": generated_data.get("definition"),
+            "summary": generated_data.get("summary"),
+            # "quiz_question" 등은 제외
+        }
+        
+        created_kw = await keyword_service.create_keyword(db_data)
+        kw_data = created_kw # DB 모델 (퀴즈 없음)
+        
+        # 메모리용 퀴즈 데이터 (사용자 응답용)
+        # kw_data(DB모델)에는 퀴즈가 없으므로 generated_data에서 가져옴
+        quiz_from_gen = {
+            "quiz_question": generated_data.get("quiz_question"),
+            "quiz_options": generated_data.get("quiz_options"),
+            "quiz_answer": generated_data.get("quiz_answer")
+        }
         
         # [Async] 백그라운드 임베딩 인덱싱 (사용자 응답 지연 방지)
-        # 키워드가 생성되자마자 벡터화 작업을 큐에 던짐
         asyncio.create_task(embedding_service.index_keyword(created_kw["keyword_key"]))
         
-    elif not kw_data.get("quiz_question"):
-        # 퀴즈 정보가 없으면 보충 (기존 데이터 유지)
-        new_data = await agent_quiz.generate_quiz_and_explanation(kw)
-        kw_data.update({
-            "quiz_question": new_data.get("quiz_question"),
-            "quiz_options": new_data.get("quiz_options"),
-            "quiz_answer": new_data.get("quiz_answer")
-        })
-        # (Optional) DB 업데이트가 필요하지만, 일단 메모리상에서만 사용
+    else:
+        # 기존 데이터가 있는 경우, 퀴즈만 새로 생성 (DB 저장 X, 메모리 사용 O)
+        # 매번 새로운 퀴즈를 풀게 하기 위함 (선택 사항)
+        generated_quiz = await agent_quiz.generate_quiz_and_explanation(kw)
+        quiz_from_gen = {
+            "quiz_question": generated_quiz.get("quiz_question"),
+            "quiz_options": generated_quiz.get("quiz_options"),
+            "quiz_answer": generated_quiz.get("quiz_answer")
+        }
     
     # 퀴즈 정보 추출 및 설정
     quiz_info = {
-        "question_text": kw_data.get("quiz_question"),
-        "options": kw_data.get("quiz_options"),
-        "answer": kw_data.get("quiz_answer")
+        "question_text": quiz_from_gen.get("quiz_question"),
+        "options": quiz_from_gen.get("quiz_options"),
+        "answer": quiz_from_gen.get("quiz_answer")
     }
+
+    # [Async] 학습 시도 기록 (Star=0)
+    # 퀴즈를 풀지 않아도 "시도함"으로 표시
+    user_id = state.get("user_id", "test_user") # Default fallback
+    if user_id:
+        asyncio.create_task(keyword_service.mark_learning_started(user_id, kw))
 
     msg_content = (
         f"## 📚 Concept: {kw}\n\n"
@@ -77,27 +103,40 @@ async def recommend_keyword_node(state: KeywordState):
     """
     [Assessment Phase] Recommends a new keyword to the user.
     """
-    kw = state.get("keyword")
+    import random
+    from app.services.crud_user import user as user_crud
     
-    # 1. 현재 학습한 키워드와 연관된 키워드 추천
+    user_id = "test_user" # TODO: state에서 user_id 가져오기
+    user = await user_crud.get(user_id)
+    
     recommendations = []
-    if kw:
-        # 현재 키워드와 유사한 상위 3개 검색
-        sim_items = await embedding_service.search_similar(kw, k=3)
-        # 자기 자신 제외하고 추천 목록 구성
-        recommendations = [item["keyword"] for item in sim_items if item["keyword"] != kw]
     
-    # 2. 추천 결과가 없거나 부족하면 랜덤 추천 (혹은 기본 커리큘럼)
+    # 1. Pre-calculated 추천 목록 확인
+    if user and user.recommended_keywords:
+        recommendations = user.recommended_keywords
+    
+    # 2. 추천 목록이 없으면 즉석 계산 시도 (Backup)
     if not recommendations:
-        # TODO: 추후 커리큘럼 기반 추천 로직으로 고도화 필요
-        recommendations = ["Java", "Python", "Spring Boot"] # Fallback
+        kw = state.get("keyword")
+        if kw:
+            # 현재 키워드와 유사한 상위 3개 검색
+            sim_items = await embedding_service.search_similar(kw, k=3)
+            # 자기 자신 제외하고 추천 목록 구성
+            recommendations = [item["keyword"] for item in sim_items if item["keyword"] != kw]
+            
+            # [Async] 다음을 위해 백그라운드 추천 갱신 요청
+            asyncio.create_task(embedding_service.calculate_recommendation(user_id))
 
-    # 3. 다음 키워드 제안 메시지 작성
-    next_kw = recommendations[0]
+    # 3. 그래도 없으면 Fallback
+    if not recommendations:
+        recommendations = ["Java", "Python", "Spring Boot"] 
+
+    # 4. 다음 키워드 제안 (Random Selection to vary response)
+    next_kw = random.choice(recommendations)
     msg = f"Good job! Next, how about learning **{next_kw}**? It's related to what you just learned."
     
     return {
-        # "keyword": next_kw, # (선택) 다음 키워드로 바로 상태 전이할지, 유저 선택 기다릴지 결정 필요. 현재는 제안만.
+        # "keyword": next_kw, 
         "messages": [AIMessage(content=msg)]
     }
 

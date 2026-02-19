@@ -20,10 +20,6 @@ class Keyword(MongoDBModel):
     # Content
     definition: str # Core explanation of the concept
     summary: Optional[str] = None
-    
-    # Relationships
-    # List of neighbor keyword_keys found via vector similarity
-    related_keywords: List[str] = Field(default_factory=list) 
 
     class Config:
         json_schema_extra = {

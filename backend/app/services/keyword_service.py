@@ -48,15 +48,13 @@ class KeywordService:
         is_passed = result.get("is_passed", False)
         
         if is_passed:
-            progress.successful_attempts += 1
-            progress.score += (score_gain * 0.1) # Simple increment heuristic
+            # Star Rating Logic (Simple Heuristic for v1.1)
+            # Evaluation Model determines the star rating (1~3)
+            earned_star = result.get("star", 0) # Default to 0 if not provided
             
-            # Simple Level Logic: 
-            # 0->1: 1 success. 1->2: 3 successes. etc.
-            if progress.level == 0:
-                progress.level = 1
-            elif progress.level == 1 and progress.successful_attempts >= 3:
-                progress.level = 2
+            # Keep the highest star rating achieved
+            if earned_star > progress.star:
+                progress.star = earned_star
         
         # Update User object in memory then save
         user.keyword_progress[keyword_key] = progress
@@ -68,5 +66,30 @@ class KeywordService:
         await user_crud.update(user_id, {"keyword_progress": keyword_progress_dict})
         
         return is_passed
+
+    async def mark_learning_started(self, user_id: str, keyword_key: str) -> None:
+        """
+        Marks a keyword as 'attempted' (star=0) by the user.
+        If progress already exists, it does nothing (preserves existing stars).
+        """
+        user = await user_crud.get(user_id)
+        if not user:
+            return
+            
+        # 이미 학습 기록이 있으면 건너뜀 (별점 유지)
+        if keyword_key in user.keyword_progress:
+            return
+            
+        # 없으면 초기화 (Star=0)
+        progress = KeywordProgress(
+            star=0,
+            last_reviewed_at=datetime.utcnow()
+        )
+        
+        user.keyword_progress[keyword_key] = progress
+        
+        # DB 저장
+        keyword_progress_dict = {k: v.model_dump() for k, v in user.keyword_progress.items()}
+        await user_crud.update(user_id, {"keyword_progress": keyword_progress_dict})
 
 keyword_service = KeywordService()
