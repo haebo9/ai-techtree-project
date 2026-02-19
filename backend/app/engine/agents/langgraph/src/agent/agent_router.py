@@ -46,8 +46,9 @@ ROUTER_SYSTEM_PROMPT = """
 
     2. **ANSWER**: 
     - User is responding to a question asked by the system.
-    - Examples: "정답은 2번", "스택입니다", "LIFO 구조", "몰라요"
-    - Condition: Valid ONLY if Last System Action was 'ASKED_QUESTION' or similar.
+    - Examples: "정답은 2번", "스택입니다", "LIFO 구조", "몰라요", "Docker"
+    - Condition: **MUST prioritize this intent** if Last System Action was 'ASKED_QUESTION' and the input looks like an answer.
+    - Even if the input is a keyword (e.g., "Python"), if it's an answer to a question, classify as **ANSWER**, NOT KEYWORD_SEARCH.
 
     3. **NAVIGATION**: 
     - User asks for recommendations or next steps WITHOUT specifying a concrete topic.
@@ -107,11 +108,14 @@ from app.engine.agents.langgraph.src.agent.state import KeywordState
 async def router_node(state: KeywordState):
     """analyzes user intent and prepares for new keyword learning."""
     last_msg = state["messages"][-1]
-    if isinstance(last_msg, AIMessage):
-        return {"user_intent": "WAIT"}
         
     # 의도 분석
-    res = await route_keyword_intent(last_msg.content, state.get("keyword", "None"))
+    # Determine last action based on State (Updated based on user feedback)
+    last_action = "None"
+    if state.get("quiz_in_progress", False):
+        last_action = "ASKED_QUESTION"
+
+    res = await route_keyword_intent(last_msg.content, state.get("keyword", "None"), last_action)
     intent = res.get("intent", "CHIT_CHAT")
     
     updates = {"user_intent": intent}

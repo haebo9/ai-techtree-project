@@ -13,8 +13,8 @@ def route_next(state: KeywordState):
     intent = state.get("user_intent", "CHIT_CHAT")
     if intent == "KEYWORD_SEARCH" or intent == "QUIZ":
         return "search_keyword"
-    elif intent == "EVALUATE":
-        return "evaluate_quiz"
+    elif intent == "ANSWER":
+        return "answer_quiz"
     elif intent == "RECOMMEND":
         return "recommend_keyword"
     else:
@@ -23,9 +23,9 @@ def route_next(state: KeywordState):
 def pass_fail(state: KeywordState):
     pass_fail = state.get("pass_fail")
     if pass_fail == "pass":
-        return "generate_quiz"
+        return "pass"
     else:
-        return "report_star"
+        return "fail"
 
 workflow = StateGraph(KeywordState)
 
@@ -33,7 +33,7 @@ workflow = StateGraph(KeywordState)
 workflow.add_node("router", agent_router.router_node)
 workflow.add_node("search_keyword", agent_keyword.search_keyword_node)
 workflow.add_node("generate_quiz", agent_quiz.generate_quiz_node)
-workflow.add_node("evaluate_quiz", agent_quiz.evaluate_quiz_node)
+workflow.add_node("answer_quiz", agent_quiz.answer_quiz_node)
 workflow.add_node("report_star", agent_quiz.report_star_node)
 workflow.add_node("recommend_keyword", agent_keyword.recommend_keyword_node)
 workflow.add_node("info_keyword", agent_keyword.info_keyword_node)
@@ -47,13 +47,13 @@ workflow.add_conditional_edges(
     {
         "search_keyword": "search_keyword",
         "chit_chat": "chit_chat",
-        "evaluate_quiz": "evaluate_quiz",
+        "answer_quiz": "answer_quiz",
         "recommend_keyword": "recommend_keyword",
         "info_keyword": "info_keyword",
     }
 )
 workflow.add_conditional_edges(
-    "evaluate_quiz", 
+    "answer_quiz",
     pass_fail,
     {
         "pass": "generate_quiz",

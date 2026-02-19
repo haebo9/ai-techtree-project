@@ -30,3 +30,6 @@ class KeywordState(TypedDict, total=False):
     next_recommendations: List[str]
     user_intent: str         # From Router
     pass_fail: str           # From Evaluate Quiz
+    
+    # Context Flags
+    quiz_in_progress: bool = False # 퀴즈 진행 중 여부
