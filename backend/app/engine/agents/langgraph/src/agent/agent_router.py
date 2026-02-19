@@ -33,15 +33,16 @@ ROUTER_SYSTEM_PROMPT = """
 
     [Intent Classification Rules]
     1. **KEYWORD_SEARCH**: 
-    - User wants to learn about a specific technical concept, tool, or topic.
+    - User wants to learn about a specific **Computer Science or Software Development** concept/tool.
+    - **CRITICAL**: If the keyword is NOT related to CS/Dev (e.g., "History", "Cooking", "Celebrity"), classify as **CHIT_CHAT**.
     - ACTION: Extract the core technical term as 'keyword'.
-    - RULE: Remove Korean postpositions (e.g., ~은/는, ~이/가, ~을/를, ~에 대해) and extract ONLY the noun.
-    - RULE: Translate Korean technical terms to standard English if possible (e.g., "자바" -> "Java").
+    - RULE: Remove Korean postpositions and extract ONLY the noun.
+    - RULE: Translate Korean technical terms to standard English (e.g., "자바" -> "Java").
     - Examples:
-        - "도커" -> Intent: KEYWORD_SEARCH, Keyword: "Docker"
-        - "리액트란 뭐야?" -> Intent: KEYWORD_SEARCH, Keyword: "React"
-        - "BFS 알고리즘 설명해줘" -> Intent: KEYWORD_SEARCH, Keyword: "BFS"
-        - "파이썬 기초 배우고 싶어" -> Intent: KEYWORD_SEARCH, Keyword: "Python"
+        - "도커" -> Intent: KEYWORD_SEARCH, Keyword: "Docker" (CS/Dev O)
+        - "김치찌개 레시피" -> Intent: CHIT_CHAT (CS/Dev X)
+        - "BFS 알고리즘" -> Intent: KEYWORD_SEARCH, Keyword: "BFS" (CS/Dev O)
+        - "아이유" -> Intent: CHIT_CHAT (CS/Dev X)
 
     2. **ANSWER**: 
     - User is responding to a question asked by the system.
@@ -53,8 +54,8 @@ ROUTER_SYSTEM_PROMPT = """
     - Examples: "다음", "넘어가자", "추천해줘", "Next", "Pass"
 
     4. **CHIT_CHAT**: 
-    - Greetings, gratitude, or general conversation unrelated to learning.
-    - Examples: "안녕", "반가워", "고마워", "Hi", "Hello"
+    - Greetings, general conversation, OR **Non-CS/Dev topics**.
+    - Examples: "안녕", "오늘 날씨 어때?", "요리법 알려줘"
 
     [Output Format]
     Return a JSON object conforming to the KeywordRouterOutput schema.
