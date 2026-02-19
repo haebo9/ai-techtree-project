@@ -12,8 +12,8 @@ class KeywordRouterOutput(BaseModel):
     """
     User intent classification for Keyword-based learning flow.
     """
-    intent: Literal["KEYWORD_SEARCH", "ANSWER", "NAVIGATION", "CHIT_CHAT"] = Field(
-        ..., description="Classified intent: KEYWORD_SEARCH, ANSWER, NAVIGATION, CHIT_CHAT"
+    intent: Literal["KEYWORD_SEARCH", "ANSWER", "RECOMMEND", "CHIT_CHAT"] = Field(
+        ..., description="Classified intent: KEYWORD_SEARCH, ANSWER, RECOMMEND, CHIT_CHAT"
     )
     keyword: Optional[str] = Field(
         None, description="Extracted keyword if intent is KEYWORD_SEARCH (e.g., 'BFS', 'Docker')"
@@ -32,6 +32,19 @@ ROUTER_SYSTEM_PROMPT = """
     - Last System Action: {last_action}
 
     [Intent Classification Rules]
+    **CRITICAL RULE FOR QUIZ**:
+    - If **Last System Action** is "**QUIZ_IN_PROGRESS**":
+        - **DEFAULT Intent** is **ANSWER**.
+        - Treat ANY input (even explicitly generic commands like "Stop", "Quit", "Change topic", "그만", "다른거 할래") as an **ANSWER**.
+        - This ensures the quiz is graded (as incorrect/given up) and the session is properly closed.
+        - **EXCEPTION**: Only if the user asks a completely unrelated question like "오늘 날씨 어때?", classify as **CHIT_CHAT**. But "다른거 공부할래" is **ANSWER** (meaning "I give up on this quiz").
+        - Example: 
+            - Context: QUIZ_IN_PROGRESS
+            - Input: "Docker" -> Intent: **ANSWER**
+            - Input: "정답은 Docker" -> Intent: **ANSWER**
+            - Input: "다른거 공부할래" -> Intent: **ANSWER** (Will be treated as incorrect/stop)
+            - Input: "그만" -> Intent: **ANSWER**
+
     1. **KEYWORD_SEARCH**: 
     - User wants to learn about a specific **Computer Science or Software Development** concept/tool.
     - **CRITICAL**: If the keyword is NOT related to CS/Dev (e.g., "History", "Cooking", "Celebrity"), classify as **CHIT_CHAT**.
@@ -47,10 +60,10 @@ ROUTER_SYSTEM_PROMPT = """
     2. **ANSWER**: 
     - User is responding to a question asked by the system.
     - Examples: "정답은 2번", "스택입니다", "LIFO 구조", "몰라요", "Docker"
-    - Condition: **MUST prioritize this intent** if Last System Action was 'ASKED_QUESTION' and the input looks like an answer.
+    - Condition: **MUST prioritize this intent** if Last System Action was 'ASKED_QUESTION' or 'QUIZ_IN_PROGRESS'.
     - Even if the input is a keyword (e.g., "Python"), if it's an answer to a question, classify as **ANSWER**, NOT KEYWORD_SEARCH.
 
-    3. **NAVIGATION**: 
+    3. **RECOMMEND**: 
     - User asks for recommendations or next steps WITHOUT specifying a concrete topic.
     - Examples: "다음", "넘어가자", "추천해줘", "Next", "Pass"
 
@@ -113,7 +126,7 @@ async def router_node(state: KeywordState):
     # Determine last action based on State (Updated based on user feedback)
     last_action = "None"
     if state.get("quiz_in_progress", False):
-        last_action = "ASKED_QUESTION"
+        last_action = "QUIZ_IN_PROGRESS"
 
     res = await route_keyword_intent(last_msg.content, state.get("keyword", "None"), last_action)
     intent = res.get("intent", "CHIT_CHAT")
