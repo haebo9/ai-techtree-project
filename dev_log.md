@@ -13,6 +13,7 @@
 ## 2026년 2월 
 | Date | Tag | Category | Details |
 |:---:|:---:|:---:|:---|
+| **26.02.18(수)** | 🟣 | **Add** | 임베딩 로직 설계 |
 | **26.02.16(월)** | 🟣 | **Refactor** | LangGraph 노드 독립성 개선, workflow docs 수정 |
 | **26.02.15(일)** | 🟣 | **Add** | LangGraph workflow 구현 방향성 설계, evaluation node 추가 |
 | **26.02.13(금)** | 🟣 | **Refactor** | LangGraph Agent 로직 단순화 (키워드 기반 문제 생성) |
