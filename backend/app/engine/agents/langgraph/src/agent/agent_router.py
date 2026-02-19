@@ -12,8 +12,8 @@ class KeywordRouterOutput(BaseModel):
     """
     User intent classification for Keyword-based learning flow.
     """
-    intent: Literal["KEYWORD_SEARCH", "ANSWER", "NAVIGATION", "CHIT_CHAT"] = Field(
-        ..., description="Classified intent: KEYWORD_SEARCH, ANSWER, NAVIGATION, CHIT_CHAT"
+    intent: Literal["KEYWORD_SEARCH", "ANSWER", "RECOMMEND", "CHIT_CHAT"] = Field(
+        ..., description="Classified intent: KEYWORD_SEARCH, ANSWER, RECOMMEND, CHIT_CHAT"
     )
     keyword: Optional[str] = Field(
         None, description="Extracted keyword if intent is KEYWORD_SEARCH (e.g., 'BFS', 'Docker')"
@@ -32,29 +32,44 @@ ROUTER_SYSTEM_PROMPT = """
     - Last System Action: {last_action}
 
     [Intent Classification Rules]
+    **CRITICAL RULE FOR QUIZ**:
+    - If **Last System Action** is "**QUIZ_IN_PROGRESS**":
+        - **DEFAULT Intent** is **ANSWER**.
+        - Treat ANY input (even explicitly generic commands like "Stop", "Quit", "Change topic", "그만", "다른거 할래") as an **ANSWER**.
+        - This ensures the quiz is graded (as incorrect/given up) and the session is properly closed.
+        - **EXCEPTION**: Only if the user asks a completely unrelated question like "오늘 날씨 어때?", classify as **CHIT_CHAT**. But "다른거 공부할래" is **ANSWER** (meaning "I give up on this quiz").
+        - Example: 
+            - Context: QUIZ_IN_PROGRESS
+            - Input: "Docker" -> Intent: **ANSWER**
+            - Input: "정답은 Docker" -> Intent: **ANSWER**
+            - Input: "다른거 공부할래" -> Intent: **ANSWER** (Will be treated as incorrect/stop)
+            - Input: "그만" -> Intent: **ANSWER**
+
     1. **KEYWORD_SEARCH**: 
-    - User wants to learn about a specific technical concept, tool, or topic.
+    - User wants to learn about a specific **Computer Science or Software Development** concept/tool.
+    - **CRITICAL**: If the keyword is NOT related to CS/Dev (e.g., "History", "Cooking", "Celebrity"), classify as **CHIT_CHAT**.
     - ACTION: Extract the core technical term as 'keyword'.
-    - RULE: Remove Korean postpositions (e.g., ~은/는, ~이/가, ~을/를, ~에 대해) and extract ONLY the noun.
-    - RULE: Translate Korean technical terms to standard English if possible (e.g., "자바" -> "Java").
+    - RULE: Remove Korean postpositions and extract ONLY the noun.
+    - RULE: Translate Korean technical terms to standard English (e.g., "자바" -> "Java").
     - Examples:
-        - "도커" -> Intent: KEYWORD_SEARCH, Keyword: "Docker"
-        - "리액트란 뭐야?" -> Intent: KEYWORD_SEARCH, Keyword: "React"
-        - "BFS 알고리즘 설명해줘" -> Intent: KEYWORD_SEARCH, Keyword: "BFS"
-        - "파이썬 기초 배우고 싶어" -> Intent: KEYWORD_SEARCH, Keyword: "Python"
+        - "도커" -> Intent: KEYWORD_SEARCH, Keyword: "Docker" (CS/Dev O)
+        - "김치찌개 레시피" -> Intent: CHIT_CHAT (CS/Dev X)
+        - "BFS 알고리즘" -> Intent: KEYWORD_SEARCH, Keyword: "BFS" (CS/Dev O)
+        - "아이유" -> Intent: CHIT_CHAT (CS/Dev X)
 
     2. **ANSWER**: 
     - User is responding to a question asked by the system.
-    - Examples: "정답은 2번", "스택입니다", "LIFO 구조", "몰라요"
-    - Condition: Valid ONLY if Last System Action was 'ASKED_QUESTION' or similar.
+    - Examples: "정답은 2번", "스택입니다", "LIFO 구조", "몰라요", "Docker"
+    - Condition: **MUST prioritize this intent** if Last System Action was 'ASKED_QUESTION' or 'QUIZ_IN_PROGRESS'.
+    - Even if the input is a keyword (e.g., "Python"), if it's an answer to a question, classify as **ANSWER**, NOT KEYWORD_SEARCH.
 
-    3. **NAVIGATION**: 
+    3. **RECOMMEND**: 
     - User asks for recommendations or next steps WITHOUT specifying a concrete topic.
     - Examples: "다음", "넘어가자", "추천해줘", "Next", "Pass"
 
     4. **CHIT_CHAT**: 
-    - Greetings, gratitude, or general conversation unrelated to learning.
-    - Examples: "안녕", "반가워", "고마워", "Hi", "Hello"
+    - Greetings, general conversation, OR **Non-CS/Dev topics**.
+    - Examples: "안녕", "오늘 날씨 어때?", "요리법 알려줘"
 
     [Output Format]
     Return a JSON object conforming to the KeywordRouterOutput schema.
@@ -106,11 +121,14 @@ from app.engine.agents.langgraph.src.agent.state import KeywordState
 async def router_node(state: KeywordState):
     """analyzes user intent and prepares for new keyword learning."""
     last_msg = state["messages"][-1]
-    if isinstance(last_msg, AIMessage):
-        return {"user_intent": "WAIT"}
         
     # 의도 분석
-    res = await route_keyword_intent(last_msg.content, state.get("keyword", "None"))
+    # Determine last action based on State (Updated based on user feedback)
+    last_action = "None"
+    if state.get("quiz_in_progress", False):
+        last_action = "QUIZ_IN_PROGRESS"
+
+    res = await route_keyword_intent(last_msg.content, state.get("keyword", "None"), last_action)
     intent = res.get("intent", "CHIT_CHAT")
     
     updates = {"user_intent": intent}
