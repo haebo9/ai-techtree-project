@@ -66,6 +66,7 @@
 - **Database**: `MongoDB Atlas`를 사용하여 데이터 안정성을 확보합니다.
 - **AI Engine**: `LangGraph` 기반의 Multi-Agent 시스템이 코드 분석 및 평가를 수행합니다.
 
+![alt text](backend/app/source/techtree-agent-workflow.png)
 ---
 ## ⭐ Git & Deployment
 
