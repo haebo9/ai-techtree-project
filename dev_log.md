@@ -13,6 +13,7 @@
 ## 2026년 2월 
 | Date | Tag | Category | Details |
 |:---:|:---:|:---:|:---|
+| **26.02.19(목)** | 🟣 | **Add** | DB 스키마 변경, 퀴즈 진행 기본 로직 구현 (질문-응답-정답-반복여부) |
 | **26.02.18(수)** | 🟣 | **Add** | 임베딩 로직 설계 |
 | **26.02.16(월)** | 🟣 | **Refactor** | LangGraph 노드 독립성 개선, workflow docs 수정 |
 | **26.02.15(일)** | 🟣 | **Add** | LangGraph workflow 구현 방향성 설계, evaluation node 추가 |
