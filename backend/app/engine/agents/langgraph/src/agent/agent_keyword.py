@@ -28,7 +28,7 @@ async def search_keyword_node(state: KeywordState):
     
     # 2. 없다면 벡터 유사도 검색 시도 (Semantic Match)
     if not kw_data:
-        similar_items = await embedding_service.search_similar(kw, k=1)
+        similar_items = await embedding_service.search_by_text(kw, k=1)
         if similar_items:
             # 가장 유사한 키워드 발견 -> 해당 키워드로 정보 대체
             best_match = similar_items[0]
@@ -62,9 +62,10 @@ async def search_keyword_node(state: KeywordState):
             # DB 저장
             created_kw = await keyword_service.create_keyword(db_data)
             kw_data = created_kw 
+            kw = generated_kw_key # 상태 업데이트 (매우 중요: db 저장 키워드와 사용자 입력 대소문자 매칭을 위함)
             
-            # [Async] 백그라운드 임베딩 인덱싱 (사용자 응답 지연 방지)
-            asyncio.create_task(embedding_service.index_keyword(created_kw["keyword_key"]))
+            # 추천 엔진이 즉시 사용할 수 있도록 순차적으로 임베딩 인덱싱 대기
+            await embedding_service.index_keyword(created_kw["keyword_key"])
         
     else:
         # 기존 데이터가 있는 경우 그대로 사용
@@ -75,10 +76,14 @@ async def search_keyword_node(state: KeywordState):
     # generate_quiz_node로 넘어갈 때 생성됨.
     quiz_info = None
 
-    # [Async] 학습 시도 기록 (Star=0)
+    # 학습 시도 기록 (Star=0) 및 추천 키워드 계산 (순차적으로 실행하여 즉시 DB에 반영)
     user_id = state.get("user_id", "test_user@ai-techtree.com") # Default fallback test user email
     if user_id:
-        asyncio.create_task(keyword_service.mark_learning_started(user_id, kw))
+        # 1. 사용자 DB에 현재 키워드 기록을 저장합니다.
+        await keyword_service.mark_learning_started(user_id, kw)
+        
+        # 2. 방금 저장된 학습 기록을 바탕으로 즉시 다음 추천 키워드를 계산하고 DB에 저장합니다.
+        await embedding_service.calculate_recommendation(user_id)
                   
     return {
         "keyword": kw, # 업데이트된 키워드 (유사도 검색 시 변경 가능성)
@@ -94,33 +99,58 @@ async def recommend_keyword_node(state: KeywordState):
     from app.services.crud_user import user as user_crud
     
     user_id = state.get("user_id", "test_user@ai-techtree.com") # Default fallback test user email
-    user = await user_crud.get(user_id)
     
+    # 이메일 형식인지 체크하여 조회
+    if "@" in user_id:
+        user = await user_crud.get_by_email(user_id)
+    else:
+        user = await user_crud.get(user_id)
+        
     recommendations = []
     
     # 1. Pre-calculated 추천 목록 확인
     if user and user.recommended_keywords:
-        recommendations = user.recommended_keywords
+        # copy()를 사용하여 원본 배열 보존
+        recommendations = list(user.recommended_keywords)
     
     # 2. 추천 목록이 없으면 즉석 계산 시도 (Backup)
     if not recommendations:
-        kw = state.get("keyword")
-        if kw:
-            # 현재 키워드와 유사한 상위 3개 검색
-            sim_items = await embedding_service.search_similar(kw, k=3)
-            # 자기 자신 제외하고 추천 목록 구성
-            recommendations = [item["keyword"] for item in sim_items if item["keyword"] != kw]
+        # keyword_progress를 기반으로 추천하는 새로운 search_similar 사용
+        sim_items = await embedding_service.search_similar(user_id, k=5)
+        if sim_items:
+            recommendations = [item["keyword"] for item in sim_items]
+        else:
+            # Fallback: 임베딩 기반 검색 결과가 없을 경우 (예: 학습 완전 초기, 임베딩 로드 지연 등)
+            from app.services.crud_keyword import keyword as keyword_crud
+            default_kws = await keyword_crud.get_multi(limit=5)
+            # 사용자가 학습하지 않은 기본 키워드 추천 (랜덤 섞기)
+            available_kws = [k.keyword_key for k in default_kws]
+            random.shuffle(available_kws)
+            if user:
+                user_kw_keys = set(user.keyword_progress.keys())
+                available_kws = [k for k in available_kws if k not in user_kw_keys]
             
-            # [Async] 다음을 위해 백그라운드 추천 갱신 요청
-            asyncio.create_task(embedding_service.calculate_recommendation(user_id))
+            if available_kws:
+                recommendations = available_kws[:3]
+            else: 
+                recommendations = ["Error: No available keywords"]
 
-    # 3. 그래도 없으면 Fallback
-    if not recommendations:
-        recommendations = ["NONE"] 
+    # 추가 필터링: 현재(방금) 학습한 키워드는 제외
+    current_kw = state.get("keyword")
+    if current_kw and current_kw in recommendations:
+        recommendations.remove(current_kw)
+        
+    if not recommendations or recommendations == ["Error: No available keywords"]:
+        # 최후의 수단 방어 (무한루프 방지)
+        recommendations = ["파이썬 (Python)", "자료구조 (Data Structure)"] 
 
-    # 4. 다음 키워드 제안 (Random Selection to vary response)
-    next_kw = random.choice(recommendations)
-    msg = f"다음으로는 **<{next_kw}>** 개념을 학습해보는 건 어떤가요?"
+    # 3. 다음 키워드 제안 (Random Selection to vary response)
+    # 목록 중 1~2개 정도를 무작위로 뽑아 매번 조금씩 다르게 제안합니다.
+    num_to_select = min(len(recommendations), 2)
+    selected_kws = random.sample(recommendations, num_to_select)
+    
+    next_kw = ', '.join(selected_kws)
+    msg = f"다음으로는 **<{next_kw}>** 개념을 학습해보는 건 어떨까요?"
     
     return {
         # "keyword": next_kw, 
