@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 # 상수 설정
 EMBEDDING_MODEL = "text-embedding-3-small"
-SIMILARITY_THRESHOLD = 0.4
+SIMILARITY_THRESHOLD = 0.85
 MAX_SEARCH_LIMIT = 5000
 
 class EmbeddingService:

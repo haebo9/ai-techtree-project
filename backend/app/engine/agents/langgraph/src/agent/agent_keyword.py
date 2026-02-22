@@ -1,5 +1,9 @@
+# 외부 모듈 import
 import asyncio
 from langchain_core.messages import AIMessage
+from datetime import datetime
+
+# 내부 모듈 import
 from app.engine.agents.langgraph.src.agent.state import KeywordState
 from app.services.keyword_service import keyword_service
 from app.services.embedding_service import embedding_service
@@ -43,6 +47,7 @@ async def search_keyword_node(state: KeywordState):
             "keyword_key": generated_data.get("keyword"),
             "definition": generated_data.get("definition"),
             "summary": generated_data.get("summary"),
+            "updated_at": datetime.now(),
         }
         
         # DB 저장
