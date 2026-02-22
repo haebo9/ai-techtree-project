@@ -61,8 +61,8 @@ workflow.add_conditional_edges(
     }
 )
 workflow.add_edge("search_keyword", "generate_quiz")
-workflow.add_edge("report_star", "recommend_keyword")
 workflow.add_edge("chit_chat", "recommend_keyword")
+workflow.add_edge("report_star", END)
 workflow.add_edge("recommend_keyword", END)
 workflow.add_edge("info_keyword", END)
 workflow.add_edge("generate_quiz", END)

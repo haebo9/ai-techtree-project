@@ -42,20 +42,29 @@ async def search_keyword_node(state: KeywordState):
         # 퀴즈 생성 로직과 분리하여 설명만 생성
         generated_data = await agent_quiz.generate_explanation_only(kw)
         
-        # DB 저장용 데이터
-        db_data = {
-            "keyword_key": generated_data.get("keyword"),
-            "definition": generated_data.get("definition"),
-            "summary": generated_data.get("summary"),
-            "updated_at": datetime.now(),
-        }
+        # LLM이 정제해준 키워드명(대소문자 등 보정됨)으로 DB에 한 번 더 조회를 시도
+        generated_kw_key = generated_data.get("keyword")
+        existing_kw = await keyword_service.get_keyword(generated_kw_key)
         
-        # DB 저장
-        created_kw = await keyword_service.create_keyword(db_data)
-        kw_data = created_kw 
-        
-        # [Async] 백그라운드 임베딩 인덱싱 (사용자 응답 지연 방지)
-        asyncio.create_task(embedding_service.index_keyword(created_kw["keyword_key"]))
+        if existing_kw:
+            # 방금 새로 검색/생성하려 했으나, 정제된 이름과 완전히 동일한 키워드가 이미 DB에 있다면 그것을 재사용
+            kw_data = existing_kw
+            kw = generated_kw_key  # 상태 업데이트
+        else:
+            # DB 저장용 데이터
+            db_data = {
+                "keyword_key": generated_kw_key,
+                "definition": generated_data.get("definition"),
+                "summary": generated_data.get("summary"),
+                "updated_at": datetime.now(),
+            }
+            
+            # DB 저장
+            created_kw = await keyword_service.create_keyword(db_data)
+            kw_data = created_kw 
+            
+            # [Async] 백그라운드 임베딩 인덱싱 (사용자 응답 지연 방지)
+            asyncio.create_task(embedding_service.index_keyword(created_kw["keyword_key"]))
         
     else:
         # 기존 데이터가 있는 경우 그대로 사용
@@ -70,19 +79,11 @@ async def search_keyword_node(state: KeywordState):
     user_id = state.get("user_id", "test_user@ai-techtree.com") # Default fallback test user email
     if user_id:
         asyncio.create_task(keyword_service.mark_learning_started(user_id, kw))
-
-    msg_content = (
-        f"## 📚 Concept: {kw}\n\n"
-        f"**Definition**: {kw_data.get('definition')}\n\n"
-        f"**Summary**: {kw_data.get('summary')}\n\n"
-        f"*(Preparing a quiz for you...)*"
-    )
                   
     return {
         "keyword": kw, # 업데이트된 키워드 (유사도 검색 시 변경 가능성)
         "keyword_data": kw_data,
-        "current_question": None, # Reset to trigger new quiz generation in next node
-        "messages": [AIMessage(content=msg_content)]
+        "current_question": None # Reset to trigger new quiz generation in next node
     }
 
 async def recommend_keyword_node(state: KeywordState):
@@ -115,7 +116,7 @@ async def recommend_keyword_node(state: KeywordState):
 
     # 3. 그래도 없으면 Fallback
     if not recommendations:
-        recommendations = ["Docker", "Python", "Deep Learning"] 
+        recommendations = ["NONE"] 
 
     # 4. 다음 키워드 제안 (Random Selection to vary response)
     next_kw = random.choice(recommendations)
