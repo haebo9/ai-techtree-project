@@ -87,18 +87,19 @@
 | Version | Feature | KeyTechnology | Release Date |
 | :--- | :--- | :--- | :--- |
 | **v1.0.0** | **MCP Tool Calling Agent**<br>MCP tool을 활용한 챗봇 서비스 | Langchain, MCP, FastAPI, AWS, streamlit | 2026.01.15<br/>(서비스 중) |
-| **v1.1.0** | **Multi-Agent System**<br>동적 문제 출제 및 챗봇 서비스 | LangGraph, FastAPI, Streamlit, MongoDB | 2026.01.28<br/> |
-| **v2.0.0** | **Web Service & Agent**<br>동적 화면 기반 웹 서비스 | Next.js, Vercel, RAG, MongoDB | 2026.02.11<br/> |
+| **v1.1.0** | **Agentic Quiz System**<br>키워드 기반 동적 문제 풀이 서비스 | LangGraph, MongoDB, Langsmith | 2026.02.28<br/> |
+| **v1.2.0** | **Web Service & Agent**<br>웹 화면 통합 서비스 | Next.js, Vercel, RAG, MongoDB | 2026.03.15<br/> |
+| **v2.0.0** | **AI TechTree Full Release**<br>정식 서비스 출시 | - | 2026.04.01<br/> |
 
 ## ⭐ Sprint Roadmap
 > 상세한 개발 일정과 스프린트 계획은 [Sprint Roadmap](docs/1_prd/sprint_roadmap.md) 문서를 참고하세요.
 
 | Phase | Focus & Sprints | Period |
 | :--- | :--- | :--- |
-| **Phase 0** | **Planning & Design**<br>(Sprint 0) 기획 및 기술 조사 | 2025.12 (Early ~ Mid) |
-| **Phase 1** | **MCP & Multi-Agent (v1.1)**<br>(Sprint 1-5) AI Core Logic, MCP, LangGraph Agent | 2025.12 ~ 2026.01 (Late) |
-| **Phase 2** | **Web Service MVP (v2.0)**<br>(Sprint 6-8) Next.js Frontend & Stateful Integration | 2026.02 (Early ~ Late) |
-| **Phase 3** | **Iteration & Scale-up**<br>(Sprint 9-10) 성능 개선 및 고도화 | 2026.03 ~ 04 |
+| **Phase 0** | **Planning & Design**<br>(Sprint 0) 기획 및 기술 조사 | 2025.12 |
+| **Phase 1** | **MCP & Multi-Agent (v1.1)**<br>(Sprint 1-5) AI Core Logic, MCP, LangGraph Agent | 2025.12 ~ 2026.02 |
+| **Phase 2** | **Web Service MVP (v1.2)**<br>(Sprint 6-8) Next.js Frontend & Stateful Integration | 2026.03 |
+| **Phase 3** | **Iteration & Scale-up (v2.0)**<br>(Sprint 9-10) 성능 개선 및 고도화 | 2026.03 ~ 04 |
 | **Phase 4** | **Polish & Stabilization**<br>(Sprint 11) 안정성 확보 및 유지보수 | 2026.05 ~ |
 
 ---
