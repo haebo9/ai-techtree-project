@@ -27,6 +27,7 @@ class KeywordProgress(BaseModel):
     # 0: Not started (Learning Started), 1: Bronze, 2: Silver, 3: Gold
     star: int = 0 
     
+    # 마지막 학습 시간 (최신 학습에 좀 더 가중치 부여)
     last_reviewed_at: Optional[datetime] = None
 
 # --- Main Collection Model ---
@@ -63,8 +64,8 @@ class User(MongoDBModel):
                     "nickname": "AI_Master"
                 },
                 "keyword_progress": {
-                    "FastAPI": {"star": 3},
-                    "Python": {"star": 2}
+                    "FastAPI": {"star": 3, "last_reviewed_at": "2022-01-01T00:00:00.000Z" },
+                    "Python": {"star": 2, "last_reviewed_at": "2022-01-01T00:00:00.000Z" }
                 },
                 "recommended_keywords": ["Pydantic", "AsyncIO"]
             }

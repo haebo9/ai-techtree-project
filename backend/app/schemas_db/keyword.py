@@ -21,6 +21,9 @@ class Keyword(MongoDBModel):
     definition: str # Core explanation of the concept
     summary: Optional[str] = None
 
+    # Date
+    updated_at: datetime = Field(default_factory=datetime.now)
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -29,7 +32,8 @@ class Keyword(MongoDBModel):
 
                 "definition": "A design pattern where dependencies are injected...",
                 "summary": "DI decouples components...",
-                "related_keywords": ["Inversion of Control", "Spring Bean"],
+
+                "updated_at": "2022-01-01T00:00:00.000Z"
 
             }
         }

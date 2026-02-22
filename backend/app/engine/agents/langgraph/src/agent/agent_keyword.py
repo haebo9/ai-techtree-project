@@ -62,7 +62,7 @@ async def search_keyword_node(state: KeywordState):
     quiz_info = None
 
     # [Async] 학습 시도 기록 (Star=0)
-    user_id = state.get("user_id", "test_user") # Default fallback
+    user_id = state.get("user_id", "test_user@ai-techtree.com") # Default fallback test user email
     if user_id:
         asyncio.create_task(keyword_service.mark_learning_started(user_id, kw))
 
@@ -87,7 +87,7 @@ async def recommend_keyword_node(state: KeywordState):
     import random
     from app.services.crud_user import user as user_crud
     
-    user_id = "test_user" # TODO: state에서 user_id 가져오기
+    user_id = state.get("user_id", "test_user@ai-techtree.com") # Default fallback test user email
     user = await user_crud.get(user_id)
     
     recommendations = []
