@@ -130,8 +130,13 @@ async def router_node(state: KeywordState):
     # 의도 분석
     last_action = "None"
 
-    res = await route_keyword_intent(last_msg.content, state.get("keyword", "None"), last_action)
+    current_kw = state.get("keyword") or "None"
+    res = await route_keyword_intent(last_msg.content, current_kw, last_action)
     intent = res.get("intent", "CHIT_CHAT")
+    
+    # ⚡ [안전 장치] LLM이 'ANSWER'로 오분류하더라도, 현재 진행 중인 퀴즈 메모리가 없다면 에러 방지를 위해 'RECOMMEND'나 'CHIT_CHAT'으로 우회시킵니다.
+    if intent == "ANSWER" and not state.get("current_question"):
+        intent = "RECOMMEND"
     
     updates = {"user_intent": intent}
     

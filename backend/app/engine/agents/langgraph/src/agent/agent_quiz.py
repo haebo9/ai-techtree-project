@@ -301,5 +301,13 @@ async def report_star_node(state: KeywordState):
     [Assessment Phase] Reports the evaluation result to the user. And Update user's star.
     """
     # TODO: Implement reporting logic
-    return {"messages": [AIMessage(content="## Report")]}
+    
+    # 퀴즈 종료 시 관련 진행 상태 초기화
+    return {
+        "messages": [AIMessage(content="## Report")],
+        "keyword": None,
+        "keyword_data": None,
+        "current_question": None,
+        "quiz_in_progress": False
+    }
 
