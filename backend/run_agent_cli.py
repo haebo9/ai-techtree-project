@@ -21,7 +21,7 @@ async def main():
     # 1. Initialize State
     # We use a dummy user_id for CLI testing
     initial_state = {
-        "user_id": "cli_tester", 
+        "user_id": "test_user@ai-techtree.com", 
         "messages": [],
         "track": "Python",
         "topic": "General",

@@ -186,28 +186,30 @@ from app.engine.agents.langgraph.src.agent.state import KeywordState
 async def generate_quiz_node(state: KeywordState):
     """
     [Assessment Phase] Generates a question based on valid content.
-    If no question exists (or cleared), generates a new one.
     """
-    # 1. 기존 질문 확인
-    question = state.get("current_question")
     
-    # 2. 질문이 없으면 새로 생성 (Continuous Quiz Flow)
-    if not question:
-        keyword = state.get("keyword")
-        if keyword:
-            question = await generate_only_quiz(keyword)
+    # 1. 퀴즈 새로 생성
+    keyword = state.get("keyword")
+    if keyword:
+        question = await generate_only_quiz(keyword)
     
     if not question or not question.get("question_text"):
          return {"messages": [AIMessage(content="Could not generate a quiz at this moment.")]}
     
-    # 3. 퀴즈 출력 메시지 구성
+    # 2. 퀴즈 출력 메시지 구성
     options_text = ""
     if question.get("options"):
-        options_text = "\n" + "\n".join([f"- {opt}" for opt in question["options"]])
+        import re
+        formatted_options = []
+        for i, opt in enumerate(question["options"], 1):
+            # LLM이 "1. 정답" 등 이미 번호를 매긴 경우를 대비하여 앞의 번호/기호 제거
+            clean_opt = re.sub(r'^([0-9]+|[a-zA-Z])[\.\)]\s*', '', opt.strip())
+            formatted_options.append(f"{i}. {clean_opt}")
+        options_text = "\n\n" + "\n".join(formatted_options)
          
     return {
         "current_question": question, # Ensure state is updated/restored
-        "messages": [AIMessage(content=f"**Q. {question['question_text']}**{options_text}")],
+        "messages": [AIMessage(content=f"### 🎯 현재 키워드: **{keyword}**\n\n**Q. {question['question_text']}**{options_text}")],
         "quiz_in_progress": True # 퀴즈 모드 활성화
     }
 
@@ -299,5 +301,13 @@ async def report_star_node(state: KeywordState):
     [Assessment Phase] Reports the evaluation result to the user. And Update user's star.
     """
     # TODO: Implement reporting logic
-    return {"messages": [AIMessage(content="Reporting logic not implemented yet.")]}
+    
+    # 퀴즈 종료 시 관련 진행 상태 초기화
+    return {
+        "messages": [AIMessage(content="## Report")],
+        "keyword": None,
+        "keyword_data": None,
+        "current_question": None,
+        "quiz_in_progress": False
+    }
 

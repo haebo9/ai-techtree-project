@@ -35,7 +35,7 @@ class KeywordService:
         Updates user's mastery for the given keyword based on quiz result.
         Returns if passed.
         """
-        user = await user_crud.get(user_id)
+        user = await user_crud.get_by_email(user_id)
         if not user:
             return False
             
@@ -63,7 +63,7 @@ class KeywordService:
         keyword_progress_dict = {k: v.model_dump() for k, v in user.keyword_progress.items()}
         
         # Persist to DB
-        await user_crud.update(user_id, {"keyword_progress": keyword_progress_dict})
+        await user_crud.update(user.id, {"keyword_progress": keyword_progress_dict})
         
         return is_passed
 
@@ -72,7 +72,7 @@ class KeywordService:
         Marks a keyword as 'attempted' (star=0) by the user.
         If progress already exists, it does nothing (preserves existing stars).
         """
-        user = await user_crud.get(user_id)
+        user = await user_crud.get_by_email(user_id)
         if not user:
             return
             
@@ -90,6 +90,6 @@ class KeywordService:
         
         # DB 저장
         keyword_progress_dict = {k: v.model_dump() for k, v in user.keyword_progress.items()}
-        await user_crud.update(user_id, {"keyword_progress": keyword_progress_dict})
+        await user_crud.update(user.id, {"keyword_progress": keyword_progress_dict})
 
 keyword_service = KeywordService()

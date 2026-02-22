@@ -120,16 +120,23 @@ from app.engine.agents.langgraph.src.agent.state import KeywordState
 # 라우터 노드 : 초기 대화 방향 설정 라우터
 async def router_node(state: KeywordState):
     """analyzes user intent and prepares for new keyword learning."""
+    
+    # ⚡ [강제 라우팅] 퀴즈 진행 중일 때는 LLM을 거치지 않고 무조건 ANSWER로 처리합니다.
+    if state.get("quiz_in_progress", False):
+        return {"user_intent": "ANSWER"}
+        
     last_msg = state["messages"][-1]
         
     # 의도 분석
-    # Determine last action based on State (Updated based on user feedback)
     last_action = "None"
-    if state.get("quiz_in_progress", False):
-        last_action = "QUIZ_IN_PROGRESS"
 
-    res = await route_keyword_intent(last_msg.content, state.get("keyword", "None"), last_action)
+    current_kw = state.get("keyword") or "None"
+    res = await route_keyword_intent(last_msg.content, current_kw, last_action)
     intent = res.get("intent", "CHIT_CHAT")
+    
+    # ⚡ [안전 장치] LLM이 'ANSWER'로 오분류하더라도, 현재 진행 중인 퀴즈 메모리가 없다면 에러 방지를 위해 'RECOMMEND'나 'CHIT_CHAT'으로 우회시킵니다.
+    if intent == "ANSWER" and not state.get("current_question"):
+        intent = "RECOMMEND"
     
     updates = {"user_intent": intent}
     
