@@ -37,3 +37,4 @@ class KeywordState(TypedDict, total=False):
     quiz_pass_count: int             # 퀴즈 통과 횟수
     quiz_max_count: int              # 퀴즈 최대 횟수
     quiz_min_count: int              # 퀴즈 최소 통과 횟수
+    quiz_history: List[dict]         # 누적된 퀴즈 및 정답 기록
