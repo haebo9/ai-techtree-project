@@ -52,7 +52,7 @@ prompt = ChatPromptTemplate.from_messages([
     ("human", "Teach me about: {keyword}")
 ]).partial(format_instructions=parser.get_format_instructions())
 
-llm = ChatOpenAI(model="gpt-4o", temperature=0.5, api_key=os.getenv("OPENAI_API_KEY"))
+llm = ChatOpenAI(model="gpt-4.1", temperature=0.5, api_key=os.getenv("OPENAI_API_KEY"))
 chain = prompt | llm | parser
 
 # ==========================================
@@ -140,18 +140,19 @@ class QuizGeneration(BaseModel):
 quiz_parser = PydanticOutputParser(pydantic_object=QuizGeneration)
 
 QUIZ_SYSTEM_PROMPT = """
-    You are an expert AI Tech Tutor.
+    This is a Company Tech Interview Question Generator.
     Generate a NEW, challenging quiz question for the given keyword.
     
-    [Context]
+    # Context
     Keyword: {keyword}
+    Level: {level}
     
-    [Instructions]
-    1. Create a multiple-choice or short-answer question.
+    # Instructions
+    1. Create a short-answer question.
     2. Provide the correct answer and a brief explanation.
     3. Ensure it's different from potentially previous questions if possible (State depends on LLM randomness).
     
-    [Language]
+    # Language
     - Question/Answer in Korean.
     
     {format_instructions}
@@ -164,9 +165,20 @@ quiz_prompt = ChatPromptTemplate.from_messages([
 
 quiz_chain = quiz_prompt | llm | quiz_parser
 
-async def generate_only_quiz(keyword: str) -> dict:
+async def generate_only_quiz(keyword: str, level: int = 2) -> dict:
+    level_map = {
+        0: "Very Easy (매우 쉬움: 용어의 정의와 가장 기본적인 개념)",
+        1: "Easy (쉬움: 기본 개념 위주의 쉬운 문제)",
+        2: "Medium (중간: 활용 및 동작 원리를 묻는 중간 난이도 문제)",
+        3: "Hard (어려움: 심화 개념, 트러블슈팅 또는 심도 있는 질문)"
+    }
+    level_desc = level_map.get(level, level_map[0])
+    
     try:
-        result = await quiz_chain.ainvoke({"keyword": keyword})
+        result = await quiz_chain.ainvoke({
+            "keyword": keyword,
+            "level": level_desc
+        })
         return {
             "question_text": result.quiz_question,
             "options": result.quiz_options,
@@ -190,8 +202,9 @@ async def generate_quiz_node(state: KeywordState):
     
     # 1. 퀴즈 새로 생성
     keyword = state.get("keyword")
+    level = state.get("level", 0)  # Use level 0 as default if not defined
     if keyword:
-        question = await generate_only_quiz(keyword)
+        question = await generate_only_quiz(keyword, level)
     
     if not question or not question.get("question_text"):
          return {"messages": [AIMessage(content="Could not generate a quiz at this moment.")]}

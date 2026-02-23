@@ -41,7 +41,7 @@ prompt = ChatPromptTemplate.from_messages([
 ])
 
 api_key = os.getenv("OPENAI_API_KEY")
-llm = ChatOpenAI(model="gpt-4o", temperature=0.5, api_key=api_key)
+llm = ChatOpenAI(model="gpt-4.1", temperature=0.5, api_key=api_key)
 parser = PydanticOutputParser(pydantic_object=KeywordContent)
 
 tutor_chain = prompt | llm | parser

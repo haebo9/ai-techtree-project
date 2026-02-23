@@ -25,7 +25,7 @@ api_key = os.getenv("OPENAI_API_KEY")
 
 # 평가 및 분석은 엄격하고 객관적이어야 하므로 temperature=0 (결정론적 출력)
 llm = ChatOpenAI(
-    model="gpt-4o", 
+    model="gpt-4.1", 
     temperature=0,  
     api_key=api_key
 )

@@ -20,7 +20,7 @@ class KeywordState(TypedDict, total=False):
     # Current Focus
     keyword: str             # The active keyword
     keyword_data: dict       # Extracted/Generated content (def, summary)
-    level: int          # The level of the keyword
+    level: int               # The level of the keyword
     
     # Quiz Context
     current_question: Optional[dict]

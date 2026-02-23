@@ -32,7 +32,7 @@ async def chat_endpoint(request: ChatRequest):
     try:
         # 1. Initialize LLM with Tools
         # 모델 설정 (필요시 .env에서 불러오거나 상수로 관리)
-        llm = ChatOpenAI(model="gpt-4o", temperature=0.2)
+        llm = ChatOpenAI(model="gpt-4.1", temperature=0.2)
         tools = MCP_TOOLS
         llm_with_tools = llm.bind_tools(tools)
 
