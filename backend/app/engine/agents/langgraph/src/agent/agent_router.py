@@ -147,7 +147,8 @@ async def router_node(state: KeywordState):
             "keyword_data": {}, # reset
             "current_question": None, # reset
             "quiz_count": 0, # reset
-            "quiz_pass_count": 0 # reset
+            "quiz_pass_count": 0, # reset
+            "level": 0 # reset
         })
         
     return updates

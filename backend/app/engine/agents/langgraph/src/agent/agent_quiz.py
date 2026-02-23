@@ -165,12 +165,12 @@ quiz_prompt = ChatPromptTemplate.from_messages([
 
 quiz_chain = quiz_prompt | llm | quiz_parser
 
-async def generate_only_quiz(keyword: str, level: int = 2) -> dict:
+async def generate_only_quiz(keyword: str, level: int) -> dict:
     level_map = {
-        0: "Very Easy (매우 쉬움: 용어의 정의와 가장 기본적인 개념)",
-        1: "Easy (쉬움: 기본 개념 위주의 쉬운 문제)",
-        2: "Medium (중간: 개념의 활용 및 다른 개념과의 비교를 묻는 중간 난이도 문제)",
-        3: "Hard (어려움: 심화 개념, 성능 최적화 및 작동 원리를 묻는 문제)"
+        0: "Very Easy (Matching a term to its corresponding concept)",
+        1: "Easy (Providing a brief explanation of a term)",
+        2: "Medium (Applying concepts and comparing them with other concepts)",
+        3: "Hard (In-depth concepts, performance optimization, and operating principles)"
     }
     level_desc = level_map.get(level, level_map[0])
     
@@ -222,7 +222,7 @@ async def generate_quiz_node(state: KeywordState):
          
     return {
         "current_question": question, # Ensure state is updated/restored
-        "messages": [AIMessage(content=f"### 🎯 현재 키워드: **{keyword}**\n\n**Q. {question['question_text']}**{options_text}")],
+        "messages": [AIMessage(content=f"### 🎯 주제: **{keyword}** (Level: {level})\n\n**Q. {question['question_text']}**{options_text}")],
         "quiz_in_progress": True # 퀴즈 모드 활성화
     }
 
@@ -247,11 +247,13 @@ async def answer_quiz_node(state: KeywordState):
     class CheckResult(BaseModel):
         is_correct: bool = Field(description="True if the answer is correct contextually, False otherwise.")
         feedback: str = Field(description="Brief feedback explaining why it's correct or incorrect.")
+        correct_answer: str = Field(description="The correct answer based on the model answer.")
 
     # 2. 평가 체인 구성
     check_prompt = ChatPromptTemplate.from_messages([
         ("system", """
-        You are a strict Grader. Compare the user's answer with the model answer.
+        You are a fair and intelligent Grader. Compare the user's answer with the model answer.
+        The user's answer does NOT need to be an exact text match. If the core meaning is correct, or if it is a valid alternative answer to the question, mark it as correct (True).
         
         [Question]
         {question}
@@ -262,9 +264,12 @@ async def answer_quiz_node(state: KeywordState):
         [User Answer]
         {user_answer}
         
-        Task:
-        1. Determine if the user's answer is correct considering the model answer.
+        # Task
+        1. Determine if the user's answer is logically correct or sufficiently captures the core concept. Evaluate flexibly.
         2. Provide brief feedback in Korean.
+        3. Provide the explicit correct answer in Korean in the correct_answer field.
+        
+        Let's think step by step.
         """),
         ("human", "{user_answer}")
     ])
@@ -284,20 +289,24 @@ async def answer_quiz_node(state: KeywordState):
         quiz_count = state.get("quiz_count", 0) + 1
         quiz_pass_count = state.get("quiz_pass_count", 0)
         quiz_max_count = state.get("quiz_max_count", 8)
+        level = state.get("level", 0)
         
         pass_fail_status = "pass" if result.is_correct else "fail"
         
         if result.is_correct:
             quiz_pass_count += 1
+            if level < 3:
+                level += 1
             
         # 메시지에 현재 진행도를 항상 동일하게 표시
-        msg_content = f"**판정**: {'✅ 정답' if result.is_correct else '❌ 오답'}\n{result.feedback}\n\n*(진행도: {quiz_count}/{quiz_max_count})*"
+        msg_content = f"**판정**: {'✅ 정답' if result.is_correct else '❌ 오답'}\n\n{result.feedback}\n\n**[정답]** {result.correct_answer}\n\n*(진행도: {quiz_count}/{quiz_max_count})*"
         msg = AIMessage(content=msg_content)
         
         # 4. 결과 반환 (이후 라우팅은 graph.py의 quiz_routing 에서 횟수/정답여부를 바탕으로 결정)
         return_data = {
             "quiz_count": quiz_count,
             "quiz_pass_count": quiz_pass_count,
+            "level": level,
             "pass_fail": pass_fail_status,
             "messages": [msg],
             "current_question": None, # 새 퀴즈 생성 대비 항상 클리어
@@ -331,6 +340,7 @@ async def report_star_node(state: KeywordState):
         "current_question": None,
         "quiz_in_progress": False,
         "quiz_count": 0,
-        "quiz_pass_count": 0
+        "quiz_pass_count": 0,
+        "level": 0
     }
 
