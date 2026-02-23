@@ -108,48 +108,53 @@ async def recommend_keyword_node(state: KeywordState):
         
     recommendations = []
     
-    # 1. Pre-calculated 추천 목록 확인
-    if user and user.recommended_keywords:
-        # copy()를 사용하여 원본 배열 보존
-        recommendations = list(user.recommended_keywords)
-    
-    # 2. 추천 목록이 없으면 즉석 계산 시도 (Backup)
-    if not recommendations:
-        # keyword_progress를 기반으로 추천하는 새로운 search_similar 사용
-        sim_items = await embedding_service.search_similar(user_id, k=5)
-        if sim_items:
-            recommendations = [item["keyword"] for item in sim_items]
-        else:
-            # Fallback: 임베딩 기반 검색 결과가 없을 경우 (예: 학습 완전 초기, 임베딩 로드 지연 등)
-            from app.services.crud_keyword import keyword as keyword_crud
-            default_kws = await keyword_crud.get_multi(limit=5)
-            # 사용자가 학습하지 않은 기본 키워드 추천 (랜덤 섞기)
-            available_kws = [k.keyword_key for k in default_kws]
-            random.shuffle(available_kws)
-            if user:
-                user_kw_keys = set(user.keyword_progress.keys())
-                available_kws = [k for k in available_kws if k not in user_kw_keys]
-            
-            if available_kws:
-                recommendations = available_kws[:3]
-            else: 
-                recommendations = ["Error: No available keywords"]
+    # 1. 즉석 계산 시도 (사용자 학습 이력 기반)
+    sim_items = await embedding_service.search_similar(user_id, k=10)
+    if sim_items:
+        recommendations = [item["keyword"] for item in sim_items]
+    else:
+        # Fallback: 임베딩 기반 검색 결과가 없거나 학습 이력이 없을 경우
+        from app.services.crud_keyword import keyword as keyword_crud
+        default_kws = await keyword_crud.get_multi(limit=20)
+        # 사용자가 학습하지 않은(또는 별 3개가 아닌) 기본 키워드 추천
+        available_kws = [k.keyword_key for k in default_kws]
+        random.shuffle(available_kws)
+        if user and user.keyword_progress:
+            completed_kws = {k for k, v in user.keyword_progress.items() if v.star == 3}
+            available_kws = [k for k in available_kws if k not in completed_kws]
+        
+        if available_kws:
+            recommendations = available_kws[:10]
+        else: 
+            recommendations = ["Python", "Data Structure"]
 
     # 추가 필터링: 현재(방금) 학습한 키워드는 제외
     current_kw = state.get("keyword")
     if current_kw and current_kw in recommendations:
         recommendations.remove(current_kw)
         
-    if not recommendations or recommendations == ["Error: No available keywords"]:
+    if not recommendations:
         # 최후의 수단 방어 (무한루프 방지)
-        recommendations = ["파이썬 (Python)", "자료구조 (Data Structure)"] 
+        recommendations = ["Python", "Data Structure"] 
 
-    # 3. 다음 키워드 제안 (Random Selection to vary response)
+    # 2. 다음 키워드 제안 (Random Selection to vary response)
     # 목록 중 1~2개 정도를 무작위로 뽑아 매번 조금씩 다르게 제안합니다.
     num_to_select = min(len(recommendations), 2)
     selected_kws = random.sample(recommendations, num_to_select)
     
-    next_kw = ', '.join(selected_kws)
+    # 별점(Star) 표시 추가
+    formatted_kws = []
+    for kw_name in selected_kws:
+        star_count = 0
+        if user and user.keyword_progress and kw_name in user.keyword_progress:
+            star_count = user.keyword_progress[kw_name].star
+        
+        # 최대 3개의 별 (예: ⭐☆☆)
+        star_count = min(star_count, 3)
+        stars = "⭐" * star_count + "☆" * (3 - star_count)
+        formatted_kws.append(f"{kw_name}({stars})")
+    
+    next_kw = ', '.join(formatted_kws)
     msg = f"다음으로는 **<{next_kw}>** 개념을 학습해보는 건 어떨까요?"
     
     return {

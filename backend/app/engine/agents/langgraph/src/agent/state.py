@@ -20,7 +20,7 @@ class KeywordState(TypedDict, total=False):
     # Current Focus
     keyword: str             # The active keyword
     keyword_data: dict       # Extracted/Generated content (def, summary)
-    level: int          # The level of the keyword
+    level: int               # The level of the keyword
     
     # Quiz Context
     current_question: Optional[dict]
@@ -33,3 +33,8 @@ class KeywordState(TypedDict, total=False):
     
     # Context Flags
     quiz_in_progress: bool = False # 퀴즈 진행 중 여부
+    quiz_count: int                  # 퀴즈 푼 횟수
+    quiz_pass_count: int             # 퀴즈 통과 횟수
+    quiz_max_count: int              # 퀴즈 최대 횟수
+    quiz_min_count: int              # 퀴즈 최소 통과 횟수
+    quiz_history: List[dict]         # 누적된 퀴즈 및 정답 기록

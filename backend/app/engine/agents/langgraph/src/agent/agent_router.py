@@ -85,7 +85,7 @@ router_prompt = ChatPromptTemplate.from_messages([
 # ==========================================
 api_key = os.getenv("OPENAI_API_KEY")
 llm = ChatOpenAI(
-    model="gpt-4o-mini", 
+    model="gpt-4.1", 
     temperature=0.5,
     api_key=api_key
 )
@@ -134,8 +134,12 @@ async def router_node(state: KeywordState):
     res = await route_keyword_intent(last_msg.content, current_kw, last_action)
     intent = res.get("intent", "CHIT_CHAT")
     
-    # ⚡ [안전 장치] LLM이 'ANSWER'로 오분류하더라도, 현재 진행 중인 퀴즈 메모리가 없다면 에러 방지를 위해 'RECOMMEND'나 'CHIT_CHAT'으로 우회시킵니다.
+    # ⚡ [안전 장치 1] LLM이 'ANSWER'로 오분류하더라도, 현재 진행 중인 퀴즈 메모리가 없다면 에러 방지를 위해 'RECOMMEND'나 'CHIT_CHAT'으로 우회시킵니다.
     if intent == "ANSWER" and not state.get("current_question"):
+        intent = "RECOMMEND"
+        
+    # ⚡ [안전 장치 2] LLM이 'KEYWORD_SEARCH'로 판단했으나 실질적으로 분석한 keyword가 없는 경우('다른건?' 등), 에러를 피하기 위해 추천으로 돌립니다.
+    if intent == "KEYWORD_SEARCH" and not res.get("keyword"):
         intent = "RECOMMEND"
     
     updates = {"user_intent": intent}
@@ -145,7 +149,11 @@ async def router_node(state: KeywordState):
         updates.update({
             "keyword": res["keyword"],
             "keyword_data": {}, # reset
-            "current_question": None # reset
+            "current_question": None, # reset
+            "quiz_count": 0, # reset
+            "quiz_pass_count": 0, # reset
+            "level": 0, # reset
+            "quiz_history": [] # reset
         })
         
     return updates

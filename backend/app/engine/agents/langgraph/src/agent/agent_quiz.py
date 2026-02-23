@@ -52,7 +52,7 @@ prompt = ChatPromptTemplate.from_messages([
     ("human", "Teach me about: {keyword}")
 ]).partial(format_instructions=parser.get_format_instructions())
 
-llm = ChatOpenAI(model="gpt-4o", temperature=0.5, api_key=os.getenv("OPENAI_API_KEY"))
+llm = ChatOpenAI(model="gpt-4.1", temperature=0.5, api_key=os.getenv("OPENAI_API_KEY"))
 chain = prompt | llm | parser
 
 # ==========================================
@@ -140,18 +140,23 @@ class QuizGeneration(BaseModel):
 quiz_parser = PydanticOutputParser(pydantic_object=QuizGeneration)
 
 QUIZ_SYSTEM_PROMPT = """
-    You are an expert AI Tech Tutor.
+    This is a Company Tech Interview Question Generator.
     Generate a NEW, challenging quiz question for the given keyword.
     
-    [Context]
+    # Context
     Keyword: {keyword}
+    Level: {level}
     
-    [Instructions]
-    1. Create a multiple-choice or short-answer question.
+    # Previous Quiz History
+    To avoid repeating the same questions and to potentially create linked or more advanced questions, here is the history of questions already asked in this session:
+    {quiz_history_context}
+    
+    # Instructions
+    1. Create a short-answer question.
     2. Provide the correct answer and a brief explanation.
-    3. Ensure it's different from potentially previous questions if possible (State depends on LLM randomness).
+    3. Ensure the new question is DIFFERENT from the Previous Quiz History.
     
-    [Language]
+    # Language
     - Question/Answer in Korean.
     
     {format_instructions}
@@ -164,9 +169,28 @@ quiz_prompt = ChatPromptTemplate.from_messages([
 
 quiz_chain = quiz_prompt | llm | quiz_parser
 
-async def generate_only_quiz(keyword: str) -> dict:
+async def generate_only_quiz(keyword: str, level: int, quiz_history: List[dict] = None) -> dict:
+    level_map = {
+        0: "Very Easy (Matching a term to its corresponding concept)",
+        1: "Easy (Providing a brief explanation of a term)",
+        2: "Medium (Applying concepts and comparing them with other concepts)",
+        3: "Hard (In-depth concepts, performance optimization, and operating principles)"
+    }
+    level_desc = level_map.get(level, level_map[0])
+    
+    history_text = "No previous questions."
+    if quiz_history:
+        history_lines = []
+        for idx, log in enumerate(quiz_history, 1):
+            history_lines.append(f"[{idx}] Level: {log.get('level')} | Q: {log.get('question_text')} | Grade: {log.get('grade')}")
+        history_text = "\n".join(history_lines)
+    
     try:
-        result = await quiz_chain.ainvoke({"keyword": keyword})
+        result = await quiz_chain.ainvoke({
+            "keyword": keyword,
+            "level": level_desc,
+            "quiz_history_context": history_text
+        })
         return {
             "question_text": result.quiz_question,
             "options": result.quiz_options,
@@ -190,11 +214,18 @@ async def generate_quiz_node(state: KeywordState):
     
     # 1. 퀴즈 새로 생성
     keyword = state.get("keyword")
+    level = state.get("level", 0)  # Use level 0 as default if not defined
+    quiz_history = state.get("quiz_history", [])
+    
+    question = None
     if keyword:
-        question = await generate_only_quiz(keyword)
+        question = await generate_only_quiz(keyword, level, quiz_history)
     
     if not question or not question.get("question_text"):
-         return {"messages": [AIMessage(content="Could not generate a quiz at this moment.")]}
+        # 키워드 자체가 없어서 실패한 경우 에러 메시지를 띄우지 않고 조용히 종료 (search_keyword_node에서 이미 안내함)
+        if not keyword:
+            return {}
+        return {"messages": [AIMessage(content="Could not generate a quiz at this moment.")]}
     
     # 2. 퀴즈 출력 메시지 구성
     options_text = ""
@@ -209,7 +240,7 @@ async def generate_quiz_node(state: KeywordState):
          
     return {
         "current_question": question, # Ensure state is updated/restored
-        "messages": [AIMessage(content=f"### 🎯 현재 키워드: **{keyword}**\n\n**Q. {question['question_text']}**{options_text}")],
+        "messages": [AIMessage(content=f"### 🎯 주제: **{keyword}** (Level: {level})\n\n**Q. {question['question_text']}**{options_text}")],
         "quiz_in_progress": True # 퀴즈 모드 활성화
     }
 
@@ -230,30 +261,58 @@ async def answer_quiz_node(state: KeywordState):
     model_answer = current_q.get("answer", "")
     question_text = current_q.get("question_text", "")
     
-    # 1. 정답 확인 스키마 정의 (별점 제거)
+    # 1. 정답 확인 스키마 정의 
+    from typing import Literal
     class CheckResult(BaseModel):
-        is_correct: bool = Field(description="True if the answer is correct contextually, False otherwise.")
-        feedback: str = Field(description="Brief feedback explaining why it's correct or incorrect.")
+        grade: Literal["fail", "pass", "perfect"] = Field(description="fail for incorrect, pass for partially correct/acceptable, perfect for completely correct.")
+        feedback: str = Field(description="Brief feedback explaining the grade in Korean. And explain why it is correct or incorrect.")
+        correct_answer: str = Field(description="The correct answer based on the model answer.")
 
     # 2. 평가 체인 구성
     check_prompt = ChatPromptTemplate.from_messages([
         ("system", """
-        You are a strict Grader. Compare the user's answer with the model answer.
-        
-        [Question]
-        {question}
-        
-        [Model Answer]
-        {model_answer}
-        
-        [User Answer]
-        {user_answer}
-        
-        Task:
-        1. Determine if the user's answer is correct considering the model answer.
-        2. Provide brief feedback in Korean.
-        """),
-        ("human", "{user_answer}")
+            # Role and Objective
+            You are a fair, intelligent, and flexible Grader. Your objective is to evaluate the user's answer based on the core semantic meaning of the model answer, rather than requiring an exact word-for-word match.
+
+            # Instructions
+            - Focus strictly on the **core meaning and concepts**.
+            - Actively accept synonyms, paraphrasing, and different sentence structures.
+            - Grade the user's answer into one of three categories:
+            - "perfect": The user clearly understands the core concept and provides a semantically equivalent answer, even if phrased differently.
+            - "pass": The answer is partially correct, capturing the general idea but lacking important details or having minor inaccuracies.
+            - "fail": The answer is fundamentally incorrect, misses the core points, or contradicts the model answer.
+
+            # Reasoning Steps
+            Follow these steps strictly before making a final decision:
+            1. Model Answer Analysis: Identify the essential keywords and core logic required for a correct answer.
+            2. User Answer Analysis: Extract the underlying meaning and logic from the user's response.
+            3. Semantic Comparison: Compare the user's logic against the core logic of the model answer. Do not penalize for different vocabulary if the meaning is intact.
+            4. Decision: Based on the comparison, decide the final grade and formulate constructive feedback.
+
+            # Output Format
+            You must return the result in strictly valid JSON format with the following keys:
+            - "reasoning": Your step-by-step thinking process based on the Reasoning Steps (in Korean).
+            - "grade": "perfect", "pass", or "fail".
+            - "feedback": Brief, constructive feedback in Korean.
+            - "correct_answer": The explicit correct answer in Korean.
+
+            # Context
+            <question>
+            {question}
+            </question>
+
+            <model_answer>
+            {model_answer}
+            </model_answer>
+            """),
+        ("human", """
+            <user_answer>
+            {user_answer}
+            </user_answer>
+
+            # Final Instructions
+            First, think carefully step by step following the Reasoning Steps outlined above. Then, provide the final evaluation in the requested JSON format.
+            """)
     ])
     
     # Using structured output
@@ -267,27 +326,59 @@ async def answer_quiz_node(state: KeywordState):
             "user_answer": user_answer
         })
         
-        # 3. 결과 메시지
-        msg = AIMessage(content=f"**판정**: {'✅ 정답' if result.is_correct else '❌ 오답'}\n{result.feedback}")
+        # 3. 횟수 업데이트 및 판정
+        quiz_count = state.get("quiz_count", 0) + 1
+        quiz_pass_count = state.get("quiz_pass_count", 0)
+        quiz_max_count = state.get("quiz_max_count", 8)
+        level = state.get("level", 0)
         
-        # 4. 다음 단계 결정 (Pass/Fail)
-        if result.is_correct:
-            # 정답 -> 다음 퀴즈 (Pass)
-            # current_question을 비워서 generate_quiz_node에서 새로 생성하게 함
-            return {
-                "pass_fail": "pass",
-                "messages": [msg],
-                "current_question": None, # Clear to trigger new quiz
-                "quiz_in_progress": True # Keep active for next quiz loop
-            }
+        pass_fail_status = "pass" if result.grade in ["pass", "perfect"] else "fail"
+        
+        if result.grade in ["pass", "perfect"]:
+            quiz_pass_count += 1
+            # 확실히 맞은 경우(perfect)에만 레벨 상승
+            if result.grade == "perfect" and level < 3:
+                level += 1
+                
+        # 판정 텍스트 결정
+        if result.grade == "perfect":
+            grade_text = "✅ 정답"
+        elif result.grade == "pass":
+            grade_text = "✅ 정답 (부분 인정)"
         else:
-            # 오답 -> 결과 리포트 (Fail)
-            return {
-                "evaluation_result": {"is_passed": False, "feedback": result.feedback},
-                "pass_fail": "fail",
-                "messages": [msg],
-                "quiz_in_progress": False # End quiz mode
-            }
+            grade_text = "❌ 오답"
+            
+        # 메시지에 현재 진행도를 항상 동일하게 표시
+        msg_content = f"**판정**: {grade_text}\n\n{result.feedback}\n\n**[정답]** {result.correct_answer}\n\n*(진행도: {quiz_count}/{quiz_max_count})*"
+        msg = AIMessage(content=msg_content)
+        
+        # 이전 히스토리에 현재 문제와 결과 추가
+        quiz_history = state.get("quiz_history", [])
+        quiz_history.append({
+            "question_text": question_text,
+            "model_answer": model_answer,   # 문제의 모범 정답 (저장용)
+            "user_answer": user_answer,     # 사용자의 원본 답변 기록 (분석/저장용, 다음 문제 출제 프롬프트에는 미포함)
+            "level": state.get("level", 0), # 문제 출제 시점의 레벨
+            "grade": result.grade
+        })
+        
+        # 4. 결과 반환 (이후 라우팅은 graph.py의 quiz_routing 에서 횟수/정답여부를 바탕으로 결정)
+        return_data = {
+            "quiz_count": quiz_count,
+            "quiz_pass_count": quiz_pass_count,
+            "level": level,
+            "pass_fail": pass_fail_status,
+            "quiz_history": quiz_history,
+            "messages": [msg],
+            "current_question": None, # 새 퀴즈 생성 대비 항상 클리어
+            "quiz_in_progress": True  # 기본적으로 켜둠 (report_star 노드 도달 시에만 강제 False 전환됨)
+        }
+        
+        # 오답인 경우에만 평가 내역 상세 저장 (Report 활용)
+        if result.grade == "fail":
+            return_data["evaluation_result"] = {"is_passed": False, "feedback": result.feedback}
+            
+        return return_data
         
     except Exception as e:
         print(f"Eval Error: {e}")
@@ -302,12 +393,16 @@ async def report_star_node(state: KeywordState):
     """
     # TODO: Implement reporting logic
     
-    # 퀴즈 종료 시 관련 진행 상태 초기화
+    # 퀴즈 종료 시 관련 진행 상태 및 횟수 카운터 초기화
     return {
         "messages": [AIMessage(content="## Report")],
         "keyword": None,
         "keyword_data": None,
         "current_question": None,
-        "quiz_in_progress": False
+        "quiz_in_progress": False,
+        "quiz_count": 0,
+        "quiz_pass_count": 0,
+        "level": 0,
+        "quiz_history": []
     }
 

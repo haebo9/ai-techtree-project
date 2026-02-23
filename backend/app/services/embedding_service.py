@@ -165,10 +165,12 @@ class EmbeddingService:
             for kw in all_keywords:
                 if not kw.embedding:
                     continue
-                # 사용자가 진행한 키워드면 사용자 벡터에 추가, 아니면 후보군에 추가
+                # 사용자가 진행한 적이 있다면 사용자 히스토리에 추가
                 if kw.keyword_key in user_kw_keys:
                     user_vectors.append(kw.embedding)
-                else:
+                    
+                # 제외 조건: 이미 별 3개(완료)를 받은 키워드만 제외
+                if kw.keyword_key not in user_kw_keys or user.keyword_progress[kw.keyword_key].star < 3:
                     cand_vectors.append(kw.embedding)
                     cand_keys.append(kw.keyword_key)
                     cand_docs.append(kw)
@@ -234,7 +236,7 @@ class EmbeddingService:
                 return
 
             # 2. search_similar를 통해 다음 키워드들 추천받기
-            sim_items = await self.search_similar(user_id, k=5)
+            sim_items = await self.search_similar(user_id, k=15)
             
             recommendations_set = []
             if sim_items:
@@ -245,8 +247,8 @@ class EmbeddingService:
                         if cand_kw not in recommendations_set:
                             recommendations_set.append(cand_kw)
             
-            # 3. 최대 5개 저장
-            new_recommendations = recommendations_set[:5]
+            # 3. 최대 15개 저장
+            new_recommendations = recommendations_set[:15]
             
             if new_recommendations:
                 # DB 업데이트

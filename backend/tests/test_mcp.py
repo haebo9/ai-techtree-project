@@ -21,7 +21,7 @@ def llm_with_tools():
         pytest.skip("OPENAI_API_KEY not found in environment. Skipping integration tests.")
         
     # Using 'gpt-5-mini' to test tool selection capability
-    llm = ChatOpenAI(model="gpt-5-mini", temperature=0) 
+    llm = ChatOpenAI(model="gpt-4.1", temperature=0) 
     return llm.bind_tools(MCP_TOOLS)
 
 def test_get_ai_track(llm_with_tools):
