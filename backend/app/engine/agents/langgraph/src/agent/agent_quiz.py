@@ -169,8 +169,8 @@ async def generate_only_quiz(keyword: str, level: int = 2) -> dict:
     level_map = {
         0: "Very Easy (매우 쉬움: 용어의 정의와 가장 기본적인 개념)",
         1: "Easy (쉬움: 기본 개념 위주의 쉬운 문제)",
-        2: "Medium (중간: 활용 및 동작 원리를 묻는 중간 난이도 문제)",
-        3: "Hard (어려움: 심화 개념, 트러블슈팅 또는 심도 있는 질문)"
+        2: "Medium (중간: 개념의 활용 및 다른 개념과의 비교를 묻는 중간 난이도 문제)",
+        3: "Hard (어려움: 심화 개념, 성능 최적화 및 작동 원리를 묻는 문제)"
     }
     level_desc = level_map.get(level, level_map[0])
     
@@ -280,27 +280,35 @@ async def answer_quiz_node(state: KeywordState):
             "user_answer": user_answer
         })
         
-        # 3. 결과 메시지
-        msg = AIMessage(content=f"**판정**: {'✅ 정답' if result.is_correct else '❌ 오답'}\n{result.feedback}")
+        # 3. 횟수 업데이트 및 판정
+        quiz_count = state.get("quiz_count", 0) + 1
+        quiz_pass_count = state.get("quiz_pass_count", 0)
+        quiz_max_count = state.get("quiz_max_count", 8)
         
-        # 4. 다음 단계 결정 (Pass/Fail)
+        pass_fail_status = "pass" if result.is_correct else "fail"
+        
         if result.is_correct:
-            # 정답 -> 다음 퀴즈 (Pass)
-            # current_question을 비워서 generate_quiz_node에서 새로 생성하게 함
-            return {
-                "pass_fail": "pass",
-                "messages": [msg],
-                "current_question": None, # Clear to trigger new quiz
-                "quiz_in_progress": True # Keep active for next quiz loop
-            }
-        else:
-            # 오답 -> 결과 리포트 (Fail)
-            return {
-                "evaluation_result": {"is_passed": False, "feedback": result.feedback},
-                "pass_fail": "fail",
-                "messages": [msg],
-                "quiz_in_progress": False # End quiz mode
-            }
+            quiz_pass_count += 1
+            
+        # 메시지에 현재 진행도를 항상 동일하게 표시
+        msg_content = f"**판정**: {'✅ 정답' if result.is_correct else '❌ 오답'}\n{result.feedback}\n\n*(진행도: {quiz_count}/{quiz_max_count})*"
+        msg = AIMessage(content=msg_content)
+        
+        # 4. 결과 반환 (이후 라우팅은 graph.py의 quiz_routing 에서 횟수/정답여부를 바탕으로 결정)
+        return_data = {
+            "quiz_count": quiz_count,
+            "quiz_pass_count": quiz_pass_count,
+            "pass_fail": pass_fail_status,
+            "messages": [msg],
+            "current_question": None, # 새 퀴즈 생성 대비 항상 클리어
+            "quiz_in_progress": True  # 기본적으로 켜둠 (report_star 노드 도달 시에만 강제 False 전환됨)
+        }
+        
+        # 오답인 경우에만 평가 내역 상세 저장 (Report 활용)
+        if not result.is_correct:
+            return_data["evaluation_result"] = {"is_passed": False, "feedback": result.feedback}
+            
+        return return_data
         
     except Exception as e:
         print(f"Eval Error: {e}")
@@ -315,12 +323,14 @@ async def report_star_node(state: KeywordState):
     """
     # TODO: Implement reporting logic
     
-    # 퀴즈 종료 시 관련 진행 상태 초기화
+    # 퀴즈 종료 시 관련 진행 상태 및 횟수 카운터 초기화
     return {
         "messages": [AIMessage(content="## Report")],
         "keyword": None,
         "keyword_data": None,
         "current_question": None,
-        "quiz_in_progress": False
+        "quiz_in_progress": False,
+        "quiz_count": 0,
+        "quiz_pass_count": 0
     }
 
