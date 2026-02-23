@@ -351,6 +351,8 @@ async def answer_quiz_node(state: KeywordState):
         quiz_history = state.get("quiz_history", [])
         quiz_history.append({
             "question_text": question_text,
+            "model_answer": model_answer,   # 문제의 모범 정답 (저장용)
+            "user_answer": user_answer,     # 사용자의 원본 답변 기록 (분석/저장용, 다음 문제 출제 프롬프트에는 미포함)
             "level": state.get("level", 0), # 문제 출제 시점의 레벨
             "grade": result.grade
         })
