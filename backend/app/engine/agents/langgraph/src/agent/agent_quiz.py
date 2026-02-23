@@ -216,11 +216,16 @@ async def generate_quiz_node(state: KeywordState):
     keyword = state.get("keyword")
     level = state.get("level", 0)  # Use level 0 as default if not defined
     quiz_history = state.get("quiz_history", [])
+    
+    question = None
     if keyword:
         question = await generate_only_quiz(keyword, level, quiz_history)
     
     if not question or not question.get("question_text"):
-         return {"messages": [AIMessage(content="Could not generate a quiz at this moment.")]}
+        # 키워드 자체가 없어서 실패한 경우 에러 메시지를 띄우지 않고 조용히 종료 (search_keyword_node에서 이미 안내함)
+        if not keyword:
+            return {}
+        return {"messages": [AIMessage(content="Could not generate a quiz at this moment.")]}
     
     # 2. 퀴즈 출력 메시지 구성
     options_text = ""
