@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 
-from app.engine.graphs.interview_graph import app as interview_graph
+from app.engine.graphs.graph import agent_workflow
 from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
 
 router = APIRouter()
@@ -68,7 +68,7 @@ async def chat_message(req: ChatRequest):
         config = {"configurable": {"thread_id": req.user_id}} # If we had checkpointer
         
         # Execute
-        result = await interview_graph.ainvoke(inputs)
+        result = await agent_workflow.ainvoke(inputs)
         
         # 3. Parse Result
         messages = result.get("messages", [])

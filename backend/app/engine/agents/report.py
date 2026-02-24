@@ -2,7 +2,7 @@ from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
-from app.engine.agents.langgraph.src.agent.state import KeywordState
+from app.engine.graphs.state import KeywordState
 from app.services.keyword_service import keyword_service
 from app.core.llm import get_llm
 from app.core.logger import get_logger

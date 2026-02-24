@@ -2,8 +2,8 @@ from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 
-from app.engine.agents.langgraph.src.agent.state import KeywordState
-from app.engine.agents.langgraph.src.agent.schemas_router import KeywordRouterOutput
+from app.engine.graphs.state import KeywordState
+from app.engine.agents.schemas_router import KeywordRouterOutput
 from app.engine.prompts.router_prompts import ROUTER_SYSTEM_PROMPT
 from app.core.llm import get_llm
 from app.core.logger import get_logger

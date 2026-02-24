@@ -1,5 +1,5 @@
 from langchain_core.messages import AIMessage
-from app.engine.agents.langgraph.src.agent.state import KeywordState
+from app.engine.graphs.state import KeywordState
 
 # ==========================================
 # Nodes

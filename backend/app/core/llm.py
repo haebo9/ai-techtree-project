@@ -1,6 +1,9 @@
 import os
 from langchain_openai import ChatOpenAI
 from functools import lru_cache
+from dotenv import load_dotenv
+
+load_dotenv()
 
 @lru_cache(maxsize=1)
 def get_llm(model_name: str = "gpt-4.1", temperature: float = 0.5) -> ChatOpenAI:

@@ -4,10 +4,10 @@ from langchain_core.messages import AIMessage
 from datetime import datetime
 
 # 내부 모듈 import
-from app.engine.agents.langgraph.src.agent.state import KeywordState
+from app.engine.graphs.state import KeywordState
 from app.services.keyword_service import keyword_service
 from app.services.embedding_service import embedding_service
-from app.engine.agents.langgraph.src.agent import agent_quiz
+from app.engine.agents import quiz as agent_quiz
 
 # ==========================================
 # Nodes

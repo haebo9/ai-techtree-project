@@ -2,8 +2,8 @@
 from langgraph.graph import StateGraph, START, END
 
 # local module
-from app.engine.agents.langgraph.src.agent.state import KeywordState
-from app.engine.agents.langgraph.src.agent import agent_router, agent_quiz, agent_keyword, agent_chat, agent_report
+from app.engine.graphs.state import KeywordState
+from app.engine.agents import router as agent_router, quiz as agent_quiz, keyword as agent_keyword, chat as agent_chat, report as agent_report
 
 # ==========================================
 # 3. Edges & Graph
@@ -74,4 +74,4 @@ workflow.add_edge("info_keyword", END)
 workflow.add_edge("generate_quiz", END)
 
 # Compile
-keyword_workflow = workflow.compile()
+agent_workflow = workflow.compile()

@@ -9,7 +9,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
 # Load Environment Variables
 load_dotenv()
 
-from app.engine.graphs.interview_graph import app
+# We import the compiled graph directly
+from app.engine.graphs.graph import agent_workflow as interview_graph
 from app.core.database import db
 from langchain_core.messages import HumanMessage, AIMessage
 

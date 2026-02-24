@@ -14,8 +14,8 @@ from app.engine.prompts.quiz_prompts import (
     CHECK_RESULT_SYSTEM_PROMPT,
     CHECK_RESULT_HUMAN_PROMPT
 )
-from app.engine.agents.langgraph.src.agent.state import KeywordState
-from app.engine.agents.langgraph.src.agent.schemas_quiz import (
+from app.engine.graphs.state import KeywordState
+from app.engine.agents.schemas_quiz import (
     KeywordAndQuiz,
     ExplanationGeneration,
     QuizGeneration,
