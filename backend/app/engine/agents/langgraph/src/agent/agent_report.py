@@ -87,13 +87,24 @@ async def report_star_node(state: KeywordState):
     quiz_pass_count = state.get("quiz_pass_count", 0)
     level = state.get("level", 0)
     
-    # 별점 산정 로직: 레벨에 비례하여 최대 3개 (최하 1개 보장, 아예 못맞췄으면 0개)
+    # 별점 산정 로직: 각 레벨별로 'perfect' 판정을 받은 가장 높은 레벨을 별점으로 산정
     earned_star = 0
     is_passed = False
     
-    if quiz_pass_count > 0:
-        is_passed = True
-        earned_star = max(1, min(level, 3))
+    history = state.get("quiz_history", [])
+    for item in history:
+        item_grade = item.get("grade", "")
+        item_level = int(item.get("level", 0))
+        
+        # 부분 정답(pass) 이상이면 일단 통과(is_passed=True)로 간주할 수는 있음
+        if item_grade in ["pass", "perfect"]:
+            is_passed = True
+        
+        # 단, 실제 별점(Star) 획득은 해당 레벨을 'perfect'로 맞췄을 때만 인정 (최대 3점)
+        if item_grade == "perfect":
+            earned_star = max(earned_star, item_level)
+            
+    earned_star = min(earned_star, 3) # 안전장치: 최대 3별 유지
     
     # DB 업데이트
     is_new_star = False
