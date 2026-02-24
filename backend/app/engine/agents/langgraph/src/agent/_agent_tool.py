@@ -1,6 +1,6 @@
 from typing import List, Annotated
 from langchain_core.tools import tool
-from app.engine.tools.v1.function_tool import (
+from app.engine.tools.function_tool import (
     f_get_techtree_trend,
     f_get_techtree_track,
     f_get_techtree_path,

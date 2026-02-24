@@ -11,22 +11,20 @@
 │   │   ├── main.py                 # 앱 진입점 (FastAPI)
 │   │   │
 │   │   ├── api/                    # [REST API] 웹 클라이언트용 (FastAPI Router)
-│   │   │   ├── v1/                 # (Legacy) Stateless API
-│   │   │   └── v2/                 # (New) Stateful Chat API
+│   │   │   ├── router.py           # Unified router
+│   │   │   ├── endpoints/          # API Endpoints (stateless_chat, stateful_chat, techtree)
 │   │   │
 │   │   ├── api_mcp/                # [MCP API] AI 에이전트용 (MCP Server)
-│   │   │   ├── v1/                 # (Legacy) MCP 서버
-│   │   │   └── v2/                 # (New) MCP 서버
+│   │   │   ├── server.py           # MCP 서버
+│   │   │   ├── tools.py            # MCP Tools 등록부
 │   │   │
 │   │   ├── engine/                 # [Engine] 핵심 비즈니스 로직 (Core)
 │   │   │   ├── agents/             # - AI 면접관/평가자 구현체 (Brain)
 │   │   │   ├── graphs/             # - LangGraph 실행 흐름 (Flow)
 │   │   │   ├── tools/              # - 검색/분석 도구 모음 (Skills)
-│   │   │   │   ├── v1/
-│   │   │   │   └── v2/
 │   │   │   └── prompts/            # - 프롬프트 템플릿
 │   │   │
-│   │   ├── core/                   # [Infra] 설정, DB 연결, 로깅
+│   │   ├── core/                   # [Infra] 설정, DB 연결, 로깅, 통합 LLM
 │   │   ├── services/               # [Service] DB CRUD 로직
 │   │   ├── schemas_api/            # [DTO] API 요청/응답 모델
 │   │   ├── schemas_db/             # [Model] DB 스키마
@@ -34,9 +32,10 @@
 │   │
 │   └── tests/                      # 테스트 코드
 │
-├── frontend/                       # [Frontend] 웹 애플리케이션
-│   ├── v1/                         # (Legacy) Streamlit 앱
-│   └── v2/                         # (New) Next.js 앱
+├── frontend/                       # [Frontend] 웹 애플리케이션 (Next.js)
+│   ├── src/                        # 메인 소스코드
+│   ├── public/                     # 정적 에셋
+│   └── legacy_streamlit/           # (Legacy) Streamlit 앱
 │
 ├── docs/                           # [Docs] 문서 보관소
 │   ├── 1_prd/                      # 기획서 (Spec, Persona)

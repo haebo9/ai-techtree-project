@@ -1,91 +1,42 @@
+import re
 from typing import List, Optional
-import os
-from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import PydanticOutputParser
-from pydantic import BaseModel, Field
+from langchain_core.messages import AIMessage
+
+# Project Utilities
+from app.core.llm import get_llm
+from app.core.logger import get_logger
+from app.engine.prompts.quiz_prompts import (
+    INTEGRATED_SYSTEM_PROMPT,
+    EXPLANATION_SYSTEM_PROMPT,
+    QUIZ_SYSTEM_PROMPT,
+    CHECK_RESULT_SYSTEM_PROMPT,
+    CHECK_RESULT_HUMAN_PROMPT
+)
+from app.engine.agents.langgraph.src.agent.state import KeywordState
+from app.engine.agents.langgraph.src.agent.schemas_quiz import (
+    KeywordAndQuiz,
+    ExplanationGeneration,
+    QuizGeneration,
+    CheckResult
+)
+
+logger = get_logger("agent_quiz")
+llm = get_llm()
 
 # ==========================================
-# Schema (Integrated)
+# Parsers & Prompts Configuration
 # ==========================================
-class KeywordAndQuiz(BaseModel):
-    """
-    Content generated for a specific keyword, including explanation and assessment.
-    """
-    keyword: str = Field(description="The keyword being explained")
-    
-    # Content Part (Tutor)
-    definition: str = Field(description="A precise, academic definition (1-2 sentences).")
-    summary: str = Field(description="A easy-to-understand summary for a learner using analogies if helpful.")
-    core_concepts: List[str] = Field(description="3-5 key concepts associated with this keyword.")
-    
-    # Assessment Part (Quiz)
-    quiz_question: str = Field(description="A single technical question to test understanding of the keyword.")
-    quiz_options: Optional[List[str]] = Field(description="For multiple choice, list options. Empty if open-ended.")
-    quiz_answer: str = Field(description="The correct answer and brief explanation.")
-
-# ==========================================
-# Prompt & Chain
-# ==========================================
-INTEGRATED_SYSTEM_PROMPT = """
-    # Role
-    You are an expert AI Tech Tutor and Interviewer.
-    Your goal is to teach a concept and immediately assess the learner's understanding.
-
-    # Instructions
-    1. Explain the given keyword clearly, providing a precise definition and an easy-to-understand summary.
-    2. Generate ONE high-quality technical quiz question based on your explanation.
-    3. The question should be challenging and suitable for an intermediate learner.
-
-    # Language Requirement
-    You MUST provide the definition, summary, quiz question, options, and answer explanation in warm, natural KOREAN (한국어). The 'keyword' itself can be English or Korean.
-
-    # Output Format
-    Return a JSON object conforming strictly to the provided output format, without any extra text.
-    {format_instructions}
-"""
-
 parser = PydanticOutputParser(pydantic_object=KeywordAndQuiz)
-
 prompt = ChatPromptTemplate.from_messages([
     ("system", INTEGRATED_SYSTEM_PROMPT),
     ("human", "Teach me about: {keyword}")
 ]).partial(format_instructions=parser.get_format_instructions())
 
-llm = ChatOpenAI(model="gpt-4.1", temperature=0.5, api_key=os.getenv("OPENAI_API_KEY"))
 chain = prompt | llm | parser
 
-# ==========================================
-# Explanation Only Generation
-# ==========================================
-class ExplanationGeneration(BaseModel):
-    """
-    Content generated for a specific keyword (Tutor only, no quiz).
-    """
-    keyword: str = Field(description="The keyword being explained")
-    definition: str = Field(description="A precise, academic definition (1-2 sentences).")
-    summary: str = Field(description="A easy-to-understand summary for a learner using analogies if helpful.")
-    core_concepts: List[str] = Field(description="3-5 key concepts associated with this keyword.")
-
 explanation_parser = PydanticOutputParser(pydantic_object=ExplanationGeneration)
-
-EXPLANATION_SYSTEM_PROMPT = """
-    # Role
-    You are an expert AI Tech Tutor.
-    Your goal is to teach a computing or development concept clearly and concisely.
-
-    # Instructions
-    1. Explain the given keyword clearly, providing a precise definition and an easy-to-understand summary.
-    2. Provide 3 to 5 core concepts associated with this keyword.
-
-    # Language Requirement
-    You MUST provide the definition, summary, and core concepts in warm, natural KOREAN (한국어). The 'keyword' itself can remain in English if it is a technical term.
-
-    # Output Format
-    Return a JSON object conforming strictly to the provided schema.
-    {format_instructions}
-"""
-
 explanation_prompt = ChatPromptTemplate.from_messages([
     ("system", EXPLANATION_SYSTEM_PROMPT),
     ("human", "Teach me about: {keyword}")
@@ -93,6 +44,25 @@ explanation_prompt = ChatPromptTemplate.from_messages([
 
 explanation_chain = explanation_prompt | llm | explanation_parser
 
+quiz_parser = PydanticOutputParser(pydantic_object=QuizGeneration)
+quiz_prompt = ChatPromptTemplate.from_messages([
+    ("system", QUIZ_SYSTEM_PROMPT),
+    ("human", "Generate a quiz for: {keyword}")
+]).partial(format_instructions=quiz_parser.get_format_instructions())
+
+quiz_chain = quiz_prompt | llm | quiz_parser
+
+check_prompt = ChatPromptTemplate.from_messages([
+    ("system", CHECK_RESULT_SYSTEM_PROMPT),
+    ("human", CHECK_RESULT_HUMAN_PROMPT)
+])
+llm_with_structure = llm.with_structured_output(CheckResult)
+check_chain = check_prompt | llm_with_structure
+
+
+# ==========================================
+# Explanation Only Generation
+# ==========================================
 async def generate_explanation_only(keyword: str) -> dict:
     """
     Generates explanation only (No Quiz).
@@ -101,7 +71,7 @@ async def generate_explanation_only(keyword: str) -> dict:
         result = await explanation_chain.ainvoke({"keyword": keyword})
         return result.model_dump()
     except Exception as e:
-        print(f"⚠️ [ExplanationAgent] Error: {e}")
+        logger.error(f"⚠️ [ExplanationAgent] Error: {e}", exc_info=True)
         return {
             "keyword": keyword,
             "definition": "Content unavailable.",
@@ -120,7 +90,7 @@ async def generate_quiz_and_explanation(keyword: str) -> dict:
         result = await chain.ainvoke({"keyword": keyword})
         return result.model_dump()
     except Exception as e:
-        print(f"⚠️ [IntegratedAgent] Error: {e}")
+        logger.error(f"⚠️ [IntegratedAgent] Error: {e}", exc_info=True)
         return {
             "keyword": keyword,
             "definition": "Content unavailable.",
@@ -134,47 +104,6 @@ async def generate_quiz_and_explanation(keyword: str) -> dict:
 # ==========================================
 # Quiz Only Generation
 # ==========================================
-class QuizGeneration(BaseModel):
-    quiz_question: str = Field(description="A single technical question to test understanding of the keyword.")
-    quiz_options: Optional[List[str]] = Field(description="For multiple choice, list options. Empty if open-ended.")
-    quiz_answer: str = Field(description="The correct answer and brief explanation.")
-
-quiz_parser = PydanticOutputParser(pydantic_object=QuizGeneration)
-
-QUIZ_SYSTEM_PROMPT = """
-    # Role
-    You are a Company Tech Interview Question Generator.
-    Your objective is to generate a NEW, challenging, and insightful technical quiz question for the given keyword.
-
-    # Instructions
-    1. Create a short-answer question based on the provided keyword and difficulty level.
-    2. Provide the correct answer and a brief explanation for why it is correct.
-    3. Carefully analyze the previous quiz history provided in the context. Ensure the new question is DIFFERENT from previously asked questions.
-
-    # Language Requirement
-    The generated question, options (if any), and answer explanation MUST be written entirely in KOREAN (한국어).
-
-    # Output Format
-    Return a JSON object strictly following the required schema.
-    {format_instructions}
-
-    # Context
-    <keyword>{keyword}</keyword>
-    <level>{level}</level>
-
-    # Previous Quiz History
-    <quiz_history_context>
-    {quiz_history_context}
-    </quiz_history_context>
-"""
-
-quiz_prompt = ChatPromptTemplate.from_messages([
-    ("system", QUIZ_SYSTEM_PROMPT),
-    ("human", "Generate a quiz for: {keyword}")
-]).partial(format_instructions=quiz_parser.get_format_instructions())
-
-quiz_chain = quiz_prompt | llm | quiz_parser
-
 async def generate_only_quiz(keyword: str, level: int, quiz_history: List[dict] = None) -> dict:
     level_map = {
         0: "Very Easy (Matching a term to its corresponding concept)",
@@ -203,16 +132,12 @@ async def generate_only_quiz(keyword: str, level: int, quiz_history: List[dict] 
             "answer": result.quiz_answer
         }
     except Exception as e:
-        print(f"Quiz Gen Error: {e}")
+        logger.error(f"Quiz Gen Error: {e}", exc_info=True)
         return None
 
 # ==========================================
 # Nodes
 # ==========================================
-from langchain_core.messages import AIMessage
-from app.engine.agents.langgraph.src.agent.state import KeywordState
-
-# 퀴즈 생성 노드 : 키워드를 기반으로 퀴즈 생성
 async def generate_quiz_node(state: KeywordState):
     """
     [Assessment Phase] Generates a question based on valid content.
@@ -236,7 +161,6 @@ async def generate_quiz_node(state: KeywordState):
     # 2. 퀴즈 출력 메시지 구성
     options_text = ""
     if question.get("options"):
-        import re
         formatted_options = []
         for i, opt in enumerate(question["options"], 1):
             # LLM이 "1. 정답" 등 이미 번호를 매긴 경우를 대비하여 앞의 번호/기호 제거
@@ -254,9 +178,6 @@ async def answer_quiz_node(state: KeywordState):
     """
     [Assessment Phase] Evaluates the user's answer (Correctness Check only).
     """
-    # Remove local import, use global pydantic import
-    # from langchain_core.pydantic_v1 import BaseModel, Field as PydanticField
-    
     current_q = state.get("current_question")
     messages = state.get("messages")
     user_answer = messages[-1].content
@@ -266,62 +187,6 @@ async def answer_quiz_node(state: KeywordState):
         
     model_answer = current_q.get("answer", "")
     question_text = current_q.get("question_text", "")
-    
-    # 1. 정답 확인 스키마 정의 
-    from typing import Literal
-    class CheckResult(BaseModel):
-        grade: Literal["fail", "pass", "perfect"] = Field(description="fail for incorrect, pass for partially correct/acceptable, perfect for completely correct.")
-        feedback: str = Field(description="Brief feedback explaining the grade in Korean. And explain why it is correct or incorrect.")
-        correct_answer: str = Field(description="The correct answer based on the model answer.")
-
-    # 2. 평가 체인 구성
-    check_prompt = ChatPromptTemplate.from_messages([
-        ("system", """
-            # Role and Objective
-            You are a fair, intelligent, and flexible Grader. 
-            Your objective is to evaluate the user's answer based on the core semantic meaning of the model answer, rather than requiring an exact word-for-word match.
-
-            # Instructions
-            1. Focus strictly on the core meaning and concepts. Actively accept synonyms, paraphrasing, and different sentence structures.
-            2. Grade the user's answer into one of three categories: "perfect", "pass", or "fail".
-            - "perfect": The user clearly understands the core concept and provides a semantically equivalent answer.
-            - "pass": The answer is partially correct, captures the general idea but has minor inaccuracies or lacks detail.
-            - "fail": The answer is fundamentally incorrect, misses the core points, or contradicts the model answer.
-            3. Formulate constructive feedback explaining your grading decision.
-
-            # Reasoning Steps
-            Follow these steps strictly before making a final decision:
-            1. Model Answer Analysis: Identify the essential keywords and core logic required for a correct answer.
-            2. User Answer Analysis: Extract the underlying meaning and logic from the user's response.
-            3. Semantic Comparison: Compare the user's logic against the core logic of the model answer. Do not penalize for different vocabulary if the meaning is intact.
-            4. Decision: Based on the comparison, decide the final grade and write constructive feedback.
-
-            # Language Requirement
-            The "reasoning", "feedback", and "correct_answer" MUST be written in natural KOREAN (한국어).
-
-            # Context
-            <question>
-            {question}
-            </question>
-
-            <model_answer>
-            {model_answer}
-            </model_answer>
-            """),
-        ("human", """
-            # User Input
-            <user_answer>
-            {user_answer}
-            </user_answer>
-
-            # Final Instructions
-            First, think carefully step by step following the Reasoning Steps outlined above. Then, provide the final evaluation as a matched object.
-            """)
-    ])
-    
-    # Using structured output
-    llm_with_structure = llm.with_structured_output(CheckResult)
-    check_chain = check_prompt | llm_with_structure
     
     try:
         result: CheckResult = await check_chain.ainvoke({
@@ -385,7 +250,7 @@ async def answer_quiz_node(state: KeywordState):
         return return_data
         
     except Exception as e:
-        print(f"Eval Error: {e}")
+        logger.error(f"Eval Error: {e}", exc_info=True)
         return {
             "pass_fail": "fail", 
             "messages": [AIMessage(content="정답 확인 중 오류가 발생했습니다.")]

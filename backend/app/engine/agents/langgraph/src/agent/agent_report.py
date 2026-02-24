@@ -1,11 +1,23 @@
 from langchain_core.messages import AIMessage
-from app.engine.agents.langgraph.src.agent.state import KeywordState
-from app.services.keyword_service import keyword_service
-
-import os
-from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
+
+from app.engine.agents.langgraph.src.agent.state import KeywordState
+from app.services.keyword_service import keyword_service
+from app.core.llm import get_llm
+from app.core.logger import get_logger
+from app.engine.prompts.report_prompts import REPORT_SYSTEM_PROMPT, REPORT_HUMAN_PROMPT
+
+logger = get_logger("agent_report")
+
+# Initialize LLM and Prompt globally for reuse
+llm = get_llm(temperature=0.3)
+parser = StrOutputParser()
+report_prompt = ChatPromptTemplate.from_messages([
+    ("system", REPORT_SYSTEM_PROMPT), 
+    ("human", REPORT_HUMAN_PROMPT),
+])
+feedback_chain = report_prompt | llm | parser
 
 # ==========================================
 # Functions
@@ -31,47 +43,11 @@ async def _get_feedback(state: KeywordState) -> str:
         
     history_text = "\n".join(history_conversation)
     
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", 
-            """
-            # Role
-            You are a friendly and professional AI Learning Tutor.
-            Your task is to review the user's complete quiz session history and write a comprehensive, short feedback report.
-
-            # Instructions
-            1. Praise the concepts the user understood well.
-            2. If there are incorrect answers, analyze what the user misunderstood and gently correct them.
-            3. Keep the feedback concise, around 3 to 4 sentences in total.
-            4. Do not use Markdown or special formatting. Write it naturally in plain text.
-
-            # Language Requirement
-            The final output MUST be written entirely in warm, natural Korean (한국어).
-
-            # Quiz History Context
-            <quiz_history>
-            {history}
-            </quiz_history>
-            """
-        ), 
-        ("human", 
-            "Based on my quiz history provided in the context, please give me a short, comprehensive feedback."
-        ),
-    ])
-
-    llm = ChatOpenAI(
-        model="gpt-4.1", 
-        temperature=0.3, 
-        api_key=os.getenv("OPENAI_API_KEY")
-    )
-    parser = StrOutputParser()
-
-    feedback_chain = prompt | llm | parser
-    
     try:
         feedback = await feedback_chain.ainvoke({"history": history_text})
         return feedback
     except Exception as e:
-        print(f"Feedback generation error: {e}")
+        logger.error(f"Feedback generation error: {e}", exc_info=True)
         return "퀴즈 결과를 바탕으로 학습을 잘 마무리하셨습니다. 수고하셨습니다."
 
 # ==========================================
@@ -145,4 +121,3 @@ async def report_star_node(state: KeywordState):
         "level": 0,
         "quiz_history": []
     }
-    

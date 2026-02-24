@@ -1,14 +1,14 @@
 from typing import List, Annotated
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
-from app.engine.tools.v1.function_tool import (
+from app.engine.tools.function_tool import (
     f_get_techtree_track,
     f_get_techtree_path,
     f_get_techtree_trend,
     f_get_techtree_subject,
     f_get_techtree_survey
 )
-from app.engine.tools.v1.schema_tool import (
+from app.engine.tools.schema_tool import (
     TrackOutput, 
     PathOutput, 
     TrendOutput, 
