@@ -10,14 +10,14 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
 load_dotenv()
 
 # We import the compiled graph directly
-from app.engine.graphs.graph import agent_workflow as interview_graph
+from app.engine.graphs.graph import agent_workflow
 from app.core.database import db
 from langchain_core.messages import HumanMessage, AIMessage
 
 async def main():
     print("🚀 AI TechTree Interview Agent CLI (v1.1)")
     print("------------------------------------------")
-    print("Testing 'interview_graph' interactive mode.\n")
+    print("Testing 'agent_workflow' interactive mode.\n")
 
     # 1. Initialize State
     # We use a dummy user_id for CLI testing
@@ -32,9 +32,9 @@ async def main():
     }
     
     # We need to maintain the 'messages' list manually if we simulate a long session,
-    # but app.ainvoke usually returns the updated state with appended messages.
+    # but agent_workflow.ainvoke usually returns the updated state with appended messages.
     # For LangGraph stateful run, we should re-feed the history or let the graph handle it if we use checkpointer.
-    # Here, 'interview_graph' is compiled without a checkpointer, so it runs a single turn or chain of turns until it stops.
+    # Here, 'agent_workflow' is compiled without a checkpointer, so it runs a single turn or chain of turns until it stops.
     # To simulate a continuous conversation, we need to pass the updated state back in.
     
     current_state = initial_state
@@ -52,7 +52,7 @@ async def main():
             # but when we invoke with a dict, we usually provide the *new* messages or the full history depending on config.
             # In this simple setup without persistence/checkpointer, we have to pass the accumulating list?
             # Actually, let's try passing just the new message and let the graph logic handle it?
-            # 'interview_graph.py' uses 'add_messages', so we should pass the list.
+            # 'graph.py' uses 'add_messages', so we should pass the list.
             
             # Update messages in current_state manually before invoke?
             # Or just pass the new message in the input?
@@ -66,8 +66,8 @@ async def main():
             print("🤖 Agent is thinking...", end="", flush=True)
             
             # 3. Run Graph
-            # We use 'invoke' which runs until the graph hits END or an interrupt.
-            async for event in app.astream(current_state):
+            # We use 'astream' which runs until the graph hits END or an interrupt.
+            async for event in agent_workflow.astream(current_state):
                 # event is a dict of node_name -> output_state_update
                 for node_name, state_update in event.items():
                     # Update our local current_state with the updates
@@ -91,7 +91,7 @@ async def main():
                     current_state.update(state_update)
 
             # Manual fix for messages list to avoid duplication if the graph returned full list
-            # Actually, app.invoke returns the FINAL state. app.astream yields updates.
+            # Actually, agent_workflow.invoke returns the FINAL state. agent_workflow.astream yields updates.
             # Let's verify what 'current_state' holds after the loop.
             # The 'state_update' from astream usually contains only the diffs or the node output.
             

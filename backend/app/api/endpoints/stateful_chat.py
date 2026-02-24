@@ -8,26 +8,13 @@ from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
 router = APIRouter()
 
 # --- Request/Response Schemas ---
+from app.schemas_api.chat import StatefulChatRequest, StatefulChatResponse
 
-class ChatRequest(BaseModel):
-    user_id: str = Field(..., description="Unique user identifier (e.g. Email or UUID)")
-    message: str = Field(..., description="User's input message")
-    session_id: Optional[str] = Field(None, description="Session ID for persistent memory (not fully used in stateless v1)")
-    
-    # Optional context overrides
-    track: Optional[str] = "Python"
-    topic: Optional[str] = "General"
-    level: Optional[str] = "Intermediate"
-
-class ChatResponse(BaseModel):
-    response: str
-    ui_action: Optional[Dict[str, Any]] = None # For v2.0 UI Control (Confetti etc.)
-    history: List[str] = [] # Optional debug info
 
 # --- Endpoints ---
 
-@router.post("/message", response_model=ChatResponse)
-async def chat_message(req: ChatRequest):
+@router.post("/message", response_model=StatefulChatResponse)
+async def chat_message(req: StatefulChatRequest):
     """
     [v2] Stateful Interview Chat Endpoint
     Executes the LangGraph Agent.
@@ -76,7 +63,7 @@ async def chat_message(req: ChatRequest):
         
         response_text = last_msg.content if isinstance(last_msg, BaseMessage) else str(last_msg)
         
-        return ChatResponse(
+        return StatefulChatResponse(
             response=response_text,
             ui_action=None, # Future v2
             history=[m.content for m in messages]

@@ -11,24 +11,13 @@ router = APIRouter()
 # -------------------------------------------------------------------------
 # Pydantic Models (Request/Response)
 # -------------------------------------------------------------------------
-class MessageItem(BaseModel):
-    role: str
-    content: str
-    id: Optional[str] = None      # For Tool Call ID
-    name: Optional[str] = None    # For Tool Name
-
-class ChatRequest(BaseModel):
-    messages: List[MessageItem]
-
-class ChatResponse(BaseModel):
-    response: str
-    tool_calls: List[Dict[str, Any]] = []
+from app.schemas_api.chat import StatelessChatRequest, StatelessChatResponse
 
 # -------------------------------------------------------------------------
 # Agent Logic
 # -------------------------------------------------------------------------
-@router.post("/chat", response_model=ChatResponse)
-async def chat_endpoint(request: ChatRequest):
+@router.post("/chat", response_model=StatelessChatResponse)
+async def chat_endpoint(request: StatelessChatRequest):
     try:
         # 1. Initialize LLM with Tools
         llm = get_llm(temperature=0.2)
@@ -142,7 +131,7 @@ async def chat_endpoint(request: ChatRequest):
                 final_content = ai_msg.content
                 break
         
-        return ChatResponse(
+        return StatelessChatResponse(
             response=final_content,
             tool_calls=tool_logs
         )

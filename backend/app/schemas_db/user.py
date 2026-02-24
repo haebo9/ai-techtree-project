@@ -5,6 +5,19 @@ from .common import MongoDBModel
 
 # --- Sub Models (Embedded Documents) ---
 
+class UserCreate(BaseModel):
+    email: EmailStr
+    password: str
+    nickname: str
+    provider: str = "local"
+    uid: str = ""
+
+class UserUpdate(BaseModel):
+    nickname: Optional[str] = None
+    avatar_url: Optional[str] = None
+    job_title: Optional[str] = None
+
+
 class AuthInfo(BaseModel):
     email: EmailStr
     provider: str  # e.g., 'kakao', 'google'
