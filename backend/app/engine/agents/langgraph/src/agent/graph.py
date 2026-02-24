@@ -3,7 +3,7 @@ from langgraph.graph import StateGraph, START, END
 
 # local module
 from app.engine.agents.langgraph.src.agent.state import KeywordState
-from app.engine.agents.langgraph.src.agent import agent_router, agent_quiz, agent_keyword, agent_chat
+from app.engine.agents.langgraph.src.agent import agent_router, agent_quiz, agent_keyword, agent_chat, agent_report
 
 # ==========================================
 # 3. Edges & Graph
@@ -40,7 +40,7 @@ workflow.add_node("router", agent_router.router_node)
 workflow.add_node("search_keyword", agent_keyword.search_keyword_node)
 workflow.add_node("generate_quiz", agent_quiz.generate_quiz_node)
 workflow.add_node("answer_quiz", agent_quiz.answer_quiz_node)
-workflow.add_node("report_star", agent_quiz.report_star_node)
+workflow.add_node("report_star", agent_report.report_star_node)
 workflow.add_node("recommend_keyword", agent_keyword.recommend_keyword_node)
 workflow.add_node("info_keyword", agent_keyword.info_keyword_node)
 workflow.add_node("chit_chat", agent_chat.chit_chat_node)

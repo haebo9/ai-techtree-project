@@ -30,7 +30,7 @@ class KeywordService:
         created = await keyword_crud.create(data)
         return created.model_dump()
 
-    async def update_user_mastery(self, user_id: str, keyword_key: str, result: dict) -> bool:
+    async def update_user_star(self, user_id: str, keyword_key: str, result: dict) -> bool:
         """
         Updates user's mastery for the given keyword based on quiz result.
         Returns if passed.

@@ -182,7 +182,7 @@ async def generate_only_quiz(keyword: str, level: int, quiz_history: List[dict] 
     if quiz_history:
         history_lines = []
         for idx, log in enumerate(quiz_history, 1):
-            history_lines.append(f"[{idx}] Level: {log.get('level')} | Q: {log.get('question_text')} | Grade: {log.get('grade')}")
+            history_lines.append(f"[{idx}] Level {log.get('level')} | Q: {log.get('question_text')} | Grade: {log.get('grade')}")
         history_text = "\n".join(history_lines)
     
     try:
@@ -386,23 +386,3 @@ async def answer_quiz_node(state: KeywordState):
             "pass_fail": "fail", 
             "messages": [AIMessage(content="정답 확인 중 오류가 발생했습니다.")]
         }
-
-async def report_star_node(state: KeywordState):
-    """
-    [Assessment Phase] Reports the evaluation result to the user. And Update user's star.
-    """
-    # TODO: Implement reporting logic
-    
-    # 퀴즈 종료 시 관련 진행 상태 및 횟수 카운터 초기화
-    return {
-        "messages": [AIMessage(content="## Report")],
-        "keyword": None,
-        "keyword_data": None,
-        "current_question": None,
-        "quiz_in_progress": False,
-        "quiz_count": 0,
-        "quiz_pass_count": 0,
-        "level": 0,
-        "quiz_history": []
-    }
-
