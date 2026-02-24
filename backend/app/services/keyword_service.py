@@ -30,14 +30,14 @@ class KeywordService:
         created = await keyword_crud.create(data)
         return created.model_dump()
 
-    async def update_user_mastery(self, user_id: str, keyword_key: str, result: dict) -> bool:
+    async def update_user_star(self, user_id: str, keyword_key: str, result: dict) -> tuple[bool, bool]:
         """
         Updates user's mastery for the given keyword based on quiz result.
-        Returns if passed.
+        Returns a tuple of (is_passed, is_new_star).
         """
         user = await user_crud.get_by_email(user_id)
         if not user:
-            return False
+            return False, False
             
         # Get existing progress or default
         progress = user.keyword_progress.get(keyword_key, KeywordProgress())
@@ -47,6 +47,7 @@ class KeywordService:
         score_gain = result.get("score", 0)
         is_passed = result.get("is_passed", False)
         
+        is_new_star = False
         if is_passed:
             # Star Rating Logic (Simple Heuristic for v1.1)
             # Evaluation Model determines the star rating (1~3)
@@ -55,6 +56,7 @@ class KeywordService:
             # Keep the highest star rating achieved
             if earned_star > progress.star:
                 progress.star = earned_star
+                is_new_star = True
         
         # Update User object in memory then save
         user.keyword_progress[keyword_key] = progress
@@ -65,7 +67,7 @@ class KeywordService:
         # Persist to DB
         await user_crud.update(user.id, {"keyword_progress": keyword_progress_dict})
         
-        return is_passed
+        return is_passed, is_new_star
 
     async def mark_learning_started(self, user_id: str, keyword_key: str) -> None:
         """

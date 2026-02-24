@@ -28,20 +28,20 @@ class KeywordAndQuiz(BaseModel):
 # Prompt & Chain
 # ==========================================
 INTEGRATED_SYSTEM_PROMPT = """
+    # Role
     You are an expert AI Tech Tutor and Interviewer.
     Your goal is to teach a concept and immediately assess the learner's understanding.
 
-    [Instructions]
-    1. Explain the given keyword clearly (Definition & Summary).
-    2. Generate ONE high-quality quiz question based on your explanation.
-    3. The question should be suitable for an intermediate learner.
+    # Instructions
+    1. Explain the given keyword clearly, providing a precise definition and an easy-to-understand summary.
+    2. Generate ONE high-quality technical quiz question based on your explanation.
+    3. The question should be challenging and suitable for an intermediate learner.
 
-    [Language Requirement]
-    - **MUST** provide definition, summary, quiz question, options, and answer explanation in **KOREAN (한국어)**.
-    - The 'keyword' itself can be English or Korean.
+    # Language Requirement
+    You MUST provide the definition, summary, quiz question, options, and answer explanation in warm, natural KOREAN (한국어). The 'keyword' itself can be English or Korean.
 
-    [Output Format]
-    Return a JSON object conforming to the KeywordAndQuiz schema.
+    # Output Format
+    Return a JSON object conforming strictly to the provided output format, without any extra text.
     {format_instructions}
 """
 
@@ -70,17 +70,19 @@ class ExplanationGeneration(BaseModel):
 explanation_parser = PydanticOutputParser(pydantic_object=ExplanationGeneration)
 
 EXPLANATION_SYSTEM_PROMPT = """
+    # Role
     You are an expert AI Tech Tutor.
-    Your goal is to teach a concept clearly and concisely.
+    Your goal is to teach a computing or development concept clearly and concisely.
 
-    [Instructions]
-    1. Explain the given keyword clearly (Definition & Summary).
-    2. Provide 3-5 core concepts.
-    
-    [Language Requirement]
-    - **MUST** provide definition and summary in **KOREAN (한국어)**.
-    - The 'keyword' itself can be English or Korean.
+    # Instructions
+    1. Explain the given keyword clearly, providing a precise definition and an easy-to-understand summary.
+    2. Provide 3 to 5 core concepts associated with this keyword.
 
+    # Language Requirement
+    You MUST provide the definition, summary, and core concepts in warm, natural KOREAN (한국어). The 'keyword' itself can remain in English if it is a technical term.
+
+    # Output Format
+    Return a JSON object conforming strictly to the provided schema.
     {format_instructions}
 """
 
@@ -140,26 +142,30 @@ class QuizGeneration(BaseModel):
 quiz_parser = PydanticOutputParser(pydantic_object=QuizGeneration)
 
 QUIZ_SYSTEM_PROMPT = """
-    This is a Company Tech Interview Question Generator.
-    Generate a NEW, challenging quiz question for the given keyword.
-    
-    # Context
-    Keyword: {keyword}
-    Level: {level}
-    
-    # Previous Quiz History
-    To avoid repeating the same questions and to potentially create linked or more advanced questions, here is the history of questions already asked in this session:
-    {quiz_history_context}
-    
+    # Role
+    You are a Company Tech Interview Question Generator.
+    Your objective is to generate a NEW, challenging, and insightful technical quiz question for the given keyword.
+
     # Instructions
-    1. Create a short-answer question.
-    2. Provide the correct answer and a brief explanation.
-    3. Ensure the new question is DIFFERENT from the Previous Quiz History.
-    
-    # Language
-    - Question/Answer in Korean.
-    
+    1. Create a short-answer question based on the provided keyword and difficulty level.
+    2. Provide the correct answer and a brief explanation for why it is correct.
+    3. Carefully analyze the previous quiz history provided in the context. Ensure the new question is DIFFERENT from previously asked questions.
+
+    # Language Requirement
+    The generated question, options (if any), and answer explanation MUST be written entirely in KOREAN (한국어).
+
+    # Output Format
+    Return a JSON object strictly following the required schema.
     {format_instructions}
+
+    # Context
+    <keyword>{keyword}</keyword>
+    <level>{level}</level>
+
+    # Previous Quiz History
+    <quiz_history_context>
+    {quiz_history_context}
+    </quiz_history_context>
 """
 
 quiz_prompt = ChatPromptTemplate.from_messages([
@@ -182,7 +188,7 @@ async def generate_only_quiz(keyword: str, level: int, quiz_history: List[dict] 
     if quiz_history:
         history_lines = []
         for idx, log in enumerate(quiz_history, 1):
-            history_lines.append(f"[{idx}] Level: {log.get('level')} | Q: {log.get('question_text')} | Grade: {log.get('grade')}")
+            history_lines.append(f"[{idx}] Level {log.get('level')} | Q: {log.get('question_text')} | Grade: {log.get('grade')}")
         history_text = "\n".join(history_lines)
     
     try:
@@ -272,29 +278,26 @@ async def answer_quiz_node(state: KeywordState):
     check_prompt = ChatPromptTemplate.from_messages([
         ("system", """
             # Role and Objective
-            You are a fair, intelligent, and flexible Grader. Your objective is to evaluate the user's answer based on the core semantic meaning of the model answer, rather than requiring an exact word-for-word match.
+            You are a fair, intelligent, and flexible Grader. 
+            Your objective is to evaluate the user's answer based on the core semantic meaning of the model answer, rather than requiring an exact word-for-word match.
 
             # Instructions
-            - Focus strictly on the **core meaning and concepts**.
-            - Actively accept synonyms, paraphrasing, and different sentence structures.
-            - Grade the user's answer into one of three categories:
-            - "perfect": The user clearly understands the core concept and provides a semantically equivalent answer, even if phrased differently.
-            - "pass": The answer is partially correct, capturing the general idea but lacking important details or having minor inaccuracies.
+            1. Focus strictly on the core meaning and concepts. Actively accept synonyms, paraphrasing, and different sentence structures.
+            2. Grade the user's answer into one of three categories: "perfect", "pass", or "fail".
+            - "perfect": The user clearly understands the core concept and provides a semantically equivalent answer.
+            - "pass": The answer is partially correct, captures the general idea but has minor inaccuracies or lacks detail.
             - "fail": The answer is fundamentally incorrect, misses the core points, or contradicts the model answer.
+            3. Formulate constructive feedback explaining your grading decision.
 
             # Reasoning Steps
             Follow these steps strictly before making a final decision:
             1. Model Answer Analysis: Identify the essential keywords and core logic required for a correct answer.
             2. User Answer Analysis: Extract the underlying meaning and logic from the user's response.
             3. Semantic Comparison: Compare the user's logic against the core logic of the model answer. Do not penalize for different vocabulary if the meaning is intact.
-            4. Decision: Based on the comparison, decide the final grade and formulate constructive feedback.
+            4. Decision: Based on the comparison, decide the final grade and write constructive feedback.
 
-            # Output Format
-            You must return the result in strictly valid JSON format with the following keys:
-            - "reasoning": Your step-by-step thinking process based on the Reasoning Steps (in Korean).
-            - "grade": "perfect", "pass", or "fail".
-            - "feedback": Brief, constructive feedback in Korean.
-            - "correct_answer": The explicit correct answer in Korean.
+            # Language Requirement
+            The "reasoning", "feedback", and "correct_answer" MUST be written in natural KOREAN (한국어).
 
             # Context
             <question>
@@ -306,12 +309,13 @@ async def answer_quiz_node(state: KeywordState):
             </model_answer>
             """),
         ("human", """
+            # User Input
             <user_answer>
             {user_answer}
             </user_answer>
 
             # Final Instructions
-            First, think carefully step by step following the Reasoning Steps outlined above. Then, provide the final evaluation in the requested JSON format.
+            First, think carefully step by step following the Reasoning Steps outlined above. Then, provide the final evaluation as a matched object.
             """)
     ])
     
@@ -386,23 +390,3 @@ async def answer_quiz_node(state: KeywordState):
             "pass_fail": "fail", 
             "messages": [AIMessage(content="정답 확인 중 오류가 발생했습니다.")]
         }
-
-async def report_star_node(state: KeywordState):
-    """
-    [Assessment Phase] Reports the evaluation result to the user. And Update user's star.
-    """
-    # TODO: Implement reporting logic
-    
-    # 퀴즈 종료 시 관련 진행 상태 및 횟수 카운터 초기화
-    return {
-        "messages": [AIMessage(content="## Report")],
-        "keyword": None,
-        "keyword_data": None,
-        "current_question": None,
-        "quiz_in_progress": False,
-        "quiz_count": 0,
-        "quiz_pass_count": 0,
-        "level": 0,
-        "quiz_history": []
-    }
-
