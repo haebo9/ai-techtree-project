@@ -96,8 +96,9 @@ async def report_star_node(state: KeywordState):
         earned_star = max(1, min(level, 3))
     
     # DB 업데이트
+    is_new_star = False
     if keyword != "Unknown":
-        await keyword_service.update_user_star(
+        _, is_new_star = await keyword_service.update_user_star(
             user_id=user_id,
             keyword_key=keyword,
             result={
@@ -110,12 +111,13 @@ async def report_star_node(state: KeywordState):
     
     # 피드백 메시지 생성
     stars_str = "⭐" * earned_star + "☆" * (3 - earned_star)
+    new_badge = " *(NEW!)*" if is_new_star else ""
     report_msg = (
         f"### 📊 학습 리포트\n"
         f"- **키워드**: {keyword}\n"
         f"- **정답 수**: {quiz_pass_count} / {quiz_count}\n"
         f"- **도달 레벨**: Level {level}\n"
-        f"- **획득 별점**: {stars_str}\n\n"
+        f"- **획득 별점**: {stars_str}{new_badge}\n\n"
         f"- **종합 피드백**: \n {feedback}\n\n"
         f"수고하셨습니다! 다음 학습을 시작하려면 새로운 키워드를 입력하거나 '추천'을 요청해주세요."
     )
