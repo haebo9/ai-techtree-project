@@ -1,4 +1,9 @@
 import asyncio
+import sys
+import os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 from app.services.embedding_service import embedding_service
 from app.services.crud_user import user as user_crud
 from app.services.crud_keyword import keyword as keyword_crud

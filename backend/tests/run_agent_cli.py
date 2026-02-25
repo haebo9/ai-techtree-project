@@ -4,7 +4,7 @@ import os
 from dotenv import load_dotenv
 
 # Add backend directory to sys.path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 # Load Environment Variables
 load_dotenv()
