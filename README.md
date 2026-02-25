@@ -203,17 +203,12 @@ To monitor and interact with the LangGraph agent locally using LangSmith (LangGr
    MONGODB_URL=mongodb://root:example@localhost:27017/ai_techtree?authSource=admin
    ```
 
-2. **Install Dependencies & Run Server**
+2. **Run LangGraph Studio Server**
+   Since the architecture is unified, simply run `langgraph dev` from the `backend/` root folder where `langgraph.json` resides.
    ```bash
-   cd backend/app/engine/agents/langgraph
+   cd backend
    
-   # Install project in editable mode
-   pip install -e .
-   pip install langgraph-cli
-   
-   # Run Server (Ensure backend root is in PYTHONPATH)
-   # We need 'backend' directory in path to import 'app'
-   export PYTHONPATH=$PYTHONPATH:../../../..
+   # Run Server (LangGraph CLI will automatically detect langgraph.json)
    langgraph dev
    ```
 

@@ -1,5 +1,4 @@
-from app.schemas_db.user import User
-from app.schemas_api.user import UserCreate, UserUpdate
+from app.schemas_db.user import User, UserCreate, UserUpdate
 from app.services.crud_base import CRUDBase
 from app.core.database import db
 

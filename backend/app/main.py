@@ -5,9 +5,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 
-# Import API Routers (New Flattened Structure)
-from app.api.v1.router import api_router as api_router_v1
-from app.api.v2.router import api_router as api_router_v2
+# Import API Routers
+from app.api.router import api_router
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -25,10 +24,7 @@ app.add_middleware(
 )
 
 # 2. Include API Routers
-# -> http://localhost:8000/api/v1/... (Legacy/Stable)
-app.include_router(api_router_v1, prefix="/api/v1")
-# -> http://localhost:8000/api/v2/... (New/Dev)
-app.include_router(api_router_v2, prefix="/api/v2")
+app.include_router(api_router, prefix="/api")
 
 
 
