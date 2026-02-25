@@ -21,6 +21,8 @@ build/
 backend/.venv/
 backend/.pytest_cache/
 backend/.langgraph_api/
+.langgraph*
+*.pckl
 __pycache__/
 *.pyc
 *.pyo
