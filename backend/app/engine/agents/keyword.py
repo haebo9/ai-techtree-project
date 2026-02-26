@@ -77,10 +77,12 @@ async def search_keyword_node(state: KeywordState):
     quiz_info = None
 
     # 학습 시도 기록 (Star=0) 및 추천 키워드 계산 (순차적으로 실행하여 즉시 DB에 반영)
-    user_id = state.get("user_id", "test_user@ai-techtree.com") # Default fallback test user email
+    user_id = state.get("user_id")
+        
     if user_id:
         # 1. 사용자 DB에 현재 키워드 기록을 저장합니다.
         await keyword_service.mark_learning_started(user_id, kw)
+
         
         # 2. 방금 저장된 학습 기록을 바탕으로 즉시 다음 추천 키워드를 계산하고 DB에 저장합니다.
         await embedding_service.calculate_recommendation(user_id)
@@ -98,18 +100,23 @@ async def recommend_keyword_node(state: KeywordState):
     import random
     from app.services.crud_user import user as user_crud
     
-    user_id = state.get("user_id", "test_user@ai-techtree.com") # Default fallback test user email
+    user_id = state.get("user_id")
     
-    # 이메일 형식인지 체크하여 조회
-    if "@" in user_id:
-        user = await user_crud.get_by_email(user_id)
-    else:
-        user = await user_crud.get(user_id)
+    user = None
+    if user_id:
+        # 이메일 형식인지 체크하여 조회
+        if "@" in user_id:
+            user = await user_crud.get_by_email(user_id)
+        else:
+            user = await user_crud.get(user_id)
         
     recommendations = []
     
     # 1. 즉석 계산 시도 (사용자 학습 이력 기반)
-    sim_items = await embedding_service.search_similar(user_id, k=10)
+    sim_items = []
+    if user_id:
+        sim_items = await embedding_service.search_similar(user_id, k=10)
+        
     if sim_items:
         recommendations = [item["keyword"] for item in sim_items]
     else:

@@ -57,7 +57,7 @@ async def report_star_node(state: KeywordState):
     """
     [Assessment Phase] Reports the evaluation result to the user. And Update user's star.
     """
-    user_id = state.get("user_id", "test_user@ai-techtree.com")
+    user_id = state.get("user_id")
     keyword = state.get("keyword", "Unknown")
     quiz_count = state.get("quiz_count", 0)
     quiz_pass_count = state.get("quiz_pass_count", 0)

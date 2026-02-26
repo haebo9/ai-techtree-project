@@ -42,7 +42,6 @@ workflow.add_node("generate_quiz", agent_quiz.generate_quiz_node)
 workflow.add_node("answer_quiz", agent_quiz.answer_quiz_node)
 workflow.add_node("report_star", agent_report.report_star_node)
 workflow.add_node("recommend_keyword", agent_keyword.recommend_keyword_node)
-workflow.add_node("info_keyword", agent_keyword.info_keyword_node)
 workflow.add_node("chit_chat", agent_chat.chit_chat_node)
 
 # Edges(-->)
@@ -55,7 +54,6 @@ workflow.add_conditional_edges(
         "chit_chat": "chit_chat",
         "answer_quiz": "answer_quiz",
         "recommend_keyword": "recommend_keyword",
-        "info_keyword": "info_keyword",
     }
 )
 workflow.add_conditional_edges(
@@ -67,10 +65,9 @@ workflow.add_conditional_edges(
     }
 )
 workflow.add_edge("search_keyword", "generate_quiz")
-workflow.add_edge("chit_chat", "recommend_keyword")
+workflow.add_edge("chit_chat", END)
 workflow.add_edge("report_star", END)
 workflow.add_edge("recommend_keyword", END)
-workflow.add_edge("info_keyword", END)
 workflow.add_edge("generate_quiz", END)
 
 # Compile
