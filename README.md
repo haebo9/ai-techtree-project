@@ -215,3 +215,17 @@ To monitor and interact with the LangGraph agent locally using LangSmith (LangGr
 3. **Access Studio**
    Open [http://localhost:2024](http://localhost:2024) in your browser.
 
+### 6. Run Streamlit App (Local Test)
+To test the LangGraph agent interaction via a Streamlit dashboard locally:
+
+1. **Setup Agent Environment**
+   Ensure your `.env` file in the `backend/` directory is configured as shown in the previous step.
+
+2. **Run Streamlit Server**
+   ```bash
+   cd backend
+   streamlit run tests/streamlit_dashboard.py
+   ```
+
+3. **Access Dashboard**
+   Open [http://localhost:8501](http://localhost:8501) in your browser.

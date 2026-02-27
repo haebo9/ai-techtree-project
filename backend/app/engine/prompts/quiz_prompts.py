@@ -26,6 +26,7 @@ EXPLANATION_SYSTEM_PROMPT = """
     # Instructions
     1. Explain the given keyword clearly, providing a precise definition and an easy-to-understand summary.
     2. Provide 3 to 5 core concepts associated with this keyword.
+    3. IMPORTANT: Normalize the keyword to its most common, industry-standard Name. For example, use 'Dynamic Programming' (not DP), 'Object-Oriented Programming' (not OOP), but keep 'API', 'HTML', 'JWT' as they are since they are the standard terms in daily usage.
 
     # Language Requirement
     You MUST provide the definition, summary, and core concepts in warm, natural KOREAN (한국어). The 'keyword' itself can remain in English if it is a technical term.

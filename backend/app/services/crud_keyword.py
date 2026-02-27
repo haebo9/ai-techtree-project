@@ -7,9 +7,12 @@ class CRUDKeyword(CRUDBase[Keyword, Keyword, Keyword]):
     
     async def get_by_key(self, keyword_key: str) -> Keyword | None:
         """
-        Retrieves a keyword document by its unique 'keyword_key'.
+        Retrieves a keyword document by its unique 'keyword_key', ignoring case.
         """
-        doc = await self.collection.find_one({"keyword_key": keyword_key})
+        import re
+        # Case-insensitive search for the exact string
+        regex_query = {"$regex": f"^{re.escape(keyword_key)}$", "$options": "i"}
+        doc = await self.collection.find_one({"keyword_key": regex_query})
         if doc:
             return self.model(**doc)
         return None

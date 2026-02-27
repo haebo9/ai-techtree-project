@@ -19,11 +19,10 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     async def get(self, id: str) -> Optional[ModelType]:
         """
         [R] 단일 문서 조회
-        ID(ObjectId)를 기준으로 문서를 찾아 Pydantic 모델로 변환해 반환합니다.
+        ID(ObjectId 또는 string)를 기준으로 문서를 찾아 Pydantic 모델로 변환해 반환합니다.
         """
-        if not ObjectId.is_valid(id):
-            return None
-        doc = await self.collection.find_one({"_id": ObjectId(id)})
+        query_id = ObjectId(id) if ObjectId.is_valid(id) else id
+        doc = await self.collection.find_one({"_id": query_id})
         return self.model(**doc) if doc else None
 
     async def get_multi(
@@ -61,8 +60,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         ID에 해당하는 문서를 찾아 내용을 업데이트합니다.
         부분 수정(PATCH)을 지원하며, 수정된 최종 객체를 반환합니다.
         """
-        if not ObjectId.is_valid(id):
-            return None
+        query_id = ObjectId(id) if ObjectId.is_valid(id) else id
             
         if isinstance(obj_in, dict):
             update_data = obj_in
@@ -73,7 +71,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             return await self.get(id)
 
         await self.collection.update_one(
-            {"_id": ObjectId(id)},
+            {"_id": query_id},
             {"$set": update_data}
         )
         return await self.get(id)
@@ -83,7 +81,6 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         [D] 문서 삭제
         ID에 해당하는 문서를 삭제하고, 성공 여부(bool)를 반환합니다.
         """
-        if not ObjectId.is_valid(id):
-            return False
-        result = await self.collection.delete_one({"_id": ObjectId(id)})
+        query_id = ObjectId(id) if ObjectId.is_valid(id) else id
+        result = await self.collection.delete_one({"_id": query_id})
         return result.deleted_count > 0
