@@ -27,7 +27,7 @@ class ExplanationGeneration(BaseModel):
     """
     Content generated for a specific keyword (Tutor only, no quiz).
     """
-    keyword: str = Field(description="The keyword being explained")
+    keyword: str = Field(description="The canonical, industry-standard name for the keyword (e.g. DP -> Dynamic Programming, but API -> API).")
     definition: str = Field(description="A precise, academic definition (1-2 sentences).")
     summary: str = Field(description="A easy-to-understand summary for a learner using analogies if helpful.")
     core_concepts: List[str] = Field(description="3-5 key concepts associated with this keyword.")
