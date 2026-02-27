@@ -162,7 +162,24 @@ def load_user_graph_data(email: str):
     if not keywords_data: return None, "첫 번째 퀴즈를 진행하여 나만의 기술 트리를 생성해 보세요!"
     return keywords_data, None
 
-def draw_agraph(keywords_data, threshold):
+def get_active_quiz_info(thread_id):
+    active_kw = None
+    active_level = None
+    if thread_id:
+        try:
+            import httpx
+            resp = httpx.get(f"http://127.0.0.1:2024/threads/{thread_id}/state", timeout=2.0)
+            if resp.status_code == 200:
+                state_data = resp.json()
+                values = state_data.get("values", {})
+                if values and values.get("quiz_in_progress"):
+                    active_kw = values.get("keyword")
+                    active_level = values.get("level", 0)
+        except Exception:
+            pass
+    return active_kw, active_level
+
+def draw_agraph(keywords_data, threshold, active_kw=None, active_level=None):
     labels = [d["keyword"] for d in keywords_data]
     embeddings = np.array([d["embedding"] for d in keywords_data])
     stars = [d["star"] for d in keywords_data]
@@ -173,7 +190,31 @@ def draw_agraph(keywords_data, threshold):
     for i, label in enumerate(labels):
         star = stars[i]
         star_str = "⭐" * star + "☆" * (3 - star) if star > 0 else "None"
-        nodes.append(Node(id=label, label=label, size=15 + star * 5, color=color_map.get(star, '#888'), title=f"키워드: {label}\n레벨: {star_str}"))
+        
+        node_kwargs = {
+            "id": label,
+            "label": label,
+            "size": 15 + star * 5,
+            "title": f"키워드: {label}\n레벨: {star_str}"
+        }
+        
+        # 현재 퀴즈 진행중인 키워드 강조 처리
+        if active_kw and label == active_kw:
+            target_color = color_map.get(active_level, '#FFB300') # 진행중인 레벨에 맞는 색상
+            node_kwargs.update({
+                "color": {
+                    "background": color_map.get(star, '#888'),
+                    "border": target_color,
+                },
+                "borderWidth": 4,
+                "borderWidthSelected": 6,
+            })
+            # Add shadow dynamically depending on streamit-agraph version
+            node_kwargs["shadow"] = {"enabled": True, "color": target_color, "size": 15, "x": 0, "y": 0}
+        else:
+            node_kwargs["color"] = color_map.get(star, '#888')
+            
+        nodes.append(Node(**node_kwargs))
         
     num_nodes = len(labels)
     max_sim = 0.0
@@ -320,7 +361,8 @@ with col2:
         if error:
             st.warning(error)
         else:
-            nodes, edges, config, max_sim = draw_agraph(keywords_data, similarity_threshold)
+            active_kw, active_level = get_active_quiz_info(st.session_state.thread_id)
+            nodes, edges, config, max_sim = draw_agraph(keywords_data, similarity_threshold, active_kw, active_level)
             st.success(f"총 {len(nodes)}개의 키워드와 {len(edges)}개의 관계를 생성했습니다. (tip: 노드를 클릭하여 정보를 확인해보세요.)")
             
             st.markdown("""<style>div[data-testid="stContainer"] { border: 2px solid #555555 !important; border-radius: 10px !important; padding: 0px !important; }</style>""", unsafe_allow_html=True)
