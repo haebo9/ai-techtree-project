@@ -89,12 +89,30 @@ docker-compose logs -f backend
 
 ---
 
+### Step 5. 무료 SSL 인증서(HTTPS) 발급받기 (최초 1회 필수)
+신규 도메인(`techtree.haebo.pro`)에 대한 HTTPS 접속을 활성화하려면, 첫 배포 시 반드시 아래 명령어를 실행하여 Let's Encrypt 인증서를 발급해야 Nginx 컨테이너가 정상적으로 구동됩니다.
+
+```bash
+# 1. Certbot 컨테이너를 이용해 인증서 발급 (이메일 및 도메인 입력 필요)
+docker-compose run --rm certbot certonly --webroot --webroot-path=/var/www/certbot -d techtree.haebo.pro
+
+# 발급 과정:
+# - 이메일 주소 입력 (로그 및 만료 알림용)
+# - 약관 동의 (A 누르고 Enter)
+# - 이메일 정보 공유 (Y 또는 N 누르고 Enter)
+
+# 2. 발급 완료 후 Nginx 컨테이너 재시작 (인증서 반영)
+docker-compose restart nginx
+```
+
+---
+
 ### ✅ 프로덕션(AWS) 배포 성공 후 접속 URL 정보
 Nginx 설정과 도메인이 정상적으로 연결되었다면, 기본적으로 80(HTTP), 443(HTTPS) 포트로 자동 포워딩됩니다. 
 현재 설정(`docker-compose.yml` 및 `nginx/default.conf` 구조 등)을 기반으로 한 예상 주소입니다:
 
-* **프론트엔드 (Streamlit UI)**: 연결해둔 메인 도메인 (예: `https://haebo.pro` 또는 `http://3.38.85.58`)
-* **백엔드 (FastAPI Swagger)**: `https://haebo.pro/api/docs` (또는 `http://3.38.85.58/api/docs`)
-* **에이전트 (LangGraph Server)**: 외부에는 `/threads/` 엔드포인트 등을 통해 HTTPS 기반(`https://haebo.pro/threads/...`)으로 내부 API 포트(2024)에 접근하게 됩니다. 
+* **프론트엔드 (Streamlit UI)**: 연결해둔 메인 도메인 (예: `https://techtree.haebo.pro` 또는 `http://3.38.85.58`)
+* **백엔드 (FastAPI Swagger)**: `https://techtree.haebo.pro/api/docs` (또는 `http://3.38.85.58/api/docs`)
+* **에이전트 (LangGraph Server)**: 외부에는 `/threads/` 엔드포인트 등을 통해 HTTPS 기반(`https://techtree.haebo.pro/threads/...`)으로 내부 API 포트(2024)에 접근하게 됩니다. 
 
 에러가 발생하지 않아야 배포가 정상적으로 완료된 것입니다. 수고하셨습니다.
