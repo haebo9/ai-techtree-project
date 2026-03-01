@@ -13,8 +13,7 @@ COPY backend/requirements.txt ./requirements-backend.txt
 RUN pip install --no-cache-dir -r requirements-backend.txt
 
 # 2. Frontend Requirements (혹시 모를 추가 의존성을 위해 분리 설치)
-COPY frontend/v1/requirements.txt ./requirements-frontend.txt
-RUN pip install --no-cache-dir -r requirements-frontend.txt
+# (Deleted frontend/v1 dependencies for v1.1)
 
 # 전체 프로젝트 코드 복사 (frontend, backend, docs 등 모두 포함)
 COPY . .

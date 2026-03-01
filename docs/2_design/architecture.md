@@ -55,6 +55,47 @@ graph TD
     Client -->|Auth| OAuth["🔐 OAuth Provider (Google/GitHub)"]:::infra
 ```
 
+```mermaid
+graph TB
+    subgraph Client ["Client (External)"]
+        User["User Browser"]
+    end
+
+    subgraph AWS ["AWS Cloud (VPC)"]
+        subgraph PublicSubnet ["Public Subnet"]
+            subgraph EC2 ["EC2 Instance (Docker Compose)"]
+                NG["Nginx Container (Port 80/443)"]
+                FE["Frontend Container (Streamlit/Next.js)"]
+                BE["Backend Container (FastAPI)"]
+                LG["LangGraph Container (Agent Logic)"]
+                CB["Certbot (SSL)"]
+            end
+        end
+
+        R53["Route 53 (DNS)"]
+    end
+
+    subgraph External ["Managed Services"]
+        DB[(MongoDB Atlas)]
+        AI[OpenAI / LLM API]
+        LS[LangSmith]
+    end
+
+    %% Connections
+    User --> R53
+    R53 -->|techtree.haebo.pro| NG
+    NG -->|Internal Proxy| FE
+    NG -->|Internal Proxy| BE
+    NG -->|Internal Proxy| LG
+    
+    FE -->|API Call| BE
+    BE --> DB
+    BE --> AI
+    LG --> AI
+    LG -->|Trace & Monitor| LS
+    CB <--> NG
+```
+
 
 | 색상 (Color) | Layer | 구성 요소 (Components) |
 | :---: | :--- | :--- |

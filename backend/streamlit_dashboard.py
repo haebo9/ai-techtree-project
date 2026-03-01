@@ -10,7 +10,7 @@ import base64
 from PIL import Image
 
 # --- Backend Context Setup ---
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv())
 
@@ -31,7 +31,7 @@ if db is not None:
     keywords_col = db["keywords"]
 
 # --- Streamlit UI Configurations ---
-logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "app/source/techtree-tree.png")
+logo_path = os.path.join(os.path.dirname(__file__), "app/source/techtree-tree.png")
 page_icon_img = Image.open(logo_path) if os.path.exists(logo_path) else "🧬"
 
 st.set_page_config(page_title="TechTree", page_icon=page_icon_img, layout="wide")
@@ -61,10 +61,12 @@ st.markdown('나만의 기술 트리 맵을 완성해보세요! &nbsp;|&nbsp; **
 
 
 # --- Chat Session Initialization Function ---
+LANGGRAPH_URL = os.getenv("LANGGRAPH_API_URL", "http://127.0.0.1:2024")
+
 def init_chat_session():
     st.session_state.messages = []
     try:
-        resp = httpx.post("http://127.0.0.1:2024/threads", json={}, timeout=5.0)
+        resp = httpx.post(f"{LANGGRAPH_URL}/threads", json={}, timeout=5.0)
         resp.raise_for_status() 
         st.session_state.thread_id = resp.json().get("thread_id")
     except Exception as e:
@@ -168,7 +170,7 @@ def get_active_quiz_info(thread_id):
     if thread_id:
         try:
             import httpx
-            resp = httpx.get(f"http://127.0.0.1:2024/threads/{thread_id}/state", timeout=2.0)
+            resp = httpx.get(f"{LANGGRAPH_URL}/threads/{thread_id}/state", timeout=2.0)
             if resp.status_code == 200:
                 state_data = resp.json()
                 values = state_data.get("values", {})
@@ -299,7 +301,7 @@ with col1:
                 answer_placeholder = st.empty()
                 with st.spinner("처리중..."):
                     try:
-                        API_URL = "http://127.0.0.1:2024/threads/{}/runs/stream"
+                        API_URL = f"{LANGGRAPH_URL}/threads/{{}}/runs/stream"
                         payload = {
                             "assistant_id": "agent",
                             "input": {"messages": [{"role": "user", "content": prompt}], "user_id": user_email, "user_intent": "General", "topic": "General"},

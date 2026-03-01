@@ -10,6 +10,11 @@
 > **+ Category** : **Feat**(기능), **Fix**(수정), **Refactor**(개선), **Add**(추가), **Update**(갱신), **Remove**(삭제), **Init**(초기화)
 
 ---
+## 2026년 3월
+| Date | Tag | Category | Details |
+|:---:|:---:|:---:|:---|
+| **26.03.02(일)** | ⚪️ | **Add** | AWS docker 배포를 위한 로컬 및 aws 실행 테스트 |
+
 ## 2026년 2월 
 | Date | Tag | Category | Details |
 |:---:|:---:|:---:|:---|
