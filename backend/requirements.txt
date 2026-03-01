@@ -6,11 +6,12 @@ pydantic-settings==2.12.0
 python-dotenv==1.2.1
 
 # AI & LLM
-langchain==1.2.3
-langchain-openai==1.1.6
-langchain-community==0.4.1
-langchain-core==1.2.7
-langgraph==1.0.5
+langchain>=0.2.0
+langchain-openai
+langchain-community
+langchain-core>=0.2.0
+langgraph
+langgraph-cli[inmem]
 openai==2.14.0
 tiktoken==0.12.0
 
@@ -33,9 +34,4 @@ pytest-asyncio==1.3.0
 
 # Search
 tavily-python==0.5.0
-
-# # MCP Server 
-langserve[all]==0.3.3
-sse-starlette==1.8.2
-mcp==1.25.0
 

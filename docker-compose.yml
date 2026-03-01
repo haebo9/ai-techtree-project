@@ -8,7 +8,7 @@ services:
     ports:
       - "8000:8000"
     env_file:
-      - .env # 모든 Key (OpenAI, Mongo 등)는 백엔드에만 있으면 됨!
+      - ./backend/.env # 모든 Key (OpenAI, Mongo 등)는 백엔드에만 있으면 됨!
     environment:
       - PYTHONPATH=/app/backend
   # 2. Frontend Interface (Streamlit)
@@ -34,26 +34,11 @@ services:
     ports:
       - "2024:2024"
     env_file:
-      - .env
+      - ./backend/.env
     environment:
       - PYTHONPATH=/app/backend
     depends_on:
       - backend
-  # 4. MCP Server (Agent Interface)
-  mcp:
-    image: haebo/ai-techtree:v1.1
-    container_name: ai-techtree-mcp-v1.1
-    # SSE Transport mode on port 8200 (Forced by sys.argv injection in mcp_server.py)
-    command: python -m app.interfaces.mcp.server
-    ports:
-      - "8200:8200"
-    env_file:
-      - .env
-    environment:
-      - PYTHONPATH=/app/backend
-    depends_on:
-      - backend
-
   # 5. Nginx Reverse Proxy (Gateway)
   nginx:
     image: nginx:latest
@@ -69,7 +54,6 @@ services:
       - frontend
       - backend
       - langgraph
-      - mcp
     restart: always
 
   # 5. Certbot (SSL Certificate Manager)

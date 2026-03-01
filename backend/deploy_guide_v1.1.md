@@ -6,29 +6,38 @@
 
 ---
 
-### Step 1. 새로운 백엔드 이미지 빌드 및 푸시
+### Step 1. 도커 이미지 빌드하기 (환경에 따라 선택)
 
-로컬 환경에서 최신 v1.1 이미지를 빌드하여 Docker Hub(또는 ECR)에 업로드합니다.
-
+**A. 클라우드 서버(AWS EC2) 등 실 배포용으로 빌드할 때** (작업 환경이 Mac인 경우 필수)
+로컬(Mac) 환경에서 Linux용 이미지를 빌드하여 원격 저장소에 올립니다.
 ```bash
-# 1. 태그를 v1.1로 지정하여 플랫폼에 맞게 빌드
+# 1. 태그를 v1.1로 지정하여 리눅스 플랫폼에 맞게 빌드
 docker build --no-cache --platform linux/amd64 -t haebo/ai-techtree:v1.1 .
 
-# 2. 빌드된 이미지를 원격 저장소에 Push
+# 2. 빌드된 이미지를 원격 저장소(Docker Hub/ECR)에 Push
 docker push haebo/ai-techtree:v1.1
+```
+
+**B. 나와 동일한 로컬 환경(로컬 컴퓨터)에서 직접 띄워볼 때** (팀원용 / 로컬 테스트용)
+플랫폼 지정 없이 현재 컴퓨터 환경에 맞게 이미지를 빌드합니다.
+```bash
+docker build -t ai-techtree:local-v1.1 .
+
+# 이 이미지는 Step 2에서 직접 사용하거나 로컬 컨테이너 디버깅용으로 쓸 수 있습니다.
 ```
 
 > **Tip:** Docker 로그인(`docker login`)이 되어있는지 미리 확인하세요.
 
 ---
 
-### Step 2. 로컬에서 도커 컨테이너 빌드 및 테스트해보기 (선택사항)
+### Step 2. 로컬에서 도커 컨테이너 실행 및 테스트 (선택사항)
 
-서버에 배포하기 전에 방금 만든 이미지가 내 컴퓨터(로컬)에서 똑같이 잘 동작하는지 미리 테스트해 볼 수 있습니다.
+서버에 배포하기 전에 방금 만든 이미지가 내 컴퓨터나 팀원의 환경(로컬)에서 똑같이 잘 동작하는지 미리 테스트해 볼 수 있습니다.
 
 ```bash
-# 로컬 전용 설정 파일(docker-compose.local.yml)을 사용하여 백그라운드 실행
-docker-compose -f docker-compose.local.yml up -d
+# .env 파일 생성 필수! (MONGODB_URL, OPENAI_API_KEY 등 세팅)
+# 로컬 전용 설정 파일(docker-compose.local.yml)을 사용하여 빌드 및 백그라운드 실행
+docker-compose -f docker-compose.local.yml up -d --build
 
 # 정상적으로 모든 컨테이너가 떴는지(Up 상태) 확인
 docker-compose -f docker-compose.local.yml ps
