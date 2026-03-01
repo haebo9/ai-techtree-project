@@ -13,27 +13,28 @@ services:
     volumes:
       - ./backend:/app/backend
 
-  # # 2. Frontend Interface (Streamlit App - Port 8100)
-  # frontend:
-  #   build: .
-  #   container_name: ai-techtree-frontend-local
-  #   command: streamlit run backend/streamlit_dashboard.py --server.port 8100
-  #   ports:
-  #     - "8100:8100"
-  #   environment:
-  #     - PYTHONPATH=/app/backend
-  #     - BACKEND_URL=http://backend:8000
-  #     - LANGGRAPH_API_URL=http://langgraph:2024
-  #   depends_on:
-  #     - backend
-  #     - langgraph
-  #   volumes:
-  #     - ./backend:/app/backend
+  # 2. Frontend Interface (Streamlit App - Port 8100)
+  frontend:
+    build: .
+    container_name: ai-techtree-frontend-local
+    command: streamlit run backend/streamlit_dashboard.py --server.port 8100
+    ports:
+      - "8100:8100"
+    environment:
+      - PYTHONPATH=/app/backend
+      - BACKEND_URL=http://backend:8000
+      - LANGGRAPH_API_URL=http://langgraph:2024
+    depends_on:
+      - backend
+      - langgraph
+    volumes:
+      - ./backend:/app/backend
 
   # 2.5 LangGraph Server (Graph Execution Logic)
   langgraph:
     build: .
     container_name: ai-techtree-langgraph-local
+    working_dir: /app/backend
     command: langgraph dev --host 0.0.0.0 --port 2024
     ports:
       - "2024:2024"

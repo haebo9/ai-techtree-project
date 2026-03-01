@@ -30,6 +30,7 @@ services:
   langgraph:
     image: haebo/ai-techtree:v1.1
     container_name: ai-techtree-langgraph-v1.1
+    working_dir: /app/backend
     command: langgraph dev --host 0.0.0.0 --port 2024
     ports:
       - "2024:2024"
