@@ -14,6 +14,7 @@ services:
       resources:
         limits:
           memory: 200M
+    restart: always
 
   # 2. Frontend Interface (Streamlit)
   frontend:
@@ -33,6 +34,7 @@ services:
     depends_on:
       - backend
       - langgraph
+    restart: always
 
   # 3. LangGraph Server (Graph Execution Logic)
   langgraph:
@@ -52,6 +54,7 @@ services:
           memory: 300M
     depends_on:
       - backend
+    restart: always
 
   # 5. Nginx Reverse Proxy (Gateway)
   nginx:
@@ -82,6 +85,7 @@ services:
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    restart: always
 
 ## For AWS
 # $ docker build --no-cache --platform linux/amd64 -t haebo/ai-techtree:v1.1 .
