@@ -61,11 +61,11 @@ docker-compose -f docker-compose.local.yml down
 
 ### Step 3. 서버로 설정 파일 전송 (SCP)
 
-업데이트된 `docker-compose.yml` 파일과 최신 `.env` 파일을 서버 홈 디렉토리(`~/`)로 복사합니다.
+업데이트된 `docker-compose.yml` 파일과 최신 `backend/.env` 파일을 서버 홈 디렉토리(`~/`)로 복사합니다.
 
 ```bash
 # SSH 접속 정보(techtree-server)는 ~/.ssh/config 에 설정된 이름을 기준으로 합니다.
-scp docker-compose.yml .env techtree-server:~
+scp docker-compose.yml backend/.env techtree-server:~
 ```
 
 > **Note:** Nginx 설정이 변경되었다면 `scp -r nginx techtree-server:~/` 명령어도 추가로 실행해주세요.
