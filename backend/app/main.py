@@ -11,7 +11,7 @@ from app.api.router import api_router
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description="Unified Backend for Web Client (REST) and PlayMCP (Agent)",
-    version="0.2.0"
+    version="1.1.0"
 )
 
 # CORS 설정

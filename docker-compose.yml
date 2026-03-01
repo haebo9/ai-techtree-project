@@ -15,7 +15,7 @@ services:
   frontend:
     image: haebo/ai-techtree:v1
     container_name: ai-techtree-frontend-v1
-    command: streamlit run frontend/v1/main.py --server.port 8100
+    command: streamlit run backend/tests/streamlit_dashboard.py --server.port 8100
     ports:
       - "8100:8100"
     environment:
