@@ -169,8 +169,8 @@ class EmbeddingService:
                 if kw.keyword_key in user_kw_keys:
                     user_vectors.append(kw.embedding)
                     
-                # 제외 조건: 이미 별 3개(완료)를 받은 키워드만 제외
-                if kw.keyword_key not in user_kw_keys or user.keyword_progress[kw.keyword_key].star < 3:
+                # 후보 벡터로는 사용자가 아직 한 번도 접하지 않은 새로운 키워드만 추가합니다.
+                if kw.keyword_key not in user_kw_keys:
                     cand_vectors.append(kw.embedding)
                     cand_keys.append(kw.keyword_key)
                     cand_docs.append(kw)
@@ -242,10 +242,8 @@ class EmbeddingService:
             if sim_items:
                 for item in sim_items:
                     cand_kw = item["keyword"]
-                    # 이미 학습한 키워드는 제외 (search_similar 내에서도 제외되지만 확실히 방어)
-                    if cand_kw not in user.keyword_progress or user.keyword_progress[cand_kw].star == 0:
-                        if cand_kw not in recommendations_set:
-                            recommendations_set.append(cand_kw)
+                    if cand_kw not in recommendations_set:
+                        recommendations_set.append(cand_kw)
             
             # 3. 최대 15개 저장
             new_recommendations = recommendations_set[:15]

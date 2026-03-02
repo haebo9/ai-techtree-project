@@ -5,6 +5,11 @@ from .common import MongoDBModel
 
 # --- Sub Models (Embedded Documents) ---
 
+class DailyLimit(BaseModel):
+    quiz_count: int = 0
+    last_reset_date: str = "" # YYYY-MM-DD (KST 기준)
+
+
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
@@ -61,6 +66,9 @@ class User(MongoDBModel):
     # [User State] 다음 학습 추천 키워드 (Pre-calculated)
     # 백그라운드에서 계산된 추천 키워드 목록 저장
     recommended_keywords: List[str] = Field(default_factory=list)
+    
+    # [User State] 퀴즈 하루 제한
+    daily_limit: DailyLimit = Field(default_factory=DailyLimit)
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)

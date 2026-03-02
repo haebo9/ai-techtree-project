@@ -16,6 +16,7 @@ temp/
 coverage/
 dist/
 build/
+backend/scripts/mongo_backup
 
 # --- Backend (Python) ---
 backend/.venv/
@@ -38,6 +39,7 @@ node_modules/
 
 # --- Environment & Virtualenvs ---
 .env
+.env.local
 .env.*
 !.env.example
 .venv/

@@ -53,7 +53,7 @@ async def _get_feedback(state: KeywordState) -> str:
 # ==========================================
 # Nodes
 # ==========================================
-async def report_star_node(state: KeywordState):
+async def report_star_node(state: KeywordState, config=None):
     """
     [Assessment Phase] Reports the evaluation result to the user. And Update user's star.
     """
@@ -63,6 +63,13 @@ async def report_star_node(state: KeywordState):
     quiz_pass_count = state.get("quiz_pass_count", 0)
     level = state.get("level", 0)
     
+    # thread_id 추출 (LangGraph config에서 가져오거나 state에서 시도)
+    thread_id = "dynamic_session"
+    if config and "configurable" in config:
+        thread_id = config["configurable"].get("thread_id", thread_id)
+    
+    logger.info(f"📊 [ReportNode] Processing report for user: {user_id}, keyword: {keyword}, thread_id: {thread_id}")
+
     # 별점 산정 로직: 각 레벨별로 'perfect' 판정을 받은 가장 높은 레벨을 별점으로 산정
     earned_star = 0
     is_passed = False
@@ -84,7 +91,8 @@ async def report_star_node(state: KeywordState):
     
     # DB 업데이트
     is_new_star = False
-    if keyword != "Unknown":
+    if keyword != "Unknown" and keyword:
+        logger.info(f"💾 [ReportNode] Starting DB update for keyword: {keyword}")
         _, is_new_star = await keyword_service.update_user_star(
             user_id=user_id,
             keyword_key=keyword,
@@ -94,6 +102,44 @@ async def report_star_node(state: KeywordState):
                 "score": quiz_pass_count * 10 
             }
         )
+
+        # --- 💡 대화 로그 저장 (v1.2 추가: 분석용 통짜 로그) ---
+        try:
+            from app.services.crud_chat_log import chat_log
+            
+            # 메시지 형식화 (User: ..., AI: ...)
+            messages = state.get("messages", [])
+            logger.info(f"📝 [ReportNode] Formatting {len(messages)} messages for keyword: {keyword}")
+            
+            formatted_messages = []
+            for m in messages:
+                role = "User" if m.type == "human" else "AI"
+                content = m.content
+                formatted_messages.append(f"[{role}]: {content}")
+            
+            full_conv = "\n\n".join(formatted_messages)
+            
+            # 별도 컬렉션에 저장
+            logger.info(f"🚀 [ReportNode] Attempting to save chat log to DB (session: {thread_id})")
+            created = await chat_log.create_log({
+                "keyword": keyword,
+                "user_id": user_id or state.get("user_db_id", "anonymous"),
+                "session_id": thread_id,
+                "summary": {
+                    "score": quiz_pass_count,
+                    "total_count": quiz_count,
+                    "max_level": level,
+                    "is_completed": (quiz_count >= state.get("quiz_max_count", 8))
+                },
+                "full_conversation": full_conv
+            })
+            logger.info(f"✅ [ReportNode] Chat log saved successfully. ID: {created.id}")
+        except Exception as log_e:
+            logger.error(f"❌ [ReportNode] Failed to save chat log: {log_e}", exc_info=True)
+    else:
+        logger.warning(f"⚠️ [ReportNode] Skipping DB update/log because keyword is '{keyword}'")
+    # --------------------------------------------------
+
     feedback = await _get_feedback(state)
     
     # 피드백 메시지 생성

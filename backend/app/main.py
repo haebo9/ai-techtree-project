@@ -1,6 +1,3 @@
-from dotenv import load_dotenv
-load_dotenv()
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
@@ -25,7 +22,6 @@ app.add_middleware(
 
 # 2. Include API Routers
 app.include_router(api_router, prefix="/api")
-
 
 
 @app.get("/")

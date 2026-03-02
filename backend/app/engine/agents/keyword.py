@@ -20,8 +20,47 @@ async def search_keyword_node(state: KeywordState):
     2. Explains it to the user.
     """
     kw = state.get("keyword")
+    user_id = state.get("user_id")
+    
     if not kw:
         return {"messages": [AIMessage(content="Please specify a keyword to learn.")]}
+        
+    # --- 💡 일일 퀴즈 제한 로직 (24시 기준 5회) ---
+    if user_id:
+        from app.services.crud_user import user as user_crud
+        from app.schemas_db.user import DailyLimit
+        from datetime import timezone, timedelta
+        
+        kst = timezone(timedelta(hours=9))
+        today_str = datetime.now(kst).strftime("%Y-%m-%d")
+        
+        db_user = await user_crud.get_by_email(user_id) if "@" in user_id else await user_crud.get(user_id)
+            
+        if db_user:
+            daily_limit = getattr(db_user, 'daily_limit', None)
+            if not daily_limit:
+                daily_limit = DailyLimit()
+                
+            last_date = daily_limit.last_reset_date
+            count = daily_limit.quiz_count
+            
+            if last_date != today_str:
+                count = 0
+                last_date = today_str
+                
+            if count >= 5:
+                return {
+                    "keyword": "", # 퀴즈 생성 노드 진입 방지
+                    "messages": [AIMessage(content="🚫 오늘의 퀴즈 도전 횟수(5회)를 모두 소진했습니다. 내일 다시 도전해주세요! 🌟")]
+                }
+            
+            # 횟수 업데이트
+            count += 1
+            await user_crud.update(db_user.id, {
+                "daily_limit": {"quiz_count": count, "last_reset_date": last_date},
+                "updated_at": datetime.utcnow()
+            })
+    # ---------------------------------------------
     
     # 1. DB 조회 시도 (Exact Match)
     kw_data = await keyword_service.get_keyword(kw)

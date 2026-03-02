@@ -6,6 +6,5 @@
   "graphs": {
     "agent": "./app/engine/graphs/graph.py:agent_workflow"
   },
-  "env": ".env",
   "image_distro": "wolfi"
 }
