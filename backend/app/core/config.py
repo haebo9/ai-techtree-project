@@ -23,8 +23,14 @@ class Settings(BaseSettings):
 
     # .env 파일 로드 설정
     model_config = SettingsConfigDict(
-        # 리스트의 뒤에 있는 파일(.env.local)이 앞의 파일(.env)을 덮어씁니다.
-        env_file=(".env", ".env.local"), 
+        # 현재 디렉토리 기준과 backend 디렉토리 기준 모두를 탐색 리스트에 넣습니다.
+        # 뒤에 오는 파일이 우선순위가 높습니다 (.env.local > .env)
+        env_file=(
+            ".env", 
+            "backend/.env", 
+            ".env.local", 
+            "backend/.env.local"
+        ), 
         env_file_encoding="utf-8",
         extra="ignore"
     )

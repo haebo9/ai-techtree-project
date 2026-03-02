@@ -12,13 +12,11 @@ from datetime import datetime, timezone, timedelta
 
 # --- Backend Context Setup ---
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
-from dotenv import load_dotenv, find_dotenv
-load_dotenv(find_dotenv())
-
+from app.core.config import settings
 from app.core.logger import send_telegram_message
 
-MONGO_URL = os.getenv("MONGODB_URL")
-DB_NAME = os.getenv("DB_NAME", "ai_techtree")
+MONGO_URL = settings.MONGODB_URL
+DB_NAME = settings.DB_NAME
 
 @st.cache_resource
 def get_db():

@@ -45,6 +45,9 @@ docker-compose -f docker-compose.local.yml ps
 # 로그를 보면서 오류가 없는지 확인
 docker-compose -f docker-compose.local.yml logs -f
 
+# 컨테이너 재시작(선택 사항)
+docker-compose -f docker-compose.local.yml restart
+
 # 테스트가 끝났다면 컨테이너 종료 및 삭제
 docker-compose -f docker-compose.local.yml down
 ```
