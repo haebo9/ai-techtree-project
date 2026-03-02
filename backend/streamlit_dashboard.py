@@ -15,6 +15,8 @@ sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv())
 
+from app.core.logger import send_telegram_message
+
 MONGO_URL = os.getenv("MONGODB_URL")
 DB_NAME = os.getenv("DB_NAME", "ai_techtree")
 
@@ -120,10 +122,15 @@ if submit_login and user_input_id:
                         "updated_at": datetime.now(timezone.utc)
                     })
                     st.session_state.login_msg = f"🎉 환영합니다! '{display_name}'님"
+                    
+                    # 📌 텔레그램 일반 이벤트 발송
+                    send_telegram_message(f"🎉 NEW User! '{user_input_id}'")
+                    
                 except Exception as e:
                     st.session_state.login_msg = f"❌ 계정 생성 오류: {e}"
             else:
-                st.session_state.login_msg = f"✅ '{display_name}'님의 기술 트리를 성공적으로 불러왔습니다!"
+                st.session_state.login_msg = f"✅ '{display_name}'님 안녕하세요!"
+                send_telegram_message(f"👋 User login: '{user_input_id}'")
         
         init_chat_session()
         st.rerun()
