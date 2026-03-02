@@ -3,14 +3,16 @@ import sys
 import os
 import httpx
 
+from app.core.config import settings
+
 class TelegramHandler(logging.Handler):
     """
     Custom Logging Handler to send ERROR/CRITICAL logs to Telegram.
     """
     def __init__(self, token: str = None, chat_id: str = None):
         super().__init__()
-        self.token = token or os.getenv("TELEGRAM_BOT_TOKEN")
-        self.chat_id = chat_id or os.getenv("TELEGRAM_CHAT_ID")
+        self.token = token or settings.TELEGRAM_BOT_TOKEN
+        self.chat_id = chat_id or settings.TELEGRAM_CHAT_ID
         self.api_url = f"https://api.telegram.org/bot{self.token}/sendMessage" if self.token else None
 
     def emit(self, record):
@@ -21,7 +23,7 @@ class TelegramHandler(logging.Handler):
             msg = self.format(record)
             # limit telegram msg length
             safe_msg = msg[:4000] 
-            env_name = os.getenv("APP_ENV", "local").upper()
+            env_name = settings.APP_ENV.upper()
             
             payload = {
                 "chat_id": self.chat_id,
@@ -61,9 +63,9 @@ def send_telegram_message(text: str):
     """
     에러가 아닌 일반 비즈니스 이벤트(알림)를 텔레그램으로 보낼 때 사용하는 범용 함수
     """
-    token = os.getenv("TELEGRAM_BOT_TOKEN")
-    chat_id = os.getenv("TELEGRAM_CHAT_ID")
-    env_name = os.getenv("APP_ENV", "local").upper()
+    token = settings.TELEGRAM_BOT_TOKEN
+    chat_id = settings.TELEGRAM_CHAT_ID
+    env_name = settings.APP_ENV.upper()
 
     if not token or not chat_id:
         return
