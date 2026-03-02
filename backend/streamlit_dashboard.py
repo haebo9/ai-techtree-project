@@ -8,6 +8,7 @@ from streamlit_agraph import agraph, Node, Edge, Config
 import httpx
 import base64
 from PIL import Image
+from datetime import datetime, timezone, timedelta
 
 # --- Backend Context Setup ---
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
@@ -113,7 +114,10 @@ if submit_login and user_input_id:
                         },
                         "keyword_progress": {
                             "Python": {"star": 0, "quiz_history": []}
-                        }
+                        },
+                        "daily_limit": {"quiz_count": 0, "last_reset_date": ""},
+                        "created_at": datetime.now(timezone.utc),
+                        "updated_at": datetime.now(timezone.utc)
                     })
                     st.session_state.login_msg = f"🎉 환영합니다! '{display_name}'님"
                 except Exception as e:
@@ -133,6 +137,31 @@ if not st.session_state.user_id:
 
 # --- Graph Data Variables ---
 user_email = st.session_state.user_id
+
+if db is not None:
+    kst = timezone(timedelta(hours=9))
+    today_str = datetime.now(kst).strftime("%Y-%m-%d")
+    
+    current_user = users_col.find_one({"_id": user_email})
+    if not current_user:
+        current_user = users_col.find_one({"auth.email": user_email})
+        
+    if current_user:
+        daily_limit = current_user.get("daily_limit", {})
+        last_reset_date = daily_limit.get("last_reset_date", "")
+        quiz_count = daily_limit.get("quiz_count", 0)
+        
+        if last_reset_date != today_str:
+            quiz_count = 0
+            
+        remaining_quiz_count = max(0, 5 - quiz_count)
+        
+        st.sidebar.markdown("---")
+        st.sidebar.markdown(f"**🎯 퀴즈 가능한 횟수**: `{remaining_quiz_count} / 5`회")
+        st.sidebar.markdown("(매일 24시에 초기화됩니다.)")
+        st.sidebar.markdown("")
+
+st.sidebar.markdown("---")
 similarity_threshold = st.sidebar.slider("Similarity Threshold (Edges)", min_value=0.10, max_value=0.99, value=0.37, step=0.01)
 
 if "messages" not in st.session_state or "thread_id" not in st.session_state or st.session_state.thread_id is None:
