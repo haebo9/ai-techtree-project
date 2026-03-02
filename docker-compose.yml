@@ -4,8 +4,8 @@ services:
     image: haebo/ai-techtree:v1.1
     container_name: ai-techtree-backend-v1.1
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     env_file:
       - ./backend/.env
     environment:
@@ -21,8 +21,8 @@ services:
     image: haebo/ai-techtree:v1.1
     container_name: ai-techtree-frontend-v1.1
     command: streamlit run backend/streamlit_dashboard.py --server.port 8100
-    ports:
-      - "8100:8100"
+    expose:
+      - "8100"
     environment:
       - PYTHONPATH=/app
       - BACKEND_URL=http://backend:8000
@@ -42,8 +42,8 @@ services:
     container_name: ai-techtree-langgraph-v1.1
     working_dir: /app/backend
     command: langgraph dev --host 0.0.0.0 --port 2024
-    ports:
-      - "2024:2024"
+    expose:
+      - "2024"
     env_file:
       - ./backend/.env
     environment:
