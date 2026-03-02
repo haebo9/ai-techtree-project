@@ -1,16 +1,17 @@
 # Core Framework
 fastapi==0.128.0
 uvicorn[standard]==0.40.0
-pydantic==2.12.5
+pydantic[email]==2.12.5
 pydantic-settings==2.12.0
 python-dotenv==1.2.1
 
 # AI & LLM
-langchain==1.2.3
-langchain-openai==1.1.6
-langchain-community==0.4.1
-langchain-core==1.2.7
-langgraph==1.0.5
+langchain>=0.2.0
+langchain-openai
+langchain-community
+langchain-core>=0.2.0
+langgraph
+langgraph-cli[inmem]
 openai==2.14.0
 tiktoken==0.12.0
 
@@ -21,9 +22,12 @@ pymongo==4.15.5
 # Web Interface
 streamlit==1.52.2
 watchdog==6.0.0
+streamlit-agraph
+Pillow
 
 # Utilities
 numpy==2.4.0
+scikit-learn
 requests==2.32.5
 httpx==0.28.1
 
@@ -34,8 +38,5 @@ pytest-asyncio==1.3.0
 # Search
 tavily-python==0.5.0
 
-# # MCP Server 
-langserve[all]==0.3.3
-sse-starlette==1.8.2
-mcp==1.25.0
-
+# Telegram
+python-telegram-bot==21.11

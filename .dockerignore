@@ -18,3 +18,4 @@ pip-delete-this-directory.txt
 docs/
 dev_log.md
 README.md
+backend/scripts/mongo_backup

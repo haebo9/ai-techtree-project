@@ -1,0 +1,54 @@
+[
+    {
+        "keyword_key": "Python",
+        "definition": "높은 가독성과 풍부한 Standard Library를 갖춘 고수준(High-level) 인터프리터 프로그래밍 언어입니다.",
+        "summary": "Python은 명확한 문법, 자동 메모리 관리, 동적 타이핑(Dynamic Typing)을 통해 개발을 단순화합니다. 절차적, 객체 지향, 함수형 프로그래밍 등 다양한 패러다임을 지원합니다.",
+        "related_keywords": [
+            "Django",
+            "FastAPI",
+            "List Comprehension",
+            "GIL",
+            "Generator"
+        ],
+        "questions": []
+    },
+    {
+        "keyword_key": "Docker",
+        "definition": "애플리케이션을 Container 내부에서 개발, 배포 및 실행할 수 있는 오픈 소스 플랫폼입니다.",
+        "summary": "Docker는 소프트웨어를 실행하는 데 필요한 라이브러리, 시스템 도구, 코드, 런타임 등 모든 것을 포함하는 Container라는 표준화된 단위로 패키징합니다.",
+        "related_keywords": [
+            "Container",
+            "Kubernetes",
+            "Dockerfile",
+            "Docker Compose",
+            "CI/CD"
+        ],
+        "questions": []
+    },
+    {
+        "keyword_key": "FastAPI",
+        "definition": "Python 3.6+의 Type Hint를 기반으로 API를 구축하기 위한 현대적이고 빠른(고성능) 웹 프레임워크입니다.",
+        "summary": "FastAPI는 웹 부분은 Starlette, 데이터 부분은 Pydantic을 기반으로 구축되었습니다. 사용하기 쉽고, 견고하며, 프로덕션 환경에 바로 사용할 수 있도록 설계되었습니다.",
+        "related_keywords": [
+            "Pydantic",
+            "Starlette",
+            "OpenAPI",
+            "Dependency Injection",
+            "AsyncIO"
+        ],
+        "questions": []
+    },
+    {
+        "keyword_key": "Dependency Injection",
+        "definition": "객체가 의존하는 다른 객체를 내부에서 생성하는 대신, 외부에서 주입받는 디자인 패턴입니다.",
+        "summary": "DI는 의존성 생성과 사용을 분리하여 결합도(Coupling)를 낮추고 테스트 용이성(Testability)을 높입니다. Spring이나 FastAPI 같은 프레임워크가 이 패턴을 적극적으로 활용합니다.",
+        "related_keywords": [
+            "Inversion of Control",
+            "Coupling",
+            "Testability",
+            "FastAPI",
+            "Spring Boot"
+        ],
+        "questions": []
+    }
+]

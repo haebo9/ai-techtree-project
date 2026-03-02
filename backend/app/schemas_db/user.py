@@ -5,6 +5,24 @@ from .common import MongoDBModel
 
 # --- Sub Models (Embedded Documents) ---
 
+class DailyLimit(BaseModel):
+    quiz_count: int = 0
+    last_reset_date: str = "" # YYYY-MM-DD (KST 기준)
+
+
+class UserCreate(BaseModel):
+    email: EmailStr
+    password: str
+    nickname: str
+    provider: str = "local"
+    uid: str = ""
+
+class UserUpdate(BaseModel):
+    nickname: Optional[str] = None
+    avatar_url: Optional[str] = None
+    job_title: Optional[str] = None
+
+
 class AuthInfo(BaseModel):
     email: EmailStr
     provider: str  # e.g., 'kakao', 'google'
@@ -19,28 +37,38 @@ class UserStats(BaseModel):
     total_stars: int = 0
     completed_tracks: List[str] = []
 
-class SubjectProgress(BaseModel):
+class KeywordProgress(BaseModel):
     """
-    사용자의 과목(Subject)별 진행 상황
+    사용자의 키워드(Keyword)별 학습 이력 (v1.1)
     """
-    level: int = 0  # 0: Locked, 1: Basic, 2: Adv, 3: Master
-    stars: int = 0
-    last_tested_at: Optional[datetime] = None
+    # 학습 결과 (Star Rating: 1~3)
+    # 0: Not started (Learning Started), 1: Bronze, 2: Silver, 3: Gold
+    star: int = 0 
+    
+    # 마지막 학습 시간 (최신 학습에 좀 더 가중치 부여)
+    last_reviewed_at: Optional[datetime] = None
 
 # --- Main Collection Model ---
 
 class User(MongoDBModel):
     """
     [Collection]: users
-    사용자 정보 및 학습 상태(Skill Tree)를 저장
+    사용자 정보 및 학습 상태를 저장
     """
     auth: AuthInfo
     profile: UserProfile
     stats: UserStats = Field(default_factory=UserStats)
     
-    # [User State] 학습 진행도
-    # Key: Subject Title (e.g., 'FastAPI Essentials') -> 빠른 조회를 위해 Map 구조 사용
-    skill_tree: Dict[str, SubjectProgress] = Field(default_factory=dict)
+    # [User State] 키워드별 학습 이력
+    # Key: Keyword Key (e.g. "Dependency Injection")
+    keyword_progress: Dict[str, KeywordProgress] = Field(default_factory=dict)
+    
+    # [User State] 다음 학습 추천 키워드 (Pre-calculated)
+    # 백그라운드에서 계산된 추천 키워드 목록 저장
+    recommended_keywords: List[str] = Field(default_factory=list)
+    
+    # [User State] 퀴즈 하루 제한
+    daily_limit: DailyLimit = Field(default_factory=DailyLimit)
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
@@ -56,8 +84,10 @@ class User(MongoDBModel):
                 "profile": {
                     "nickname": "AI_Master"
                 },
-                "skill_tree": {
-                    "FastAPI Essentials": {"level": 2, "stars": 2}
-                }
+                "keyword_progress": {
+                    "FastAPI": {"star": 3, "last_reviewed_at": "2022-01-01T00:00:00.000Z" },
+                    "Python": {"star": 2, "last_reviewed_at": "2022-01-01T00:00:00.000Z" }
+                },
+                "recommended_keywords": ["Pydantic", "AsyncIO"]
             }
         }

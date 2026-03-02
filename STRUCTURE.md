@@ -2,87 +2,45 @@
 
 ```
 .
-├── STRUCTURE.md                    # Project Structure
-├── docker-compose.yml              # Docker compose config
-├── Dockerfile                      # Backend Dockerfile
-├── README.md                       # Project README
-├── dev_log.md                      # Development Log
-├── backend/                        # Backend Root
-│   ├── requirements.txt
-│   ├── scripts/                    # Utility Scripts
-│   │   ├── init_db.py              # DB Initialization
-│   │   └── sync_track_to_db.py     # Sync JSON tracks to DB
-│   ├── tests/                      # Tests
-│   │   ├── __init__.py
-│   │   ├── test_ai_agents.py
-│   │   ├── test_integration_flow.py
-│   │   └── test_mcp.py
-│   └── app/                        # Application Code
-│       ├── main.py                 # FastAPI Entrypoint
-│       ├── __init__.py
-│       ├── ai/                     # AI Logic
-│       │   ├── agents/             # AI Agents
-│       │   │   ├── evaluator_agent.py
-│       │   │   ├── interviewer_agent.py
-│       │   │   ├── main_agent.py
-│       │   │   └── qamaker_agent.py
-│       │   ├── graphs/             # LangGraph Workflows
-│       │   │   └── workflow.py
-│       │   └── prompts/            # Agent Prompts
-│       │       └── default.py
-│       ├── api/                    # REST API
-│       │   ├── deps.py
-│       │   └── v1/
-│       │       ├── router.py
-│       │       └── endpoints/
-│       ├── core/                   # Core Configuration
-│       │   ├── config.py
-│       │   ├── database.py
-│       │   ├── exceptions.py
-│       │   └── logging.py
-│       ├── mcp/                    # MCP Server
-│       │   ├── mcp_server.py
-│       │   ├── tools.py            # Tool Definitions
-│       │   ├── tools_functions.py  # Tool Implementations
-│       │   └── tools_pydantic.py   # Tool Schemas
-│       ├── schemas_api/            # API Pydantic Models
-│       │   ├── common.py
-│       │   ├── interview.py
-│       │   └── user.py
-│       ├── schemas_db/             # DB Pydantic Models
-│       │   ├── common.py
-│       │   ├── concept.py
-│       │   ├── interview.py
-│       │   ├── question.py
-│       │   ├── track.py
-│       │   ├── trend.py
-│       │   └── user.py
-│       ├── services/               # Business Logic / CRUD
-│       │   ├── crud_base.py
-│       │   ├── crud_interview.py
-│       │   └── crud_user.py
-│       └── source/                 # Static Data
-│           ├── surveys.json
-│           └── tracks.json
-├── frontend/                       # Frontend Root
-│   ├── main.py                     # Streamlit Application
-│   └── requirements.txt
-├── docs/                           # Documentation
-│   ├── README.md
-│   ├── 1_prd/                      # Product Requirements
-│   │   ├── personas.md
-│   │   ├── product_spec.md
-│   │   ├── sprint_roadmap.md
-│   │   └── user_flow.md
-│   ├── 2_design/                   # System Design
-│   │   ├── agent_workflow.md
-│   │   ├── architecture.md
-│   │   ├── db_schema.md
-│   │   ├── mcp_server.md
-│   │   └── track.md
-│   └── 3_knowledge/                # Knowledge Base
-│       ├── references.md
-│       └── tech_decisions.md
-└── nginx/                          # Nginx Config
-    └── default.conf
+├── STRUCTURE.md                    # 프로젝트 구조 설명
+├── docker-compose.yml              # 배포용 Docker 설정
+├── docker-compose.local.yml        # 로컬 개발용 Docker 설정
+├── README.md                       # 메인 설명서
+├── backend/                        # [Backend] 파이썬 서버
+│   ├── app/
+│   │   ├── main.py                 # 앱 진입점 (FastAPI)
+│   │   │
+│   │   ├── api/                    # [REST API] 웹 클라이언트용 (FastAPI Router)
+│   │   │   ├── router.py           # Unified router
+│   │   │   ├── endpoints/          # API Endpoints (stateless_chat, stateful_chat, techtree)
+│   │   │
+│   │   ├── api_mcp/                # [MCP API] AI 에이전트용 (MCP Server)
+│   │   │   ├── server.py           # MCP 서버
+│   │   │   ├── tools.py            # MCP Tools 등록부
+│   │   │
+│   │   ├── engine/                 # [Engine] 핵심 비즈니스 로직 (Core)
+│   │   │   ├── agents/             # - AI 면접관/평가자 구현체 (Brain)
+│   │   │   ├── graphs/             # - LangGraph 실행 흐름 (Flow)
+│   │   │   ├── tools/              # - 검색/분석 도구 모음 (Skills)
+│   │   │   └── prompts/            # - 프롬프트 템플릿
+│   │   │
+│   │   ├── core/                   # [Infra] 설정, DB 연결, 로깅, 통합 LLM
+│   │   ├── services/               # [Service] DB CRUD 로직
+│   │   ├── schemas_api/            # [DTO] API 요청/응답 모델
+│   │   ├── schemas_db/             # [Model] DB 스키마
+│   │   └── source/                 # [Static] 트랙/서베이 정적 데이터
+│   │
+│   └── tests/                      # 테스트 코드
+│
+├── frontend/                       # [Frontend] 웹 애플리케이션 (Next.js)
+│   ├── src/                        # 메인 소스코드
+│   ├── public/                     # 정적 에셋
+│   └── legacy_streamlit/           # (Legacy) Streamlit 앱
+│
+├── docs/                           # [Docs] 문서 보관소
+│   ├── 1_prd/                      # 기획서 (Spec, Persona)
+│   ├── 2_design/                   # 설계문서 (Architecture, DB)
+│   └── 3_knowledge/                # 기술 검토 및 참고 자료
+│
+└── nginx/                          # Nginx 게이트웨이 설정
 ```

@@ -10,51 +10,75 @@
 > **+ Category** : **Feat**(기능), **Fix**(수정), **Refactor**(개선), **Add**(추가), **Update**(갱신), **Remove**(삭제), **Init**(초기화)
 
 ---
+## 2026년 3월
+| Date | Tag | Category | Details |
+|:---:|:---:|:---:|:---|
+| **26.03.02(월)** | 🔴 | **v1.1.0** | `v1.1.0` 릴리즈 (랭그래프 에이전트 로직) |
+| | 🟢 | **Fix** | Local과 Prod 환경 충돌 문제 해결, 서비스 안정장치 추가(퀴즈 횟수 제한 등) |
+| **26.03.01(일)** | ⚪️ | **Add** | AWS docker 배포를 위한 로컬 및 aws 실행 테스트 |
+
+## 2026년 2월 
+| Date | Tag | Category | Details |
+|:---:|:---:|:---:|:---|
+| **26.02.27(금)** | 🟣 | **Feat** | 퀴즈 진행 과정에 시각적 효과 추가, 일부 에러 수정 |
+| **26.02.26(목)** | 🟢 | **Feat** | 입력된 사용자 ID를 기반으로 퀴즈를 진행하고 저장할 수 있도록 구현 |
+| **26.02.25(수)** | 🟠 | **Feat** | 스트림릿 화면 구현 및 랭스미스 서버 연결 (채팅, 키워드 시각화) |
+| **26.02.24(화)** | 🟣 | **Feat** | 퀴즈 종료 후 종합 리포트 생성 로직 구현 |
+| **26.02.23(월)** | 🟣 | **Feat** | 레벨별 퀴즈 출제 로직 구현, 퀴즈 진행 로직 완성도 개선 |
+| **26.02.22(일)** | 🟣 | **Feat** | 퀴즈 진행 로직 에러 해결 및 다음 키워드 추천 로직 구현 |
+| **26.02.19(목)** | 🟣 | **Feat** | DB 스키마 변경, 퀴즈 진행 기본 로직 구현 (질문-응답-정답-반복여부) |
+| **26.02.18(수)** | 🟣 | **Feat** | 키워드 임베딩 로직 설계 |
+| **26.02.16(월)** | 🟣 | **Refactor** | LangGraph 노드 독립성 개선, workflow docs 수정 |
+| **26.02.15(일)** | 🟣 | **Add** | LangGraph workflow 구현 방향성 설계, evaluation node 추가 |
+| **26.02.13(금)** | 🟣 | **Refactor** | LangGraph Agent 로직 단순화 (키워드 기반 문제 생성) |
+| **26.02.10(화)** | 🟣 | **Refactor** | Keyword 기반 Agent 로직 초기화 (단순화) |
+| **26.02.02(목)** | 🟣 | **Add** | LangGraph 로직에 tools 사용 노드 추가 |
+
 ## 2026년 1월
 | Date | Tag | Category | Details |
 |:---:|:---:|:---:|:---|
-| **26.01.15(목)** | 🔴 | **V1.0.0** | `V1.0.0` 릴리즈 및 kakao playmcp 등록 (심사 대기) |
+| **26.01.27(목)** | 🟣 | **Add** | LangGraph Template 도입(for `LangSmith`), 에이전트 로직 초안 작성|
+| **26.01.22(목)** | 🔵 | **Add** | Agent_workflow 수정(버전별 구조 정리), `LangGraph` 도입 결정 |
+| **26.01.21(수)** | 🔵 | **Refactor** | README.md 수정, 버전별 개발 일정 추가, 도메인 관리 규칙 추가 |
+| **26.01.19(월)** | 🟠 | **Init** | `next.js` 기본 파일 생성(template 적용) 및 `Vercel` 자동 배포 |
+| **26.01.18(일)** | 🟢 | **Refactor** | Ver2 개발을 위한 폴더 리팩토링 v1, v2 분리 (DB, API 등) |
+| **26.01.15(목)** | 🔴 | **v1.0.0** | `v1.0.0` 릴리즈 및 kakao playmcp 등록 (심사 대기) |
 | | ⚪️ | **Fix** | AWS 배포 및 playmcp 등록을 위한 https 인증서 발급 (`certbot`) |
-| | 🟣 | **Add** | MCP tool docstring 수정 (playmcp 도구 가독성 개선) |
-| | 🟢 | **Fix** | MCP server를 완전한 Stateless 구조로 변경 (mcp 등록 규정 준수) |
-| | 🟢 | **Fix** | Docker-compose 에러 수정 및 FastMCP Host 설정 변경 (421 에러 해결) |
+| | ⚪️ | **Fix** | MCP server를 완전한 Stateless 구조로 변경 (mcp 등록 규정 준수) |
 | **26.01.14(수)** | ⚪️ | **Add** | AWS EC2 연결(도메인 연결) 및 Docker 빌드 테스트 |
+| | ⚪️ | **Add** | 서버 포트 정리 및 `Nginx` 도입 및 테스트 |
 | | 🟣 | **Add** | MCP tool 코드 완성 및 테스트, Source 데이터 보강 및 동기화 |
-| | 🟢 | **Add** | 서버 포트 정리 및 `Nginx` 도입 및 테스트 (mcp server 에러 수정중) |
 | **26.01.13(화)** | ⚪️ | **Init** | `"haebo.pro"` 도메인 구매 |
-| | 🟣 | **Feat** | Pydantic Model 구현 (Structured Output) |
 | | 🔵 | **Feat** | mcp Tool(survey) 추가 및 mcp_schema 문서 수정 |
-| **26.01.12(월)** | 🟢 | **Add** | Dockerfile 수정 및 테스트, Ver1 서버 빌드 및 로컬 테스트 |
-| | 🟣 | **Fix** | MCP-SDK 구조로 변경(playmcp 규정), tool docstring 수정 |
+| | 🟣 | **Feat** | Pydantic Model 구현 (Structured Output) |
+| **26.01.12(월)** | 🟣 | **Fix** | MCP-SDK 구조로 변경(playmcp 규정), tool docstring 수정 |
+| | 🟢 | **Add** | Dockerfile 수정 및 테스트, Ver1 서버 빌드 및 로컬 테스트 |
 | **26.01.11(일)** | 🟢 | **Add** | Langserve API 도입(for mcp), docker file 작성 |
-|  | 🟢 | **Feat** | Source Data를 DB로 이관, Trend 분류 도입 |
-| | 🟠 | **Feat** | Streamlit 및 requrements을 Frontend 폴더로 분리 |
+| | 🟢 | **Feat** | Source Data를 DB로 이관, Trend 분류 도입 |
 | **26.01.10(토)** | 🟢 | **Feat** | DB collection 생성 및 track 데이터 동기화 로직 구현 |
-| **26.01.09(금)** | 🔵 | **Update** | Source Data에 맞춰 db schema 구조 변경 |
-| | 🟢 | **Update** | db_schema.md 에 맞춰 pydantic model 코드 수정 |
+| **26.01.09(금)** | 🟢 | **Update** | db_schema.md 에 맞춰 pydantic model 코드 수정 |
+| | 🔵 | **Update** | Source Data에 맞춰 db schema 구조 변경 |
 | **26.01.08(목)** | 🟣 | **Add** | Trend Search 로직 분석 및 Tavily API 성능 개선 |
 | **26.01.07(수)** | 🟣 | **Refactor** | MCP 코드 리팩토링 및 docstring 세부 수정 |
 | **26.01.06(화)** | 🟣 | **Add** | MCP Trend Search 기능 구현 및 Streamlit 테스트 |
 | **26.01.05(월)** | 🟣 | **Add** | Evaluator, QAmaker agent 로직 구현 및 연결 |
 | | 🔵 | **Init** | MCP 문서 초기화 (Agent와의 기능분리) |
-| **26.01.04(일)** | 🟣 | **Update** | topic Track/Tier/Level별 기술 트리 작성 |
-| | 🟣 | **Add** | Interviewer Agent 초기 대화 흐름 구현 / 테스트 코드 추가 |
-| | 🔵 | **Update** | track.md(TechTree 구조) 문서 검토 및 수정 |
+| **26.01.04(일)**| 🟣 | **Add** | Interviewer Agent 초기 대화 흐름 구현 / 테스트 코드 추가 |
+| | 🔵 | **Update** | track.md 문서 검토 / topic Track-Tier-Level 구조 추가 |
 | **26.01.03(토)** | 🟢 | **Refactor** | Stateless MCP와 Stateful api server 폴더 분리 |
-| | 🟣 | **Feat** | main_agent 로직 구현, sub_agent 코드 검토 |
 | | 🔵 | **Refactor** | Agent 아키텍처(Main-sub) 및 MCP 구조 변경 문서 작성|
 
 ## 2025년 12월
 | Date | Tag | Category | Details |
 |:---:|:---:|:---:|:---|
-| **25.12.29(일)** | 🟣 | **Update** | Agent 구현을 위한 track.md 개념 구조 정리 |
+| **25.12.29(일)** | 🔵 | **Update** | Agent 구현을 위한 track.md 개념 구조 정리 |
 | **25.12.28(일)** | ⚪️ | **Update** | Github Project 생성, Issue & Milestone 관리 방식 정리 |
 | **25.12.25(목)** | 🟣 | **Add** | 문제 생성 기본 구조 구현, 테스트 코드 추가 |
 | **25.12.24(수)** | 🟣 | **Add** | AI 기본 랭체인 OpenAI 모델 연결 및 테스트 |
 | | 🟢 | **Add** | DB CRUD(생성, 조회, 수정, 삭제) 유틸리티 클래스 구현, import 경로 검토 |
 | **25.12.23(화)** | 🟢 | **Add** | `MongoDB Atlas` 클러스터 생성 및 스키마 작성, schema 폴더 구조 정리 |
-| **25.12.22(월)** | ⚪️ | **Init** | `AWS` 계정 생성, 깃헙 브랜치 전략 시작 |
-| | 🟢 | **Init** | BE 기본 구조 생성, python 개발 환경 설정, `OpenAI` API Key 생성 |
+| **25.12.22(월)** | 🟢 | **Init** | BE 기본 구조 생성, python 개발 환경 설정, `OpenAI` API Key 생성 |
+|  | ⚪️ | **Init** | `AWS` 계정 생성, 깃헙 브랜치 전략 시작 |
 | **25.12.21(일)** | ⚪️ | **Update** | 깃헙 레포지토리 이름 변경 (권고 규칙 적용) |
 | **25.12.20(토)** | 🔵 | **Add** | mcp_server.md 문서 작성 (for `MCP-player-10`) |
 | | 🔵 | **Update** | Roadmap 수정 (MCP 도입 반영) |

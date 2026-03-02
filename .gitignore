@@ -16,14 +16,18 @@ temp/
 coverage/
 dist/
 build/
+backend/scripts/mongo_backup
 
 # --- Backend (Python) ---
 backend/.venv/
-backend/__pycache__/
-backend/*.pyc
 backend/.pytest_cache/
+backend/.langgraph_api/
+.langgraph*
+*.pckl
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 
 # --- Frontend (Node.js) ---
 frontend/node_modules/
@@ -33,6 +37,12 @@ frontend/out/
 frontend/.vercel/
 node_modules/
 
-# --- Root ---
+# --- Environment & Virtualenvs ---
 .env
-.venv
+.env.local
+.env.*
+!.env.example
+.venv/
+venv/
+ENV/
+env/

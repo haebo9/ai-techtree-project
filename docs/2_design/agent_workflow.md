@@ -1,139 +1,136 @@
-# AI Agent System Architecture
+# AI Agent System Evolution Strategy
 
-- **[1. Overview](#1-overview)**
-- **[2. Agent Roles & Responsibilities](#2-agent-roles--responsibilities)**
-- **[3. Detailed Tool Logic](#3-detailed-tool-logic)**
-- **[4. Sequence Diagram](#4-sequence-diagram)**
+이 문서는 AI TechTree Agent의 진화 로드맵을 정의하며, 단순 챗봇에서 키워드 기반의 동적 학습 플랫폼으로 변화하는 과정을 설명합니다.
 
 ---
 
-## 1. Overview
-본 문서는 **AI TechTree 서비스**의 핵심인 **AI Agent 시스템 아키텍처**를 정의합니다.
-이 시스템은 **Stateless & Logic-Only** 원칙을 따르며, **Main Agent (Orchestrator)** 가 사용자 요청을 받아 적절한 **Sub-Agent (Expert)** 들을 도구(Tool)처럼 호출하여 면접 경험을 만듭니다.
+## v1.0: MCP Chatbot (Stateless)
+> **"The Knowledge Retriever"**
 
-### 핵심 철학
-*   **Orchestration**: 모든 흐름 제어는 Main Agent가 담당하며, Sub-Agent는 서로를 직접 호출하지 않습니다.
-*   **Deterministic**: 예측 불가능한 Tool Call 대신, 명확한 코드 로직(Code-Driven)으로 Agent를 제어하여 안정성을 확보합니다.
-*   **Separation of Concerns**: 역할(사회자, 작가, 심판, 출제자)을 명확히 분리하여 유지보수성을 높입니다.
+> 초기 버전은 **MCP(Model Context Protocol)** 도구를 활용하여 정확한 정보를 제공하는 데 집중합니다. 기술 문서나 데이터를 검색하는 스마트 인터페이스 역할을 수행합니다.
 
----
+### 🎯 Key Features
+1.  **Stateless Interaction**: 모든 쿼리를 독립적인 요청으로 처리하며, 사용자의 숙련도(Mastery)를 기억하지 않음.
+2.  **Tool Usage**: `Tavily Search`나 `Vector Embedding`를 사용하여 답변을 검색.
+3.  **Simple Routing**: "Search"와 "Chat" 의도를 단순 구분하여 처리.
 
-## 2. Agent Roles & Responsibilities
+### 🏗️ Agent Roles (v1.0)
+*   **agent_router.py**: 단순 키워드 매칭 (예: 입력에 "search"가 포함되면 Tool 호출)을 수행.
+*   **agent_tools.py**: LLM 또는 MCP Tool을 직접 호출하여 결과를 반환.
 
-시스템은 1개의 **Main Agent**와 3개의 **Sub-Agent**로 구성됩니다.
-
-### 👑 Main Agent (Orchestrator)
-*   **역할**: 전체 워크플로우를 관리하고 제어하는 **중앙 관리자**.
-*   **책임**:
-    *   사용자 요청 의도 파악.
-    *   적절한 하위 에이전트(Tool) 호출 및 데이터 중계(Routing).
-    *   최종 결과물 조합 및 반환.
-*   **특징**: 의사결정(Decision Making)과 흐름 제어(Flow Control)를 담당합니다.
-
-### 🎭 Interviewer Agent (Interaction Handler)
-*   **역할**: 사용자와의 상호작용 및 자연어 생성을 담당하는 **인터페이스 에이전트**.
-*   **책임**:
-    *   **커리큘럼 탐색**: 사용자의 관심사에 맞는 토픽 추천.
-    *   **피드백 생성**: 건조한 평가 데이터를 사용자 친화적인 자연어 피드백으로 변환.
-    *   **최종 리포트 포맷팅**: 분석 데이터를 구조화된 Markdown 리포트로 가공.
-*   **특징**: 사용자 경험(UX)과 톤앤매너(Tone & Manner)를 관리합니다.
-
-### ⚖️ Evaluator Agent (Analysis Engine)
-*   **역할**: 답변을 분석하고 정량적/정성적 평가를 수행하는 **분석 에이전트**.
-*   **책임**:
-    *   **채점 (Scoring)**: 기술적 정확성, 논리성을 기준으로 점수 산출.
-    *   **판정 (Decision)**: 기준 점수에 따른 통과/실패 여부 결정.
-    *   **종합 분석**: 전체 대화 로그를 기반으로 강점 및 약점 추출.
-*   **특징**: 객관적 사실에 기반한 정밀 분석을 수행합니다. (Temperature=0)
-
-### 📚 QAMaker Agent (Question Generator)
-*   **역할**: 커리큘럼 기반의 면접 질문을 생성하는 **생성 에이전트**.
-*   **책임**:
-    *   **문제 생성**: 특정 Topic/Level에 적합한 기술 면접 질문 생성.
-    *   **다양성 확보**: 중복되지 않는 다양한 유형의 질문 세트 제공.
-*   **특징**: AI TechTree의 기술셋(Skillset) 정의를 준수합니다.
-
----
-
-## 3. Detailed Tool Logic
-
-웹 서비스 및 외부 클라이언트가 호출할 수 있는 **전용 도구(Service Tools)**입니다.
-
-### 🔵 1. 면접 시작 및 주제 추천 (`start_interview`)
-*   **Flow**: `User` -> `Main` -> `Interviewer` (의도 파악 및 커리큘럼 조회) -> `Main`
-*   **입력**: `user_input` (String)
-*   **출력**: 추천 멘트 (String)
-*   **설명**: 모호한 사용자 요청을 구체적인 **면접 주제(Topic)**로 변환 및 제안합니다.
-
-### 🔵 2. 문제 생성 (`generate_questions`)
-*   **Flow**: `Main` -> `QAMaker` (다중 문제 생성) -> `Main`
-*   **입력**: `topic`, `level`, `count`
-*   **출력**: 질문 리스트 (JSON List)
-*   **설명**: 실시간으로 중복 없는 기술 면접 질문 세트를 생성합니다.
-
-### 🔵 3. 답변 평가 및 피드백 (`evaluate_answer`)
-*   **Flow**:
-    1.  `Main` -> `Evaluator`: 답변 **채점** 요청 (Score, Pass/Fail).
-    2.  `Main` -> `Interviewer`: 채점 결과를 바탕으로 **피드백 멘트** 작성 (Conversational Response).
-    3.  `Main`: `next_action` (PASS/DEEP_DIVE) 결정 후 반환.
-*   **입력**: `question`, `user_answer`, `level`
-*   **출력**:
-    *   `score` (Int)
-    *   `feedback_message` (String)
-    *   `next_action` (Enum)
-
-### 🔵 4. 종합 리포트 (`summarize_result`)
-*   **Flow**:
-    1.  `Main` -> `Evaluator`: 로그 **종합 분석** (강점/약점 데이터 추출).
-    2.  `Main` -> `Interviewer`: 분석 데이터를 **Markdown 리포트**로 변환.
-*   **입력**: `conversation_history` (List)
-*   **출력**: 최종 리포트 (Markdown String)
-
----
-
-## 4. Sequence Diagram
-
+### 🕸️ Architecture Diagram
 ```mermaid
-sequenceDiagram
-    autonumber
-    participant U as User (Client)
-    participant M as Main Agent (Orchestrator)
-    participant I as Interviewer (Interaction)
-    participant Q as QAMaker (Generator)
-    participant E as Evaluator (Analysis)
+graph LR
+    User[User] -->|Query| Router{Pivot Router}
+    Router -- "Info Needed" --> Tools[MCP Tools]
+    Router -- "General Chat" --> LLM[Chat Model]
+    Tools -->|Context| LLM
+    LLM -->|Response| User
+```
 
-    Note over U, E: 1. Start Phase (Topic Selection)
-    U->>M: "Start Interview" (start_interview)
-    M->>I: User Intent Analysis & Curriculum Lookup
-    I-->>M: Recommendation Message
-    M-->>U: Return Recommendation
+---
 
-    Note over U, E: 2. Setup Phase (Question Generation)
-    U->>M: "Confirm Topic" (generate_questions)
-    M->>Q: Generate Questions Request (Topic, Level)
-    Q-->>M: Question List [Q1, Q2, Q3]
-    M-->>U: Ready Signal
+## v1.1: Keyword-Driven & Personalized TechTree
+> **"My Own TechTree"**
 
-    Note over U, E: 3. Interaction Loop (Interview Process)
-    loop For each Question
-        U->>M: Submit Answer (user_answer)
-        
-        # Step A: Evaluation
-        M->>E: Evaluate Answer Request
-        E-->>M: Evaluation Result (Score, Status)
-        
-        # Step B: Feedback Generation
-        M->>I: Generate Feedback Message Request
-        I-->>M: Conversational Feedback
-        
-        M-->>U: Return Result (Score + Message + NextAction)
+> v1.1에서는 시스템이 **Stateful Learning Agent**로 진화합니다. 기존의 정해진 커리큘럼(Track)을 따르는 것이 아니라, 사용자가 원하는 **키워드(Keyword)** 를 중심으로 스스로 탐험하고 성취하는 **나만의 테크트리**를 구축합니다.
+
+### 🎯 Key Features
+1. **Keyword-Based Challenge**
+    * 사용자가 원하는 기술 키워드(예: "Docker")를 선택하면,
+    * 에이전트가 해당 개념을 설명하고 퀴즈를 출제.
+2. **Interactive Quiz & Evaluation**
+    * Quiz: 개념 이해도를 확인하기 위한 맞춤형 문제가 생성.
+    * Evaluation: 사용자의 답변을 분석하여 즉각적인 피드백을 제공.
+3. **Star Rating System**
+    * 퀴즈 통과 및 답변의 질에 따라 각 키워드 별로 **별(1-3개)** 을 부여.
+    * 별이 모여 레벨 업(Level Up)을 달성하는 게이미피케이션 요소가 도입.
+4. **Visualized TechTree**
+    * 학습하고 성취한 키워드들은 **Embedding Similarity(임베딩 유사도)** 를 기준으로 시각적으로 배치.
+    * 나의 학습 경로가 하나의 거대한 "TechTree" 지도로 형성.
+
+### 🏗️ Agent Roles (v1.1 Refactored)
+> 구조적 유연성을 위해 기능별로 에이전트(모듈)를 분리.
+
+* agent_router.py: 
+    * 사용자 의도를 `Keyword Search`, `Quiz Answer`, `Chit-Chat` 등으로 분류하여 적절한 노드로 연결.
+* agent_keyword.py:
+    * Search: 키워드에 대한 기본 개념(Definition & Summary)을 DB에서 조회하거나 생성.
+    * Recommend: 현재 학습한 내용과 유사한 다음 키워드를 추천.
+    * Info: 키워드와 관련된 추가 정보나 트렌드를 제공.
+* agent_quiz.py:
+    * Generate: 키워드 기반의 퀴즈를 생성.
+    * Evaluate: 사용자의 답변을 채점하고 피드백을 제공.
+    * Report: 결과에 따라 별(Star)을 부여하고 성취도를 업데이트.
+* agent_chat.py: 학습 외의 일반적인 대화(Chit-Chat)를 처리.
+* state.py: 그래프 전체에서 공유되는 `KeywordState`를 정의.
+
+### 🕸️ Architecture Diagram (Graph Flow)
+```mermaid
+graph TD
+    Start((Start)) --> Router{Router Node}
+    
+    %% Intent Branching
+    Router -- "Keyword/Quiz" --> Search[search_keyword]
+    Router -- "Evaluate" --> Eval[evaluate_quiz]
+    Router -- "Chit Chat" --> Chat[chit_chat]
+    Router -- "Recommend" --> Rec[recommend_keyword]
+    Router -- "Info" --> Info[info_keyword]
+    
+    %% Keyword Flow
+    Search --> GenQuiz[generate_quiz]
+    
+    %% Evaluation Logic
+    Eval -- "Pass (Next Q)" --> GenQuiz
+    Eval -- "Fail (Stop)" --> Report[report_star]
+    
+    %% End Sequences
+    Report --> Rec
+    Chat --> Rec
+    Info --> End((End))
+    GenQuiz --> End
+    Rec --> End
+```
+
+---
+
+## v1.2: Optimization & Scale (Planned)
+> **"The Adaptive Platform"**
+
+> v1.2는 대규모 트래픽에서의 **Performance**, **Cost Efficiency**, **Personalization**에 초점을 맞추고, **RAG(Retrieval-Augmented Generation)**와 **Offline Processing(오프라인 처리)**를 도입하여 레이턴시(Latency)와 LLM 비용을 절감.
+
+### 🎯 Key Features
+1.  **Offline Batch Processing**:
+    *   트래픽이 적은 시간대에 **Batch API**를 사용하여 "Keyword Content"와 "Question Banks"를 미리 생성(Pre-generate).
+    *   고품질의 설명을 DB에 저장해두어 실시간 생성 지연을 방지.
+2.  **RAG-Enhanced Reliability**:
+    *   단순 LLM 환각(Hallucination) 대신, 신뢰할 수 있는 **Official Docs(공식 문서)**에서 정의를 검색(Retrieve)하여 정확도를 높.
+3.  **Dynamic Cluster Tracks**:
+    *   학습된 Keyword들을 자동으로 그룹화(Clustering)하여 "Cluster" (예: "Backend Basics") 단위로 시각화.
+
+### 🏗️ Agent Roles (v1.2)
+*   **agent_manager.py**: DB 캐시 확인 및 Batch Job 스케줄링을 관리.
+*   **agent_search.py**: `Keyword Search` (Exact)와 `Vector Search` (Semantic)를 결합한 하이브리드 검색을 수행.
+*   **agent_ui.py**: 프론트엔드 UI 제어를 위한 JSON 명령(예: `SHOW_CONFETTI`)을 생성.
+
+### 🕸️ Architecture Diagram
+```mermaid
+graph TD
+    User((User)) -->|Interaction| API[API Gateway]
+    
+    subgraph "Real-Time Layer"
+        API --> Cache{Redis Cache}
+        Cache -- Hit --> Delivery[Immediate Response]
+        Cache -- Miss --> Manager{agent_manager}
     end
-
-    Note over U, E: 4. Closing Phase (Reporting)
-    U->>M: Finish Session
-    M->>E: Analyze Full Log Request
-    E-->>M: Structured Analysis Data
-    M->>I: Format Report Request
-    I-->>M: Final Markdown Report
-    M-->>U: Return Report
+    
+    subgraph "Background Layer (Offline)"
+        Worker[Batch Worker] -->|Pre-Generate| DB[(Content DB)]
+        Docs[Official Docs] -->|Ingest| VectorStore[Vector DB]
+        DB --> Cache
+    end
+    
+    Manager -->|Hybrid Search| Search[agent_search]
+    Search -->|Retrieve| VectorStore
+    Search -->|Fallback| LLM
 ```

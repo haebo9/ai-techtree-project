@@ -2,7 +2,7 @@
 
 ## 📑 목차 (Table of Contents)
 1. [개요 (Overview)](#1-개요-overview)
-    - [MVP 목표 및 범위](#11-mvp-목표-및-범위-mvp-goals--scope)
+    - [Web Service MVP 목표 및 범위 (v2.0)](#11-web-service-mvp-목표-및-범위-v20)
 2. [유저 스토리 (User Stories)](#2-유저-스토리-user-stories)
 3. [핵심 기능 (Key Features)](#3-핵심-기능-key-features)
     - [초기 역량 배치고사](#31-초기-역량-배치고사-initial-skill-calibration)
@@ -19,7 +19,7 @@
 - **한 줄 소개**: AI 에이전트 면접관과 함께 성장하는 RPG형 개발자 로드맵
 - **핵심 목표**: 단순한 기술 점검을 넘어, **AI 에이전트와의 심층 인터뷰**를 통해 사용자의 기술 숙련도(1차~3차 전직)를 진단하고, 트랙 완주 시 시각적 보상(Gold Glow)을 제공하여 성장의 즐거움을 부여한다.
 
-### `1.1 MVP 목표 및 범위 (MVP Goals & Scope)`
+### `1.1 Web Service MVP 목표 및 범위 (v2.0)`
 > 최소 기능 제품(MVP)에서 검증하고자 하는 핵심 가치와 개발 범위를 정의합니다.
 - **MVP 핵심 가치**: 
     - "나의 개발 실력을 **별(Star)** 개수로 증명할 수 있는가?"
