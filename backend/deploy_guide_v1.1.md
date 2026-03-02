@@ -68,7 +68,13 @@ docker-compose -f docker-compose.local.yml down
 
 ```bash
 # SSH 접속 정보(techtree-server)는 ~/.ssh/config 에 설정된 이름을 기준으로 합니다.
-scp docker-compose.yml backend/.env techtree-server:~
+# 1. 서버 상의 backend 디렉토리 생성 (필요한 경우)
+ssh techtree-server "mkdir -p backend"
+
+# 2. docker-compose.yml 및 .env 파일 전송 
+# (docker-compose.yml에 지정된 ./backend/.env 경로와 일치해야 함)
+scp docker-compose.yml techtree-server:~/
+scp backend/.env techtree-server:~/backend/
 ```
 
 > **Note:** Nginx 설정이 변경되었다면 `scp -r nginx techtree-server:~/` 명령어도 추가로 실행해주세요.

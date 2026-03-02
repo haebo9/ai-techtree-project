@@ -21,16 +21,16 @@ class Settings(BaseSettings):
     def is_production(self) -> bool:
         return self.APP_ENV.upper() == "PRODUCTION"
 
-    # .env 파일 로드 설정
+    # .env 파일 로드 설정 (Docker 환경변수가 파일보다 우선순위가 높습니다)
     model_config = SettingsConfigDict(
-        # 현재 디렉토리 기준과 backend 디렉토리 기준 모두를 탐색 리스트에 넣습니다.
-        # 뒤에 오는 파일이 우선순위가 높습니다 (.env.local > .env)
-        env_file=(
-            ".env", 
-            "backend/.env", 
-            ".env.local", 
-            "backend/.env.local"
-        ), 
+        # 리스트의 뒤로 갈수록 우선순위가 높습니다. 
+        # 로직: .env (기본) -> .env.local (로컬 개발용 덮어쓰기)
+        env_file=[
+            "backend/.env",
+            ".env",
+            "backend/.env.local",
+            ".env.local",
+        ],
         env_file_encoding="utf-8",
         extra="ignore"
     )

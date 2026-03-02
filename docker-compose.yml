@@ -23,6 +23,8 @@ services:
     command: streamlit run backend/streamlit_dashboard.py --server.port 8100
     expose:
       - "8100"
+    env_file:
+      - ./backend/.env
     environment:
       - PYTHONPATH=/app
       - BACKEND_URL=http://backend:8000
