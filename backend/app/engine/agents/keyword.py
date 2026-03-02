@@ -51,7 +51,7 @@ async def search_keyword_node(state: KeywordState):
             if count >= 5:
                 return {
                     "keyword": "", # 퀴즈 생성 노드 진입 방지
-                    "messages": [AIMessage(content="🚫 오늘의 퀴즈(새 키워드) 도전 횟수(5회)를 모두 소진했습니다. 내일 다시 도전해주세요! 🌟")]
+                    "messages": [AIMessage(content="🚫 오늘의 퀴즈 도전 횟수(5회)를 모두 소진했습니다. 내일 다시 도전해주세요! 🌟")]
                 }
             
             # 횟수 업데이트

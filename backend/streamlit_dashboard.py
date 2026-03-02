@@ -122,13 +122,13 @@ if submit_login and user_input_id:
                     st.session_state.login_msg = f"🎉 환영합니다! '{display_name}'님"
                     
                     # 📌 텔레그램 일반 이벤트 발송
-                    send_telegram_message(f"🎉 NEW User! '{user_input_id}'")
+                    send_telegram_message(f"> 🎉 NEW User! '{user_input_id}'")
                     
                 except Exception as e:
                     st.session_state.login_msg = f"❌ 계정 생성 오류: {e}"
             else:
                 st.session_state.login_msg = f"✅ '{display_name}'님 안녕하세요!"
-                send_telegram_message(f"👋 User login: '{user_input_id}'")
+                send_telegram_message(f"> 👋 User login: '{user_input_id}'")
         
         init_chat_session()
         st.rerun()
