@@ -7,8 +7,7 @@ from app.api.router import api_router
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    description="Unified Backend for Web Client (REST) and PlayMCP (Agent)",
-    version="1.1.0"
+    version=settings.VERSION
 )
 
 # CORS 설정
@@ -20,16 +19,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 2. Include API Routers
+# 2. Include API Routers 
+# '/api'로 시작하는 모든 요청은 api_router로 전달
 app.include_router(api_router, prefix="/api")
 
 
+# Root endpoint
 @app.get("/")
 async def root():
     return {
-        "message": "Welcome to AI TechTree Nexus", 
+        "message": "Welcome to AI TechTree", 
         "docs": {
             "mcp": "/mcp/docs",
-            "api_v1": "/docs"
+            "api": "/docs"
         }
     }
