@@ -14,6 +14,9 @@ logger = get_logger(__name__)
 # router 생성
 router = APIRouter()
 
+######################################################
+# Function
+######################################################
 # JSON 직렬화가 안 되는 객체(datetime 등)를 처리하는 함수 정의
 def json_serializable(obj):
     # 1. datetime 처리 (기존 로직)
@@ -35,6 +38,9 @@ def json_serializable(obj):
 
     raise TypeError(f"Type {type(obj)} not serializable")
 
+######################################################
+# Router
+######################################################
 # [POST] /api/chat/stream -> 실시간 에이전트 답변
 @router.post("/stream")
 async def stream_interview(data: dict):
