@@ -1,5 +1,6 @@
 # global module
 from langgraph.graph import StateGraph, START, END
+from langgraph.checkpoint.memory import InMemorySaver
 
 # local module
 from app.engine.graphs.state import KeywordState
@@ -71,4 +72,5 @@ workflow.add_edge("recommend_keyword", END)
 workflow.add_edge("generate_quiz", END)
 
 # Compile
-agent_workflow = workflow.compile()
+checkpointer = InMemorySaver()
+agent_workflow = workflow.compile(checkpointer=checkpointer)

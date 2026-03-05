@@ -31,8 +31,22 @@ docker build -t ai-techtree:local-v1.1 .
 ---
 
 ### Step 2. 로컬에서 도커 컨테이너 실행 및 테스트 (선택사항)
+도커 없이 단순히 서버를 띄워 테스트 할수 있습니다. 
+```bash
+# LangGraph 서버 
+cd backend
+langgraph dev
 
-서버에 배포하기 전에 방금 만든 이미지가 내 컴퓨터나 팀원의 환경(로컬)에서 똑같이 잘 동작하는지 미리 테스트해 볼 수 있습니다.
+# fastapi 서버
+cd backend
+uvicorn app.main:app --reload
+
+# frontend next.js 서버
+cd frontend
+npm run dev
+```
+
+서버에 배포하기 전에 방금 만든 이미지가 로컬 환경에서 미리 테스트해 볼 수 있습니다.
 
 ```bash
 # .env 파일 생성 필수! (MONGODB_URL, OPENAI_API_KEY 등 세팅)
