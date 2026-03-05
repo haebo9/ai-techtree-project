@@ -58,7 +58,7 @@ async def stream_interview(data: dict):
             async for update in agent_workflow.astream(
                 {"messages": [("user", user_message)]}, 
                 config=config,
-                stream_mode="updates"
+                stream_mode="updates" # updates(리턴한 값만), values(상태 바뀔때 마다), logs(디버그용)
             ):
                 # 데이터 전송 (ensure_ascii=False로 한글 깨짐 방지 잘하셨습니다)
                 yield f"data: {json.dumps(update, ensure_ascii=False, default=json_serializable)}\n\n"

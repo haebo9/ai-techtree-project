@@ -47,6 +47,10 @@ async def route_keyword_intent(user_input: str, current_keyword: str = "None", l
 async def router_node(state: KeywordState):
     """analyzes user intent and prepares for new keyword learning."""
     
+    # 디버깅 로그
+    logger.info(f"DEBUG: Router started. In-Progress: {state.get('quiz_in_progress')}, \nQuestion: {bool(state.get('current_question'))}")
+
+
     # ⚡ [강제 라우팅] 퀴즈 진행 중일 때는 LLM을 거치지 않고 무조건 ANSWER로 처리합니다.
     if state.get("quiz_in_progress", False):
         return {"user_intent": "ANSWER"}
