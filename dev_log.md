@@ -13,7 +13,8 @@
 ## 2026년 3월
 | Date | Tag | Category | Details |
 |:---:|:---:|:---:|:---|
-| **26.03.05(목)** | 🟣 | **Add** | `v1.2`을 위한 LangGraph workflow 설계, v1.0 아키텍쳐 제작(`draw.io`) |
+| **26.03.06(금)** | 🔵 | **Add** | `v1.1` 아키텍처 제작(`draw.io`) 및 관련 문서에 반영 |
+| **26.03.05(목)** | 🔵 | **Add** | `v1.2`을 위한 LangGraph workflow 설계, `v1.0` 아키텍처 제작(`draw.io`) |
 |  | 🟢 | **Fix** | API 연결 에러 수정 및 테스트 완료 (`checkpointer` 구현) |
 | **26.03.04(수)** | 🟢 | **Feat** | Debug용 Next.js 화면 구현 및 API 명세 문서 작성 |
 | **26.03.03(화)** | 🟢 | **Feat** | `FastAPI` router 구현 및 `Next.js` 기본 화면과 연결 테스트 완료 |
