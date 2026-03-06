@@ -72,5 +72,8 @@ workflow.add_edge("recommend_keyword", END)
 workflow.add_edge("generate_quiz", END)
 
 # Compile
-checkpointer = InMemorySaver()
-agent_workflow = workflow.compile(checkpointer=checkpointer)
+# checkpointer = InMemorySaver()
+# agent_workflow = workflow.compile(checkpointer=checkpointer)
+
+# LangGraph API를 위한 컴파일 (checkpointer 제거)
+agent_workflow = workflow.compile()
