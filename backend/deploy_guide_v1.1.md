@@ -33,7 +33,7 @@ docker build -t ai-techtree:local-v1.1 .
 ### Step 2. 로컬에서 도커 컨테이너 실행 및 테스트 (선택사항)
 도커 없이 단순히 서버를 띄워 테스트 할수 있습니다. 
 ```bash
-# LangGraph 서버 
+# LangGraph 서버 (단, checkpointer 설정 제거후 실행 가능)
 cd backend
 langgraph dev
 
