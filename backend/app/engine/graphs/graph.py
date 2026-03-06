@@ -1,79 +1,57 @@
 # global module
 from langgraph.graph import StateGraph, START, END
-from langgraph.checkpoint.memory import InMemorySaver
+from typing import TypedDict, List, Optional
 
-# local module
-from app.engine.graphs.state import KeywordState
-from app.engine.agents import router as agent_router, quiz as agent_quiz, keyword as agent_keyword, chat as agent_chat, report as agent_report
+# 1. State Definition
+class KeywordState(TypedDict): 
+    user_id: str
+    user_intent: Optional[str] # Routing을 위한 의도 저장
 
-# ==========================================
-# 3. Edges & Graph
-# ==========================================
-# 라우터 노드 : 초기 대화 방향 설정 라우터
-def route_next(state: KeywordState):
-    intent = state.get("user_intent", "CHIT_CHAT")
-    if intent == "KEYWORD_SEARCH" or intent == "QUIZ":
-        return "search_keyword"
-    elif intent == "ANSWER":
-        return "answer_quiz"
-    elif intent == "RECOMMEND":
-        return "recommend_keyword"
-    else:
-        return "chit_chat"
-    
-def quiz_routing(state: KeywordState):
-    quiz_count = state.get("quiz_count", 0)
-    quiz_min_count = state.get("quiz_min_count", 3)
-    quiz_max_count = state.get("quiz_max_count", 8)
-    pass_fail_status = state.get("pass_fail")
-    
-    if quiz_count >= quiz_max_count:
-        return "report"
-    elif quiz_count < quiz_min_count:
-        return "next_quiz"
-    else:
-        return "next_quiz" if pass_fail_status == "pass" else "report"
+# 2. Dummy Nodes
+def router_node(state: KeywordState): 
+    # v1.0: 사용자 의도를 분석하여 검색(tools) 혹은 대화(llm) 선택
+    return {"user_intent": "info"} # 예시로 info 반환
 
+def tools_node(state: KeywordState): 
+    # v1.0: MCP 도구를 통한 정보 검색 수행
+    return state
+
+def chat_model_node(state: KeywordState): 
+    # v1.0: 최종 답변 생성
+    return state
+
+# 3. Routing Logic
+def route_v1(state: KeywordState):
+    intent = state.get("user_intent")
+    if intent == "info":
+        return "tools"
+    elif intent == "exit":
+        return "end"
+    return "chat_model"
+
+# 4. Workflow Construction
 workflow = StateGraph(KeywordState)
 
-# Nodes(노드)
-workflow.add_node("router", agent_router.router_node)
-workflow.add_node("search_keyword", agent_keyword.search_keyword_node)
-workflow.add_node("generate_quiz", agent_quiz.generate_quiz_node)
-workflow.add_node("answer_quiz", agent_quiz.answer_quiz_node)
-workflow.add_node("report_star", agent_report.report_star_node)
-workflow.add_node("recommend_keyword", agent_keyword.recommend_keyword_node)
-workflow.add_node("chit_chat", agent_chat.chit_chat_node)
+# Nodes
+workflow.add_node("router", router_node)
+workflow.add_node("tools", tools_node)
+workflow.add_node("chat_model", chat_model_node)
 
-# Edges(-->)
+# Edges
 workflow.add_edge(START, "router")
+
 workflow.add_conditional_edges(
-    "router", 
-    route_next,
+    "router",
+    route_v1,
     {
-        "search_keyword": "search_keyword",
-        "chit_chat": "chit_chat",
-        "answer_quiz": "answer_quiz",
-        "recommend_keyword": "recommend_keyword",
+        "tools": "tools",
+        "chat_model": "chat_model",
     }
 )
-workflow.add_conditional_edges(
-    "answer_quiz",
-    quiz_routing,
-    {
-        "next_quiz": "generate_quiz",
-        "report": "report_star"
-    }
-)
-workflow.add_edge("search_keyword", "generate_quiz")
-workflow.add_edge("chit_chat", END)
-workflow.add_edge("report_star", END)
-workflow.add_edge("recommend_keyword", END)
-workflow.add_edge("generate_quiz", END)
 
-# Compile
-# checkpointer = InMemorySaver()
-# agent_workflow = workflow.compile(checkpointer=checkpointer)
+workflow.add_edge("tools", "chat_model")
+workflow.add_edge("chat_model", END)
 
-# LangGraph API를 위한 컴파일 (checkpointer 제거)
+# 5. Compile
 agent_workflow = workflow.compile()
+workflow.add_edge(START, "router")
