@@ -7,10 +7,15 @@ from app.engine.graphs.state import KeywordState
 from app.engine.agents import router as agent_router, quiz as agent_quiz, keyword as agent_keyword, chat as agent_chat, report as agent_report
 
 # ==========================================
-# 3. Edges & Graph
+# 1. Dummy Nodes (빈 노드 정의)
 # ==========================================
-# 라우터 노드 : 초기 대화 방향 설정 라우터
-def route_next(state: KeywordState):
+async def supervisor_node(state: KeywordState):
+    """
+    중앙 감독자: 사용자의 의도를 분석하고 다음에 어떤 에이전트를 호출할지 결정합니다.
+    (실제 구현 시 LLM이 호출되어 next_agent를 결정하게 됩니다.)
+    """
+    print("--- SUPERVISOR: 호출됨 ---")
+
     intent = state.get("user_intent", "CHIT_CHAT")
     if intent == "KEYWORD_SEARCH" or intent == "QUIZ":
         return "search_keyword"
@@ -20,6 +25,20 @@ def route_next(state: KeywordState):
         return "recommend_keyword"
     else:
         return "chit_chat"
+
+async def quiz_agent_node(state: KeywordState): 
+    return state
+
+# ==========================================
+# 2. Router (조건부 에지 로직)
+# ==========================================
+# 라우터 노드 : 초기 대화 방향 설정 라우터
+def route_next(state: KeywordState):
+    intent = state.get("user_intent")
+    if intent == "KEYWORD_SEARCH" or intent == "QUIZ":
+        return "search_keyword"
+    elif intent == "ANSWER":
+        return "answer_quiz"
     
 def quiz_routing(state: KeywordState):
     quiz_count = state.get("quiz_count", 0)
@@ -34,10 +53,14 @@ def quiz_routing(state: KeywordState):
     else:
         return "next_quiz" if pass_fail_status == "pass" else "report"
 
+# ==========================================
+# 3. Edges & Graph
+# ==========================================
 workflow = StateGraph(KeywordState)
 
 # Nodes(노드)
-workflow.add_node("router", agent_router.router_node)
+workflow.add_node("supervisor", supervisor_node)
+workflow.add_node("quiz_agent", quiz_agent_node)
 workflow.add_node("search_keyword", agent_keyword.search_keyword_node)
 workflow.add_node("generate_quiz", agent_quiz.generate_quiz_node)
 workflow.add_node("answer_quiz", agent_quiz.answer_quiz_node)
@@ -46,30 +69,38 @@ workflow.add_node("recommend_keyword", agent_keyword.recommend_keyword_node)
 workflow.add_node("chit_chat", agent_chat.chit_chat_node)
 
 # Edges(-->)
-workflow.add_edge(START, "router")
+workflow.add_edge(START, "supervisor")
 workflow.add_conditional_edges(
-    "router", 
-    route_next,
+    "supervisor",
+    supervisor_node,
     {
-        "search_keyword": "search_keyword",
-        "chit_chat": "chit_chat",
-        "answer_quiz": "answer_quiz",
+        "quiz_agent": "quiz_agent",
         "recommend_keyword": "recommend_keyword",
+        "chit_chat": "chit_chat",
+        "exit": END
     }
 )
 workflow.add_conditional_edges(
-    "answer_quiz",
-    quiz_routing,
+    "quiz_agent", 
+    route_next,
     {
+        "search_keyword": "search_keyword",
+        "answer_quiz": "answer_quiz",
         "next_quiz": "generate_quiz",
         "report": "report_star"
     }
 )
-workflow.add_edge("search_keyword", "generate_quiz")
-workflow.add_edge("chit_chat", END)
-workflow.add_edge("report_star", END)
-workflow.add_edge("recommend_keyword", END)
-workflow.add_edge("generate_quiz", END)
+
+# back to supervisor
+workflow.add_edge("chit_chat", "supervisor")
+workflow.add_edge("recommend_keyword", "supervisor")
+workflow.add_edge("quiz_agent", "supervisor")
+
+# quiz_agent
+workflow.add_edge("report_star", "quiz_agent")
+workflow.add_edge("answer_quiz", "quiz_agent")
+workflow.add_edge("search_keyword", "quiz_agent")
+workflow.add_edge("generate_quiz", "quiz_agent")
 
 # Compile
 # checkpointer = InMemorySaver()
