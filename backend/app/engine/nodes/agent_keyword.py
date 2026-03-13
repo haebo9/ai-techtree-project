@@ -7,7 +7,7 @@ from datetime import datetime
 from app.engine.graphs.state import KeywordState
 from app.services.keyword_service import keyword_service
 from app.services.embedding_service import embedding_service
-from app.engine.agents import quiz as agent_quiz
+from app.engine.nodes import agent_quiz
 
 # ==========================================
 # Nodes

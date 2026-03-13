@@ -1,51 +1,39 @@
 # global module
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import InMemorySaver
-from langgraph.prebuilt import ToolNode, tools_condition
+from langgraph.prebuilt import tools_condition
 
 # local module
 from app.engine.graphs.state import KeywordState
-from app.engine.agents import router as agent_router, quiz as agent_quiz, keyword as agent_keyword, chat as agent_chat, report as agent_report
-from app.api_mcp.tools import MCP_TOOLS
+from app.engine.nodes import router_supervisor, router_quiz
+from app.engine.nodes import agent_quiz, agent_keyword, agent_chat, agent_report
+from app.engine.nodes import tools
 
 # ==========================================
-# 1. SUPERVISOR and SubGraph Nodes
+# Router (조건부 에지 로직)
 # ==========================================
-async def supervisor_node(state: KeywordState):
-    """
-    중앙 감독자: 사용자의 의도를 분석하고 다음에 어떤 에이전트를 호출할지 결정합니다.
-    (실제 구현 시 LLM이 호출되어 next_agent를 결정하게 됩니다.)
-    """
-    print("--- SUPERVISOR: 호출됨 ---")
-
+# Supervisor Routing
+def route_supervisor(state: KeywordState):
+    """Supervisor 상태가 업데이트 된 후 다음 에이전트/노드를 결정합니다."""
+    
+    # 1. tools_condition 기능 활용 (Agent Tool Call 여부 판단)
+    # tools_condition은 툴 호출이 있으면 "tools", 없으면 "__end__"를 반환합니다.
+    route = tools_condition(state)
+    if route == "tools":
+        return "supervisor_tools"
+        
+    # 2. Intent 기반 라우팅 ("__end__" 일 경우)
     intent = state.get("user_intent", "CHIT_CHAT")
-    if intent == "KEYWORD_SEARCH" or intent == "QUIZ":
-        return "search_keyword"
-    elif intent == "ANSWER":
-        return "answer_quiz"
+    
+    if intent in ["KEYWORD_SEARCH", "ANSWER", "QUIZ"]:
+        return "QUIZ" # 서브그래프 또는 퀴즈 에이전트 노드로 이동
     elif intent == "RECOMMEND":
         return "recommend_keyword"
     else:
         return "chit_chat"
 
-async def quiz_agent_node(state: KeywordState):
-    # 1. LLM에 도구 바인딩 (추천 등 도구 사용 가능)
-    llm = get_llm().bind_tools(MCP_TOOLS)
-    
-    # 2. 면접관 페르소나와 현재 상황 전달
-    # (유저의 정답 여부에 따라 심화 질문할지, 툴을 써서 설명해줄지 판단 유도)
-    prompt = "당신은 CS 면접관입니다. 유저의 답변을 보고 꼬리질문을 할지, 다음 주제로 넘어갈지, 혹은 툴을 써서 개념을 설명해줄지 결정하세요."
-    
-    # 여기서 LLM 호출...
-    # response = await llm.ainvoke(state["messages"])
-    # return {"messages": [response]}
-    return state # 일단 구조 유지를 위해 return
-
-# ==========================================
-# 2. Router (조건부 에지 로직)
-# ==========================================
 # 라우터 노드 : 초기 대화 방향 설정 라우터
-def route_next(state: KeywordState):
+def quiz_next(state: KeywordState):
     intent = state.get("user_intent")
     if intent == "KEYWORD_SEARCH" or intent == "QUIZ":
         return "search_keyword"
@@ -66,17 +54,15 @@ def quiz_routing(state: KeywordState):
         return "next_quiz" if pass_fail_status == "pass" else "report"
 
 # ==========================================
-# 3. Edges & Graph
+# Edges & Graph
 # ==========================================
 workflow = StateGraph(KeywordState)
-supervisor_tools_node = ToolNode(tools=MCP_TOOLS)
-quiz_tools_node = ToolNode(tools=[])
 
 # Nodes(노드)
-workflow.add_node("SUPERVISOR", supervisor_node)
-workflow.add_node("QUIZ", quiz_agent_node)
-workflow.add_node('supervisor_tools', supervisor_tools_node)
-workflow.add_node('quiz_tools', quiz_tools_node)
+workflow.add_node("SUPERVISOR", router_supervisor.supervisor_node)
+workflow.add_node("QUIZ", router_quiz.quiz_agent_node)
+workflow.add_node('supervisor_tools', tools.supervisor_tools_node)
+workflow.add_node('quiz_tools', tools.quiz_tools_node)
 
 workflow.add_node("search_keyword", agent_keyword.search_keyword_node)
 workflow.add_node("generate_quiz", agent_quiz.generate_quiz_node)
@@ -89,29 +75,22 @@ workflow.add_node("chit_chat", agent_chat.chit_chat_node)
 workflow.add_edge(START, "SUPERVISOR")
 workflow.add_conditional_edges(
     "SUPERVISOR",
-    supervisor_node,
+    route_supervisor,
     {
+        "supervisor_tools": "supervisor_tools",
         "QUIZ": "QUIZ",
         "recommend_keyword": "recommend_keyword",
         "chit_chat": "chit_chat",
-        "exit": END
+        "__end__": END
     }
 )
 workflow.add_conditional_edges(
     "QUIZ", 
-    route_next,
+    quiz_next,
     {
         "quiz_tools": "quiz_tools",
         "search_keyword": "search_keyword",
         "answer_quiz": "answer_quiz",
-    }
-)
-workflow.add_conditional_edges(
-    "SUPERVISOR",
-    tools_condition, 
-    {
-        "supervisor_tools": "supervisor_tools",
-        "__end__": END
     }
 )
 workflow.add_conditional_edges(

@@ -15,7 +15,7 @@ from app.engine.prompts.quiz_prompts import (
     CHECK_RESULT_HUMAN_PROMPT
 )
 from app.engine.graphs.state import KeywordState
-from app.engine.agents.schemas_quiz import (
+from app.engine.nodes.schemas_quiz import (
     KeywordAndQuiz,
     ExplanationGeneration,
     QuizGeneration,
