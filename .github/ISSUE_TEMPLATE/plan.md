@@ -1,7 +1,7 @@
 ---
-name: plan template
+name: plan
 about: 개발 일정 관련 이슈(FE, BE, AI, Infra)
-title: "[label]desctiption"
+title: "[ ] "
 labels: ''
 assignees: haebo9
 
