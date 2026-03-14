@@ -2,6 +2,7 @@
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.prebuilt import tools_condition
+from langchain_core.messages import AIMessage
 
 # local module
 from app.engine.graphs.state import KeywordState
@@ -25,7 +26,9 @@ def route_supervisor(state: KeywordState):
     # 2. Intent 기반 라우팅 ("__end__" 일 경우)
     intent = state.get("user_intent", "CHIT_CHAT")
     
-    if intent in ["KEYWORD_SEARCH", "ANSWER", "QUIZ"]:
+    if intent == "FINISH":
+        return "__end__"
+    elif intent in ["KEYWORD_SEARCH", "ANSWER", "QUIZ"]:
         return "QUIZ" # 서브그래프 또는 퀴즈 에이전트 노드로 이동
     elif intent == "RECOMMEND":
         return "recommend_keyword"
@@ -34,9 +37,14 @@ def route_supervisor(state: KeywordState):
 
 # 라우터 노드 : 초기 대화 방향 설정 라우터
 def quiz_next(state: KeywordState):
+    # 마지막 메시지가 AI 응답일 경우 더 사이클을 돌지 않고 SUPERVISOR로 제어권을 넘깁니다.
+    messages = state.get("messages", [])
+    if messages and isinstance(messages[-1], AIMessage) and not messages[-1].tool_calls:
+        return "FINISH"
+
     intent = state.get("user_intent")
-    if intent == "KEYWORD_SEARCH" or intent == "QUIZ":
-        return "search_keyword"
+    if intent in ["KEYWORD_SEARCH", "QUIZ", "GENERATE_QUIZ"]:
+        return "generate_quiz"
     elif intent == "ANSWER":
         return "answer_quiz"
     
@@ -91,6 +99,7 @@ workflow.add_conditional_edges(
         "quiz_tools": "quiz_tools",
         "search_keyword": "search_keyword",
         "answer_quiz": "answer_quiz",
+        "FINISH": "SUPERVISOR"
     }
 )
 workflow.add_conditional_edges(
@@ -105,7 +114,6 @@ workflow.add_conditional_edges(
 # back to SUPERVISOR
 workflow.add_edge("chit_chat", "SUPERVISOR")
 workflow.add_edge("recommend_keyword", "SUPERVISOR")
-workflow.add_edge("QUIZ", "SUPERVISOR")
 workflow.add_edge("supervisor_tools", "SUPERVISOR")
 workflow.add_edge("quiz_tools", "QUIZ")
 
@@ -116,8 +124,8 @@ workflow.add_edge("generate_quiz", "QUIZ")
 workflow.add_edge("search_keyword", "generate_quiz")
 
 # Compile
-# checkpointer = InMemorySaver()
-# agent_workflow = workflow.compile(checkpointer=checkpointer)
+checkpointer = InMemorySaver()
+agent_workflow = workflow.compile(checkpointer=checkpointer)
 
 # LangGraph API를 위한 컴파일 (checkpointer 제거)
-agent_workflow = workflow.compile()
+# agent_workflow = workflow.compile()

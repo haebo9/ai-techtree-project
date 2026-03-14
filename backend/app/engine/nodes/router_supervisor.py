@@ -10,7 +10,7 @@ from app.core.logger import get_logger
 
 from langgraph.prebuilt import ToolNode, tools_condition
 
-logger = get_logger("agent_router")
+logger = get_logger("SUPERVISOR_ROUTER")
 
 # ==========================================
 # Prompt Definition & Chain
@@ -49,11 +49,16 @@ async def route_keyword_intent(user_input: str, current_keyword: str = "None", l
 async def supervisor_node(state: KeywordState):
     """analyzes user intent and prepares for new keyword learning or routing."""
     
+    last_msg = state["messages"][-1]
+    
+    # [추가] 방금 상태 배열에 들어온 마지막 메시지가 AI의 텍스트 최종 응답이라면,
+    # 문답 사이클을 종료하기 위해 라우팅을 우회하고 FINISH를 넘깁니다.
+    # if isinstance(last_msg, AIMessage) and not last_msg.tool_calls:
+        # return {"user_intent": "FINISH"}
+        
     # 디버깅 로그
     logger.info(f"DEBUG: Supervisor started. In-Progress: {state.get('quiz_in_progress')}, \nQuestion: {bool(state.get('current_question'))}")
 
-    last_msg = state["messages"][-1]
-        
     # 의도 분석 및 지난 액션 설정
     # 퀴즈 진행 중일 경우 LLM에 컨텍스트로 전달하여 무조건 ANSWER로 처리되도록 유도 (프롬프트 규칙)
     last_action = "QUIZ_IN_PROGRESS" if state.get("quiz_in_progress") else "None"
