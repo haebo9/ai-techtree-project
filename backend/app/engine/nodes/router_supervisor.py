@@ -48,13 +48,12 @@ async def route_keyword_intent(user_input: str, current_keyword: str = "None", l
 # 감독자 노드 : 초기 대화 방향 설정 및 다음 에이전트 결정
 async def supervisor_node(state: KeywordState):
     """analyzes user intent and prepares for new keyword learning or routing."""
-    
     last_msg = state["messages"][-1]
     
-    # [추가] 방금 상태 배열에 들어온 마지막 메시지가 AI의 텍스트 최종 응답이라면,
-    # 문답 사이클을 종료하기 위해 라우팅을 우회하고 FINISH를 넘깁니다.
-    # if isinstance(last_msg, AIMessage) and not last_msg.tool_calls:
-        # return {"user_intent": "FINISH"}
+    # [수정] 다른 노드에서 반환할 값이 모두 준비되어 명시적으로 FINISH 상태를 넘겼다면,
+    # (새로운 사용자 입력 턴이 아닐 때만) 즉시 루프를 종료합니다.
+    if getattr(last_msg, "type", "") != "human" and state.get("user_intent") == "FINISH":
+        return {"user_intent": "FINISH"}
         
     # 디버깅 로그
     logger.info(f"DEBUG: Supervisor started. In-Progress: {state.get('quiz_in_progress')}, \nQuestion: {bool(state.get('current_question'))}")

@@ -66,7 +66,7 @@ async def quiz_agent_node(state: KeywordState):
 """
         agent_msgs = [SystemMessage(content=chat_sys_prompt)] + messages
         ai_response = await agent_llm.ainvoke(agent_msgs)
-        return {"messages": [ai_response]}
+        return {"messages": [ai_response], "user_intent": "FINISH"}
         
     elif action == "EVALUATE_ANSWER":
         return {"user_intent": "ANSWER"}

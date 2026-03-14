@@ -43,7 +43,9 @@ def quiz_next(state: KeywordState):
         return "FINISH"
 
     intent = state.get("user_intent")
-    if intent in ["KEYWORD_SEARCH", "QUIZ", "GENERATE_QUIZ"]:
+    if intent in ["KEYWORD_SEARCH", "QUIZ"]:
+        return "search_keyword"
+    elif intent == "GENERATE_QUIZ":
         return "generate_quiz"
     elif intent == "ANSWER":
         return "answer_quiz"
@@ -98,6 +100,7 @@ workflow.add_conditional_edges(
     {
         "quiz_tools": "quiz_tools",
         "search_keyword": "search_keyword",
+        "generate_quiz": "generate_quiz",
         "answer_quiz": "answer_quiz",
         "FINISH": "SUPERVISOR"
     }

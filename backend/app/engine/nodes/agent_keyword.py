@@ -51,7 +51,8 @@ async def search_keyword_node(state: KeywordState):
             if count >= 5:
                 return {
                     "keyword": "", # 퀴즈 생성 노드 진입 방지
-                    "messages": [AIMessage(content="🚫 오늘의 퀴즈 도전 횟수(5회)를 모두 소진했습니다. 내일 다시 도전해주세요! 🌟")]
+                    "messages": [AIMessage(content="🚫 오늘의 퀴즈 도전 횟수(5회)를 모두 소진했습니다. 내일 다시 도전해주세요! 🌟")],
+                    "user_intent": "FINISH"
                 }
             
             # 횟수 업데이트
@@ -205,7 +206,8 @@ async def recommend_keyword_node(state: KeywordState):
     
     return {
         # "keyword": next_kw, 
-        "messages": [AIMessage(content=msg)]
+        "messages": [AIMessage(content=msg)],
+        "user_intent": "FINISH"
     }
 
 async def info_keyword_node(state: KeywordState):
@@ -213,4 +215,7 @@ async def info_keyword_node(state: KeywordState):
     [info Phase] Provides information or Trend about the keyword.
     """
     # TODO: Implement info logic
-    return {"messages": [AIMessage(content="Keyword Info: (To be implemented)")]}
+    return {
+        "messages": [AIMessage(content="Keyword Info: (To be implemented)")],
+        "user_intent": "FINISH"
+    }
