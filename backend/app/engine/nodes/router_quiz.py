@@ -22,14 +22,23 @@ async def quiz_agent_node(state: KeywordState):
     """
     퀴즈 모드 내에서 유저의 발화를 분석하여 정답 평가 / 새 문제 출제 / 자유 대화(힌트/툴 사용)를 분기합니다.
     """
-    llm = get_llm(temperature=0)
-    structured_llm = llm.with_structured_output(QuizRouterOutput)
+    messages = state.get("messages", [])
+    if not messages:
+        return {"user_intent": "FINISH"}
+        
+    last_msg_obj = messages[-1]
     
+    # 방어 코드: 사용자 입력이 아닌 경우 (AI가 이미 퀴즈나 리포트를 내뱉은 경우), 라우팅(LLM)을 스킵하고 대기 상태로 넘깁니다.
+    if getattr(last_msg_obj, "type", "") != "human":
+        return {"user_intent": "FINISH"}
+        
+    last_msg = last_msg_obj.content
     keyword = state.get("keyword", "알 수 없음")
     current_question = state.get("current_question")
     q_text = current_question.get("question_text") if current_question else "출제된 문제 없음"
-    messages = state.get("messages", [])
-    last_msg = messages[-1].content
+    
+    llm = get_llm(temperature=0)
+    structured_llm = llm.with_structured_output(QuizRouterOutput)
     
     sys_prompt = f"""당신은 유저의 퀴즈 응답을 분석하는 라우터입니다.
 현재 학습 주제: {keyword}
@@ -54,19 +63,8 @@ async def quiz_agent_node(state: KeywordState):
     logger.info(f"💡 [Quiz Router] Action: {action}")
         
     if action == "CHAT":
-        # 힌트나 설명이 필요한 경우 도구가 바인딩된 에이전트가 직접 반응
-        agent_llm = get_llm(temperature=0.4).bind_tools(quiz_tools)
-        chat_sys_prompt = f"""당신은 친절한 CS 기술 면접관이자 튜터입니다.
-주제: {keyword}
-출제된 문제: {q_text}
-
-- 유저가 힌트를 요구하거나, 관련 개념을 물어보았습니다.
-- 정답을 섣불리 알려주지 말고, 개념의 힌트를 주어 스스로 생각할 수 있도록 유도하세요.
-- 필요시 `quiz_tools`의 도구들을 사용하여 추가 정보를 제공하세요.
-"""
-        agent_msgs = [SystemMessage(content=chat_sys_prompt)] + messages
-        ai_response = await agent_llm.ainvoke(agent_msgs)
-        return {"messages": [ai_response], "user_intent": "FINISH"}
+        # 순수 라우터 역할만 수행: 생성 로직은 quiz_chat 노드로 위임
+        return {"user_intent": "QUIZ_CHAT"}
         
     elif action == "EVALUATE_ANSWER":
         return {"user_intent": "ANSWER"}
@@ -74,4 +72,4 @@ async def quiz_agent_node(state: KeywordState):
     elif action == "GENERATE_QUIZ":
         return {"user_intent": "GENERATE_QUIZ"}
         
-    return state
+    return {"user_intent": "FINISH"}

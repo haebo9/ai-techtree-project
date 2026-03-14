@@ -49,6 +49,8 @@ def quiz_next(state: KeywordState):
         return "generate_quiz"
     elif intent == "ANSWER":
         return "answer_quiz"
+    elif intent == "QUIZ_CHAT":
+        return "quiz_chat"
     
 def quiz_routing(state: KeywordState):
     quiz_count = state.get("quiz_count", 0)
@@ -80,6 +82,7 @@ workflow.add_node("answer_quiz", agent_quiz.answer_quiz_node)
 workflow.add_node("report_star", agent_report.report_star_node)
 workflow.add_node("recommend_keyword", agent_keyword.recommend_keyword_node)
 workflow.add_node("chit_chat", agent_chat.chit_chat_node)
+workflow.add_node("quiz_chat", agent_quiz.quiz_chat_node)
 
 # Edges(-->)
 workflow.add_edge(START, "SUPERVISOR")
@@ -102,6 +105,7 @@ workflow.add_conditional_edges(
         "search_keyword": "search_keyword",
         "generate_quiz": "generate_quiz",
         "answer_quiz": "answer_quiz",
+        "quiz_chat": "quiz_chat",
         "FINISH": "SUPERVISOR"
     }
 )
@@ -119,11 +123,12 @@ workflow.add_edge("chit_chat", "SUPERVISOR")
 workflow.add_edge("recommend_keyword", "SUPERVISOR")
 workflow.add_edge("supervisor_tools", "SUPERVISOR")
 workflow.add_edge("quiz_tools", "QUIZ")
+workflow.add_edge("quiz_chat", "SUPERVISOR")
 
 
 # QUIZ
-workflow.add_edge("report_star", "QUIZ")
-workflow.add_edge("generate_quiz", "QUIZ")
+workflow.add_edge("report_star", "SUPERVISOR")
+workflow.add_edge("generate_quiz", "SUPERVISOR")
 workflow.add_edge("search_keyword", "generate_quiz")
 
 # Compile
