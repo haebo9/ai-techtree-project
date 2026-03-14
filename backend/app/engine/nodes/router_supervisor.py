@@ -3,12 +3,14 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 
 from app.engine.graphs.state import KeywordState
-from app.engine.agents.schemas_router import KeywordRouterOutput
+from app.engine.nodes.schemas_router import KeywordRouterOutput
 from app.engine.prompts.router_prompts import ROUTER_SYSTEM_PROMPT
 from app.core.llm import get_llm
 from app.core.logger import get_logger
 
-logger = get_logger("agent_router")
+from langgraph.prebuilt import ToolNode, tools_condition
+
+logger = get_logger("SUPERVISOR_ROUTER")
 
 # ==========================================
 # Prompt Definition & Chain
@@ -41,26 +43,26 @@ async def route_keyword_intent(user_input: str, current_keyword: str = "None", l
         return {"intent": "CHIT_CHAT", "keyword": None, "reasoning": "Error Fallback"}
 
 # ==========================================
-# Nodes
+# Nodes & Routing
 # ==========================================
-# 라우터 노드 : 초기 대화 방향 설정 라우터
-async def router_node(state: KeywordState):
-    """analyzes user intent and prepares for new keyword learning."""
-    
-    # 디버깅 로그
-    logger.info(f"DEBUG: Router started. In-Progress: {state.get('quiz_in_progress')}, \nQuestion: {bool(state.get('current_question'))}")
-
-
-    # ⚡ [강제 라우팅] 퀴즈 진행 중일 때는 LLM을 거치지 않고 무조건 ANSWER로 처리합니다.
-    if state.get("quiz_in_progress", False):
-        return {"user_intent": "ANSWER"}
-        
+# 감독자 노드 : 초기 대화 방향 설정 및 다음 에이전트 결정
+async def supervisor_node(state: KeywordState):
+    """analyzes user intent and prepares for new keyword learning or routing."""
     last_msg = state["messages"][-1]
+    
+    # [수정] 다른 노드에서 반환할 값이 모두 준비되어 명시적으로 FINISH 상태를 넘겼다면,
+    # (새로운 사용자 입력 턴이 아닐 때만) 즉시 루프를 종료합니다.
+    if getattr(last_msg, "type", "") != "human" and state.get("user_intent") == "FINISH":
+        return {"user_intent": "FINISH"}
         
-    # 의도 분석
-    last_action = "None"
+    # 디버깅 로그
+    logger.info(f"DEBUG: Supervisor started. In-Progress: {state.get('quiz_in_progress')}, \nQuestion: {bool(state.get('current_question'))}")
 
+    # 의도 분석 및 지난 액션 설정
+    # 퀴즈 진행 중일 경우 LLM에 컨텍스트로 전달하여 무조건 ANSWER로 처리되도록 유도 (프롬프트 규칙)
+    last_action = "QUIZ_IN_PROGRESS" if state.get("quiz_in_progress") else "None"
     current_kw = state.get("keyword") or "None"
+    
     res = await route_keyword_intent(last_msg.content, current_kw, last_action)
     intent = res.get("intent", "CHIT_CHAT")
     

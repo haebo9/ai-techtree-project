@@ -10,4 +10,4 @@ async def chit_chat_node(state: KeywordState):
     [Chit-Chat Phase] Handles general conversation.
     """
     response = "도움이 필요하시면 언제든지 말씀해주세요."
-    return {"messages": [AIMessage(content=response)]}
+    return {"messages": [AIMessage(content=response)], "user_intent": "FINISH"}

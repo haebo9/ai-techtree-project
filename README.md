@@ -24,8 +24,6 @@
 ## 👑 서비스 작동 화면 (v.1.1.0)
 ![Service Capture](backend/app/source/v1.1_capture_1.png)
 
-![Service Capture](backend/app/source/v1.1_capture_3.png)
-
 ## 📖 Index
 - [Documentation](#-documentation): 기획 및 설계 문서 <br/>
 - [Tech Stack](#-tech-stack): 사용 기술 및 도구 <br/>
@@ -73,8 +71,11 @@
 - **Database**: `MongoDB Atlas`를 사용하여 데이터 안정성을 확보합니다.
 - **AI Engine**: `LangGraph` 기반의 Agent 시스템이 퀴즈 생성 및 평가를 수행합니다.
 
-> **LangGraph Architecture**
-![alt text](backend/app/source/langgraph_arch.png)
+> **System Architecture**
+![alt text](backend/app/source/Techtree-Arch-v1.1.drawio.svg)
+
+> **LangGraph Workflow**
+![alt text](backend/app/source/v1.1_agent_logic.png)
 ---
 ## ⭐ Git & Deployment
 
@@ -97,8 +98,8 @@
 | :--- | :--- | :--- | :--- |
 | **v1.0.0** | **MCP Tool Calling Agent**<br>MCP tool을 활용한 챗봇 서비스 | Langchain, MCP, FastAPI, AWS, streamlit | 2026.01.15|
 | **v1.1.0** | **Agentic Quiz System**<br>키워드 기반 동적 문제 풀이 서비스 | LangGraph, MongoDB, Langsmith, streamlit | 2026.03.02<br/>(Now)  |
-| **v1.2.0** | **Web Service & Agent**<br>복합적이고 유동적인 면접 서비스 | LangGraph, MongoDB, FastAPI, RAG, streamlit| 2026.03.15<br/> |
-| **v2.0.0** | **AI TechTree Full Release**<br>정식 서비스 출시 | Next.js, Vercel, RAG, MongoDB | 2026.04.01<br/> |
+| **v1.2.0** | **Web Service & Agent**<br>복합적이고 유동적인 면접 서비스 | LangGraph, FastAPI, Next.js, Vercel | 2026.03.21<br/> |
+| **v2.0.0** | **AI TechTree Full Release**<br>정식 서비스 출시 | LangGraph, RAG, MongoDB, Next.js, Vercel | 2026.04.11<br/> |
 
 ---
 
