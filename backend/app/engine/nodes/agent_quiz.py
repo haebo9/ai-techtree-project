@@ -274,13 +274,16 @@ async def quiz_chat_node(state: KeywordState):
     messages = state.get("messages", [])
     
     chat_sys_prompt = f"""당신은 친절한 CS 기술 면접관이자 튜터입니다.
-주제: {keyword}
-출제된 문제: {q_text}
+        주제: {keyword}
+        출제된 문제: {q_text}
 
-- 유저가 힌트를 요구하거나, 관련 개념을 물어보았습니다.
-- 정답을 섣불리 알려주지 말고, 개념의 힌트를 주어 스스로 생각할 수 있도록 유도하세요.
-- 필요시 `quiz_tools`의 도구들을 사용하여 추가 정보를 제공하세요.
-"""
+        - 유저가 힌트를 요구하거나, 관련 개념을 물어보았습니다.
+        - 정답을 섣불리 알려주지 말고, 개념의 힌트를 주어 스스로 생각할 수 있도록 유도하세요.
+        
+        # Example
+        User: 모르겠어
+        AI: ❗Hint\n [여기에 한줄의 간단한 힌트를 넣어주세요]
+        """
     agent_msgs = [SystemMessage(content=chat_sys_prompt)] + messages
     ai_response = await agent_llm.ainvoke(agent_msgs)
     

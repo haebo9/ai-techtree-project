@@ -51,6 +51,10 @@ def quiz_next(state: KeywordState):
         return "answer_quiz"
     elif intent == "QUIZ_CHAT":
         return "quiz_chat"
+    elif intent == "FINISH":
+        return "FINISH"
+        
+    return "FINISH"
     
 def quiz_routing(state: KeywordState):
     quiz_count = state.get("quiz_count", 0)
@@ -122,18 +126,18 @@ workflow.add_conditional_edges(
 workflow.add_edge("chit_chat", "SUPERVISOR")
 workflow.add_edge("recommend_keyword", "SUPERVISOR")
 workflow.add_edge("supervisor_tools", "SUPERVISOR")
-workflow.add_edge("quiz_tools", "QUIZ")
-workflow.add_edge("quiz_chat", "SUPERVISOR")
 
 
 # QUIZ
-workflow.add_edge("report_star", "SUPERVISOR")
-workflow.add_edge("generate_quiz", "SUPERVISOR")
+workflow.add_edge("quiz_chat", "QUIZ")
+workflow.add_edge("report_star", "QUIZ")
+workflow.add_edge("generate_quiz", "QUIZ")
+workflow.add_edge("quiz_tools", "QUIZ")
 workflow.add_edge("search_keyword", "generate_quiz")
 
 # Compile
-checkpointer = InMemorySaver()
-agent_workflow = workflow.compile(checkpointer=checkpointer)
+# checkpointer = InMemorySaver()
+# agent_workflow = workflow.compile(checkpointer=checkpointer)
 
 # LangGraph API를 위한 컴파일 (checkpointer 제거)
-# agent_workflow = workflow.compile()
+agent_workflow = workflow.compile()
