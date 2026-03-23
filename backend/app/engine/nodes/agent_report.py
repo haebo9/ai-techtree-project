@@ -166,5 +166,6 @@ async def report_star_node(state: KeywordState, config=None):
         "quiz_count": 0,
         "quiz_pass_count": 0,
         "level": 0,
-        "quiz_history": []
+        "quiz_history": [],
+        "hint_used": False
     }

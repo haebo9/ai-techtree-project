@@ -24,7 +24,7 @@ def route_supervisor(state: KeywordState):
         return "supervisor_tools"
         
     # 2. Intent 기반 라우팅 ("__end__" 일 경우)
-    intent = state.get("user_intent", "CHIT_CHAT")
+    intent = state.get("user_intent", "supervisor_chat")
     
     if intent == "FINISH":
         return "__end__"
@@ -33,7 +33,7 @@ def route_supervisor(state: KeywordState):
     elif intent == "RECOMMEND":
         return "recommend_keyword"
     else:
-        return "chit_chat"
+        return "supervisor_chat"
 
 # 라우터 노드 : 초기 대화 방향 설정 라우터
 def quiz_next(state: KeywordState):
@@ -85,8 +85,8 @@ workflow.add_node("generate_quiz", agent_quiz.generate_quiz_node)
 workflow.add_node("answer_quiz", agent_quiz.answer_quiz_node)
 workflow.add_node("report_star", agent_report.report_star_node)
 workflow.add_node("recommend_keyword", agent_keyword.recommend_keyword_node)
-workflow.add_node("chit_chat", agent_chat.chit_chat_node)
-workflow.add_node("quiz_chat", agent_quiz.quiz_chat_node)
+workflow.add_node("supervisor_chat", agent_chat.supervisor_chat_node)
+workflow.add_node("quiz_chat", agent_chat.quiz_chat_node)
 
 # Edges(-->)
 workflow.add_edge(START, "SUPERVISOR")
@@ -97,7 +97,7 @@ workflow.add_conditional_edges(
         "supervisor_tools": "supervisor_tools",
         "QUIZ": "QUIZ",
         "recommend_keyword": "recommend_keyword",
-        "chit_chat": "chit_chat",
+        "supervisor_chat": "supervisor_chat",
         "__end__": END
     }
 )
@@ -123,10 +123,9 @@ workflow.add_conditional_edges(
 )
 
 # back to SUPERVISOR
-workflow.add_edge("chit_chat", "SUPERVISOR")
+workflow.add_edge("supervisor_chat", "SUPERVISOR")
 workflow.add_edge("recommend_keyword", "SUPERVISOR")
 workflow.add_edge("supervisor_tools", "SUPERVISOR")
-
 
 # QUIZ
 workflow.add_edge("quiz_chat", "QUIZ")
