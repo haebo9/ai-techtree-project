@@ -175,7 +175,8 @@ async def generate_quiz_node(state: KeywordState):
         "current_question": question, # Ensure state is updated/restored
         "messages": [AIMessage(content=f"### 🎯 주제: **{keyword}** (Level: {level})\n\n**Q. {question['question_text']}**{options_text}")],
         "quiz_in_progress": True, # 퀴즈 모드 활성화
-        "user_intent": "FINISH"
+        "user_intent": "FINISH",
+        "hint_used": False # 새 퀴즈 생성 시 힌트 사용 여부 초기화
     }
 
 async def answer_quiz_node(state: KeywordState):
@@ -217,7 +218,7 @@ async def answer_quiz_node(state: KeywordState):
         if result.grade == "perfect":
             grade_text = "✅ 정답"
         elif result.grade == "pass":
-            grade_text = "✅ 정답 (부분 인정)"
+            grade_text = "⚠️ 부분 정답"
         else:
             grade_text = "❌ 오답"
             
@@ -267,24 +268,35 @@ async def quiz_chat_node(state: KeywordState):
     from langchain_core.messages import SystemMessage
     from app.engine.nodes.tools import quiz_tools
     
+    # 힌트를 이미 사용했는지 체크
+    if state.get("hint_used", False):
+        msg = AIMessage(content="🚫 이미 이 문제에 대한 힌트를 제공해 드렸습니다. 정답을 시도해 보세요!")
+        return {"messages": [msg], "user_intent": "FINISH"}
+    
     agent_llm = get_llm(temperature=0.4).bind_tools(quiz_tools)
     keyword = state.get("keyword", "알 수 없음")
     current_question = state.get("current_question")
     q_text = current_question.get("question_text") if current_question else "출제된 문제 없음"
     messages = state.get("messages", [])
     
-    chat_sys_prompt = f"""당신은 친절한 CS 기술 면접관이자 튜터입니다.
-        주제: {keyword}
-        출제된 문제: {q_text}
+    chat_sys_prompt = f"""당신은 실제 개발자 면접을 진행하는 기술 면접관입니다.
+        현재 면접 주제(Keyword): {keyword}
+        주어진 질문(Question): {q_text}
 
-        - 유저가 힌트를 요구하거나, 관련 개념을 물어보았습니다.
-        - 정답을 섣불리 알려주지 말고, 개념의 힌트를 주어 스스로 생각할 수 있도록 유도하세요.
+        지원자(User)가 답변을 어려워하며 힌트를 요청하거나 헤매고 있습니다.
+        면접관으로서 절대 정답(핵심 단어, 코드 등)을 직접적으로 노출하지 마세요. 
+        대신 지원자가 스스로 답에 도달할 수 있도록 '방향성만 제시하는 가벼운 유도 질문(Socratic Method)'을 던져야 합니다.
+        
+        [제약 사항]
+        1. 정답을 유추할 수 있는 결정적 단어나 코드는 절대 방출 금지.
+        2. 다른 비유를 들거나, 지원자가 아는 다른 기초 개념에서 출발하도록 역질문하세요.
+        3. 반드시 1~2문장 이내로 짧고 간결하게 대답하세요.
         
         # Example
-        User: 모르겠어
-        AI: ❗Hint\n [여기에 한줄의 간단한 힌트를 넣어주세요]
+        User: 모르겠어 
+        AI: ❗ 데이터들이 순서대로 줄을 서 있다고 생각해볼까요? 그중 원하는 순서의 데이터를 콕 집어오려면 어떤 방식을 썼는지 떠올려보세요.
         """
     agent_msgs = [SystemMessage(content=chat_sys_prompt)] + messages
     ai_response = await agent_llm.ainvoke(agent_msgs)
     
-    return {"messages": [ai_response], "user_intent": "FINISH"}
+    return {"messages": [ai_response], "user_intent": "FINISH", "hint_used": True}
