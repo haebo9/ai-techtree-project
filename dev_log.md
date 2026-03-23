@@ -13,6 +13,7 @@
 ## 2026년 3월
 | Date | Tag | Category | Details |
 |:---:|:---:|:---:|:---|
+| **26.03.23(월)** | 🟣 | **Refactor** | LangGraph 워크플로우 점검, `Chat` 노드 구현 |
 | **26.03.14(토)** | 🟣 | **Feat** | `quiz_chat` 노드 추가 및 연결 (퀴즈 진행 중 힌트 기능) |
 | **26.03.13(금)** | 🟣 | **Refactor** | 랭그래프 구조 정리 및 연결 (Supervisor/Quiz Route) |
 | **26.03.12(목)** | 🟣 | **Feat** | `v1.2` 랭그래프 `sub-agent` 구조 구현 |
