@@ -85,7 +85,8 @@ async def supervisor_node(state: KeywordState):
             "quiz_count": 0, # reset
             "quiz_pass_count": 0, # reset
             "level": 0, # reset
-            "quiz_history": [] # reset
+            "quiz_history": [], # reset
+            "hint_used": False # reset
         })
         
     return updates

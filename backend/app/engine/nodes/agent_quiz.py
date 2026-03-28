@@ -175,7 +175,8 @@ async def generate_quiz_node(state: KeywordState):
         "current_question": question, # Ensure state is updated/restored
         "messages": [AIMessage(content=f"### 🎯 주제: **{keyword}** (Level: {level})\n\n**Q. {question['question_text']}**{options_text}")],
         "quiz_in_progress": True, # 퀴즈 모드 활성화
-        "user_intent": "FINISH"
+        "user_intent": "FINISH",
+        "hint_used": False # 새 퀴즈 생성 시 힌트 사용 여부 초기화
     }
 
 async def answer_quiz_node(state: KeywordState):
@@ -217,7 +218,7 @@ async def answer_quiz_node(state: KeywordState):
         if result.grade == "perfect":
             grade_text = "✅ 정답"
         elif result.grade == "pass":
-            grade_text = "✅ 정답 (부분 인정)"
+            grade_text = "⚠️ 부분 정답"
         else:
             grade_text = "❌ 오답"
             
@@ -259,29 +260,3 @@ async def answer_quiz_node(state: KeywordState):
             "pass_fail": "fail", 
             "messages": [AIMessage(content="정답 확인 중 오류가 발생했습니다.")]
         }
-
-async def quiz_chat_node(state: KeywordState):
-    """
-    [Quiz Phase] Handles hint requests and general Q&A during a quiz.
-    """
-    from langchain_core.messages import SystemMessage
-    from app.engine.nodes.tools import quiz_tools
-    
-    agent_llm = get_llm(temperature=0.4).bind_tools(quiz_tools)
-    keyword = state.get("keyword", "알 수 없음")
-    current_question = state.get("current_question")
-    q_text = current_question.get("question_text") if current_question else "출제된 문제 없음"
-    messages = state.get("messages", [])
-    
-    chat_sys_prompt = f"""당신은 친절한 CS 기술 면접관이자 튜터입니다.
-주제: {keyword}
-출제된 문제: {q_text}
-
-- 유저가 힌트를 요구하거나, 관련 개념을 물어보았습니다.
-- 정답을 섣불리 알려주지 말고, 개념의 힌트를 주어 스스로 생각할 수 있도록 유도하세요.
-- 필요시 `quiz_tools`의 도구들을 사용하여 추가 정보를 제공하세요.
-"""
-    agent_msgs = [SystemMessage(content=chat_sys_prompt)] + messages
-    ai_response = await agent_llm.ainvoke(agent_msgs)
-    
-    return {"messages": [ai_response], "user_intent": "FINISH"}
