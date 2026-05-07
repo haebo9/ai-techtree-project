@@ -9,7 +9,7 @@
 - 사용자 관심사 진단 및 AI 직무 트랙 추천을 위한 Stateless 아키텍처
 - 독립적인 MCP 서버를 통한 검색 및 추천 도구 통합 관리 (Kakao PlayMCP 연동)
 
-![alt text](../../backend/app/source/Techtree-Arch-v1.0.drawio.svg)
+![alt text](images/Techtree-Arch-v1.0.drawio.svg)
 
 ## 🔴 v1.1.0 (2026-03-02)
 > Stateful LangGraph Multi-Agent workflow Architecture
@@ -18,5 +18,5 @@
 - 입력된 user_id를 기반으로 MongoDB Atlas에 영속성 상태 관리 (진행상황 저장)
 - 내부 서비스의 expose 설정을 통해 외부 노출을 차단한 격리된 네트워크 환경 구축 (보안 강화)
 
-![alt text](../../backend/app/source/Techtree-Arch-v1.1.drawio.svg)
+![alt text](images/Techtree-Arch-v1.1.drawio.svg)
 
