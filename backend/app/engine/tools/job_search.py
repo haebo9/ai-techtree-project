@@ -15,8 +15,8 @@ def search_korean_job_postings(query: str) -> str:
         print("⚠️ TAVILY_API_KEY가 없어 Mock 데이터를 반환합니다.")
         return (
             f"[{query}] 최신 채용 트렌드 요약:\n"
-            "- 필수 조건: React 기반 SPA 개발 경험, 전역 상태 관리 이해\n"
-            "- 우대 조건: Next.js를 활용한 SSR/SSG 경험, 성능 최적화 경험\n"
+            "- 필수 조건: python 언어, 4년제 학위\n"
+            "- 우대 조건: 팀 프로젝트 경험, 성능 최적화 경험\n"
             "- 면접 팁: 기술을 '왜' 선택했는지 아키텍처 관점에서 질문하세요."
         )
 
@@ -25,8 +25,15 @@ def search_korean_job_postings(query: str) -> str:
             "https://api.tavily.com/search",
             json={
                 "api_key": settings.TAVILY_API_KEY,
-                "query": f"{query} 채용 우대조건 기술스택",
+                "query": query,  # AI가 구체적인 조건(직무, 학력, 경력 등)을 포함해 생성하므로 그대로 사용
                 "search_depth": "basic",
+                "include_domains": [
+                    "wanted.co.kr",
+                    "saramin.co.kr",
+                    "jobkorea.co.kr",
+                    "jumpit.co.kr", 
+                    "incruit.com"
+                ],
                 "max_results": 3
             },
             timeout=10

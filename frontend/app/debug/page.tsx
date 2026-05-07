@@ -28,7 +28,7 @@ export default function DebugPage() {
   const logsEndRef = useRef<HTMLDivElement | null>(null);
 
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const transcriptRef = useRef<{ role: string, text: string }[]>([]);
+  const [transcripts, setTranscripts] = useState<{ id: string, role: string, text: string }[]>([]);
 
   const addLog = (source: 'IN' | 'OUT' | 'SYS' | 'TOOL', event: string, data?: any) => {
     setLogs(prev => [...prev, {
@@ -62,6 +62,7 @@ export default function DebugPage() {
       const savedProfile = localStorage.getItem("interviewProfile");
       const profileData = savedProfile ? JSON.parse(savedProfile) : {
         job_title: "디버그 테스트 직무",
+        education: "학사(4년제)",
         experience: "신입",
         resume: "디버깅용 자동 입력 프로필"
       };
@@ -71,9 +72,10 @@ export default function DebugPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           user_id: "debug@example.com",
-          job_title: profileData.job_title,
-          experience: profileData.experience,
-          resume: profileData.resume
+          job_title: profileData.job_title || "디버그 테스트 직무",
+          education: profileData.education || "학사(4년제)",
+          experience: profileData.experience || "신입",
+          resume: profileData.resume || "디버깅용 자동 입력 프로필"
         })
       });
 
@@ -138,6 +140,13 @@ export default function DebugPage() {
 
               addLog('TOOL', `Search Tool Completed (${t2 - t1}ms)`, searchData);
 
+              // 검색 결과를 좌측 요약 패널에도 예쁘게 표시
+              setTranscripts(prev => [...prev, {
+                id: `sys-${Date.now()}`,
+                role: "sys",
+                text: `[🔍 Tavily 검색 완료] ${searchData.result}`
+              }]);
+
               const outputEvent = {
                 type: "conversation.item.create",
                 item: {
@@ -159,11 +168,22 @@ export default function DebugPage() {
           }
         }
 
+        if (realtimeEvent.type === "conversation.item.created") {
+          const item = realtimeEvent.item;
+          if (item.role === "user") {
+            // 유저 답변 시작 시 플레이스홀더 생성 (나중에 텍스트가 도착하면 업데이트)
+            setTranscripts(prev => [...prev, { id: item.id, role: "user", text: "(음성 인식 중...)" }]);
+          }
+        }
+
         if (realtimeEvent.type === "response.audio_transcript.done") {
-          transcriptRef.current.push({ role: "ai", text: realtimeEvent.transcript });
+          setTranscripts(prev => [...prev, { id: realtimeEvent.item_id, role: "ai", text: realtimeEvent.transcript }]);
         }
         if (realtimeEvent.type === "conversation.item.input_audio_transcription.completed") {
-          transcriptRef.current.push({ role: "user", text: realtimeEvent.transcript });
+          // 서버에서 텍스트 변환이 완료되면 해당 ID의 플레이스홀더를 실제 텍스트로 교체
+          setTranscripts(prev => prev.map(t =>
+            t.id === realtimeEvent.item_id ? { ...t, text: realtimeEvent.transcript } : t
+          ));
         }
         if (realtimeEvent.type === "response.audio.delta") {
           setIsSpeaking(true);
@@ -171,7 +191,7 @@ export default function DebugPage() {
         }
         if (realtimeEvent.type === "response.done") {
           setIsSpeaking(false);
-          setStatusText("마이크 활성 - 대답하세요");
+          setStatusText("🟢 스페이스바를 누른 채로 대답하세요.");
         }
       });
 
@@ -199,7 +219,7 @@ export default function DebugPage() {
       addLog('IN', 'WebRTC SDP Answer Received');
 
       setIsRecording(false);
-      setStatusText("연결 완료 - 스페이스바를 누른 채로 대답하세요");
+      setStatusText("🟢 스페이스바를 누른 채로 대답하세요.");
 
     } catch (error: any) {
       addLog('SYS', 'Connection Error', { error: error.message });
@@ -221,7 +241,7 @@ export default function DebugPage() {
       const audioTrack = streamRef.current.getAudioTracks()[0];
       audioTrack.enabled = true;
       setIsRecording(true);
-      setStatusText("듣고 있습니다... (답변 완료 후 손을 떼세요)");
+      setStatusText("🔴 답변 완료 후 손을 떼세요");
       dcRef.current.send(JSON.stringify({ type: "input_audio_buffer.clear" }));
       addLog('SYS', 'Push-To-Talk: Microphone ON');
     }
@@ -297,9 +317,12 @@ export default function DebugPage() {
 
         <div className="flex-1 overflow-y-auto bg-[#1e1e1e] p-4 rounded-lg border border-gray-700">
           <h2 className="text-gray-400 mb-2 border-b border-gray-700 pb-1">Transcript / Event Summary</h2>
-          <ul className="space-y-2 text-xs">
-            {transcriptRef.current.map((t, idx) => (
-              <li key={idx} className={t.role === 'ai' ? 'text-green-300' : 'text-blue-300'}>
+          <ul className="space-y-3 text-xs">
+            {transcripts.map((t, idx) => (
+              <li key={idx} className={
+                t.role === 'ai' ? 'text-green-300' :
+                  t.role === 'sys' ? 'text-purple-300 bg-purple-900/20 p-2 rounded' : 'text-blue-300'
+              }>
                 <strong>[{t.role.toUpperCase()}]</strong> {t.text}
               </li>
             ))}

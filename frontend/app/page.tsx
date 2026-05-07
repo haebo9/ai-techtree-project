@@ -7,18 +7,20 @@ export default function Home() {
   const router = useRouter();
   const [jobTitle, setJobTitle] = useState("");
   const [experience, setExperience] = useState("신입");
+  const [education, setEducation] = useState("학사(4년제)");
   const [resume, setResume] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // 로컬 스토리지에 프로필 저장
     localStorage.setItem("interviewProfile", JSON.stringify({
       job_title: jobTitle || "직무 미상",
       experience: experience,
+      education: education,
       resume: resume || "특별한 이력 없음"
     }));
-    
+
     // 면접 페이지로 이동
     router.push("/interview");
   };
@@ -39,21 +41,21 @@ export default function Home() {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label htmlFor="jobTitle" className="block text-sm font-medium text-neutral-700 mb-2">지원 직무</label>
-            <input 
-              type="text" 
-              id="jobTitle" 
+            <input
+              type="text"
+              id="jobTitle"
               value={jobTitle}
               onChange={(e) => setJobTitle(e.target.value)}
-              placeholder="예: 프로덕트 매니저, 브랜드 마케터, 데이터 애널리스트" 
-              className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-neutral-900" 
+              placeholder="예: AI 엔지니어, QA, 데이터 애널리스트, 게임 기획자"
+              className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-neutral-900"
               required
             />
           </div>
 
           <div>
             <label htmlFor="experience" className="block text-sm font-medium text-neutral-700 mb-2">경력</label>
-            <select 
-              id="experience" 
+            <select
+              id="experience"
               value={experience}
               onChange={(e) => setExperience(e.target.value)}
               className="w-full px-4 py-3 rounded-xl border border-neutral-200 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-neutral-900"
@@ -66,14 +68,30 @@ export default function Home() {
           </div>
 
           <div>
+            <label htmlFor="education" className="block text-sm font-medium text-neutral-700 mb-2">최종 학력</label>
+            <select
+              id="education"
+              value={education}
+              onChange={(e) => setEducation(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl border border-neutral-200 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-neutral-900"
+            >
+              <option value="고졸">고졸</option>
+              <option value="전문학사(2~3년제)">전문학사(2~3년제)</option>
+              <option value="학사(4년제)">학사(4년제)</option>
+              <option value="석사">석사</option>
+              <option value="박사">박사</option>
+            </select>
+          </div>
+
+          <div>
             <label htmlFor="resume" className="block text-sm font-medium text-neutral-700 mb-2">간단한 이력 및 자기소개 요약</label>
-            <textarea 
-              id="resume" 
+            <textarea
+              id="resume"
               value={resume}
               onChange={(e) => setResume(e.target.value)}
-              placeholder="예: 핀테크 앱 런칭 경험이 있습니다. 주로 사용자 데이터를 분석하여 리텐션을 높이는 업무를 담당했습니다." 
+              placeholder="예: 핀테크 앱 런칭 경험이 있습니다. 주로 사용자 데이터를 분석하여 리텐션을 높이는 업무를 담당했습니다."
               rows={4}
-              className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-neutral-900 resize-none" 
+              className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-neutral-900 resize-none"
               required
             />
           </div>

@@ -36,6 +36,7 @@ export default function InterviewPage() {
         const savedProfile = localStorage.getItem("interviewProfile");
         const profileData = savedProfile ? JSON.parse(savedProfile) : {
           job_title: "직무 미상",
+          education: "학사(4년제)",
           experience: "신입",
           resume: "정보 없음"
         };
@@ -46,9 +47,10 @@ export default function InterviewPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             user_id: "test@example.com",
-            job_title: profileData.job_title,
-            experience: profileData.experience,
-            resume: profileData.resume
+            job_title: profileData.job_title || "직무 미상",
+            education: profileData.education || "학사(4년제)",
+            experience: profileData.experience || "신입",
+            resume: profileData.resume || "정보 없음"
           })
         });
 

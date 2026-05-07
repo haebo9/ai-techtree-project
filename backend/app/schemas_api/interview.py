@@ -8,6 +8,7 @@ class StartInterviewRequest(BaseModel):
     user_id: str = Field(..., description="사용자 ID (예: 이메일 또는 UUID)")
     job_title: str = Field(..., description="지원 직무 (예: 서비스 기획자, 마케터, 프론트엔드 개발자 등)")
     experience: str = Field(..., description="경력 (예: 신입, 1-3년차 등)")
+    education: str = Field(..., description="학력 (예: 고졸, 전문학사, 학사, 석사, 박사 등)")
     resume: str = Field(..., description="간단한 이력 또는 자기소개 요약")
 
 class StartInterviewResponse(BaseModel):
