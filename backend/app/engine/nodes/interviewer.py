@@ -1,16 +1,29 @@
 from app.engine.graphs.state import InterviewState
 from app.engine.tools.job_search import search_korean_job_postings
+from app.core.llm import get_llm
+from app.engine.prompts.api_interviewer import INTERVIEWER_SYSTEM_PROMPT
+from langchain_core.messages import SystemMessage
 
 def interviewer_node(state: InterviewState):
     """
-    면접관 AI 노드 (에이전틱 흐름 적용): 
-    필요 시 '채용 검색 도구(search_korean_job_postings)'를 사용하여
-    실제 우대 조건이나 실무 트렌드를 바탕으로 날카로운 꼬리 질문을 생성합니다.
+    면접관 AI 노드: 
+    시스템 프롬프트와 현재 대화 내역을 결합하여 다음 질문이나 툴 호출을 생성합니다.
     """
-    print(f"[Interviewer] {state.get('user_id', 'Unknown')}님의 면접 흐름을 분석 중입니다...")
+    llm = get_llm()
+    # 도구 바인딩 (에이전틱 루프를 위해 필요)
+    llm_with_tools = llm.bind_tools([search_korean_job_postings])
     
-    # TODO: 실제 LLM 연동 시 아래와 같이 툴을 바인딩하여 사용합니다.
-    # llm_with_tools = llm.bind_tools([search_korean_job_postings])
-    # response = llm_with_tools.invoke(state["messages"])
+    # 시스템 프롬프트 준비 (지원자 정보 주입)
+    system_content = INTERVIEWER_SYSTEM_PROMPT.format(
+        job_title=state.get("job_title", "지원 직무"),
+        education=state.get("education", "정보 없음"),
+        experience=state.get("experience", "정보 없음"),
+        resume=state.get("resume", "정보 없음")
+    )
     
-    return state
+    messages = [SystemMessage(content=system_content)] + state["messages"]
+    
+    # LLM 호출
+    response = llm_with_tools.invoke(messages)
+    
+    return {"messages": [response]}

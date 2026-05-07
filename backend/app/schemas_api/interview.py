@@ -29,6 +29,13 @@ class ChatResponse(BaseModel):
 # ==========================================
 # 3. 면접 종료 및 평가 (End & Evaluate)
 # ==========================================
+class TranscriptItem(BaseModel):
+    role: str = Field(..., description="발화자 (ai 또는 user)")
+    text: str = Field(..., description="발화 내용")
+
+class EndInterviewRequest(BaseModel):
+    transcripts: List[TranscriptItem] = Field(default=[], description="전체 대화 내역")
+
 class EndInterviewResponse(BaseModel):
     session_id: str
     score: int

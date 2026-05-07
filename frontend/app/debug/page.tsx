@@ -61,10 +61,10 @@ export default function DebugPage() {
 
       const savedProfile = localStorage.getItem("interviewProfile");
       const profileData = savedProfile ? JSON.parse(savedProfile) : {
-        job_title: "디버그 테스트 직무",
+        job_title: "직무 미상",
         education: "학사(4년제)",
         experience: "신입",
-        resume: "디버깅용 자동 입력 프로필"
+        resume: "정보 없음"
       };
 
       const res = await fetch("http://localhost:8000/api/interview/start", {
@@ -72,10 +72,10 @@ export default function DebugPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           user_id: "debug@example.com",
-          job_title: profileData.job_title || "디버그 테스트 직무",
+          job_title: profileData.job_title || "직무 미상",
           education: profileData.education || "학사(4년제)",
           experience: profileData.experience || "신입",
-          resume: profileData.resume || "디버깅용 자동 입력 프로필"
+          resume: profileData.resume || "정보 없음"
         })
       });
 

@@ -11,6 +11,8 @@ class InterviewState(TypedDict):
     job_title: str       # 상세 직무 (예: React 프론트엔드 개발자)
     field: str           # 분야 (예: frontend, backend 등)
     experience: str      # 경력 (신입, 1~3년차 등)
+    education: str       # 학력
+    resume: str          # 이력서 요약 또는 텍스트
     major: str           # 전공 여부
     
     # 2. 대화 기록 (LangGraph의 add_messages reducer를 통해 누적됨)

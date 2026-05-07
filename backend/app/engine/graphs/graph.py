@@ -61,6 +61,8 @@ workflow.add_conditional_edges(
 workflow.add_edge("tools", "interviewer")
 workflow.add_edge("evaluate", END)
 
-# 3. 그래프 컴파일 (추후 Memory Checkpointer 추가)
-interview_workflow = workflow.compile()
+# 3. 그래프 컴파일 (Memory Checkpointer 추가)
+from langgraph.checkpoint.memory import MemorySaver
+memory = MemorySaver()
+interview_workflow = workflow.compile(checkpointer=memory)
 
