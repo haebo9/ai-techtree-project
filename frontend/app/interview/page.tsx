@@ -32,16 +32,23 @@ export default function InterviewPage() {
       try {
         setStatusText("서버에서 보안 토큰을 발급받고 있습니다...");
         
-        // 1) 우리 백엔드 API를 호출해 OpenAI 일회용 접속 토큰(ephemeral_token) 발급
+        // 1) 로컬 스토리지에서 사용자가 입력한 프로필 가져오기
+        const savedProfile = localStorage.getItem("interviewProfile");
+        const profileData = savedProfile ? JSON.parse(savedProfile) : {
+            job_title: "직무 미상",
+            experience: "신입",
+            resume: "정보 없음"
+        };
+
+        // 2) 우리 백엔드 API를 호출해 OpenAI 일회용 접속 토큰(ephemeral_token) 발급
         const res = await fetch("http://localhost:8000/api/interview/start", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             user_id: "test@example.com",
-            job_title: "React 프론트엔드 개발자",
-            field: "frontend",
-            experience: "3-5년차",
-            major: "비전공"
+            job_title: profileData.job_title,
+            experience: profileData.experience,
+            resume: profileData.resume
           })
         });
         

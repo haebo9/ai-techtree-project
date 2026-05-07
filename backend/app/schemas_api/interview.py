@@ -6,10 +6,9 @@ from typing import List, Dict, Any, Optional
 # ==========================================
 class StartInterviewRequest(BaseModel):
     user_id: str = Field(..., description="사용자 ID (예: 이메일 또는 UUID)")
-    job_title: str = Field(..., description="희망 상세 직무 (예: React 프론트엔드 개발자)")
-    field: str = Field(..., description="희망 분야 (예: frontend, backend)")
-    experience: str = Field(..., description="경력 (예: newcomer, 1-3, 3-5, 5+)")
-    major: str = Field(..., description="전공 여부 (예: cs, non-cs)")
+    job_title: str = Field(..., description="지원 직무 (예: 서비스 기획자, 마케터, 프론트엔드 개발자 등)")
+    experience: str = Field(..., description="경력 (예: 신입, 1-3년차 등)")
+    resume: str = Field(..., description="간단한 이력 또는 자기소개 요약")
 
 class StartInterviewResponse(BaseModel):
     session_id: str = Field(..., description="생성된 면접 고유 세션 ID")

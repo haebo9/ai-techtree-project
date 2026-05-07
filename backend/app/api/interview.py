@@ -28,19 +28,20 @@ async def start_interview(request: StartInterviewRequest):
     session_id = str(uuid.uuid4())
     
     # 2. 면접관 페르소나 및 사용자 정보 세팅 (OpenAI 시스템 프롬프트)
-    instructions = f"""당신은 한국의 10년차 시니어 개발자이자 꼼꼼한 면접관입니다.
-지원자의 프로필:
-- 직무: {request.job_title}
-- 분야: {request.field}
-- 경력: {request.experience}
-- 전공여부: {request.major}
+    instructions = f"""당신은 10년차 시니어이자 꼼꼼하고 엄격한 면접관입니다.
+        지원자의 프로필:
+        - 지원 직무: {request.job_title}
+        - 경력: {request.experience}
+        - 이력/자기소개 요약: {request.resume}
 
-당신의 임무:
-1. 먼저 지원자에게 짧게 인사를 건네고 첫 질문을 던지세요.
-2. 지원자의 프로필과 답변에 맞춰 날카로운 실무 위주의 꼬리 질문을 던지세요.
-3. 한 번에 너무 많은 질문을 하지 말고, 한 번에 하나의 핵심만 물어보세요.
-4. 반드시 자연스러운 한국어로 대답하세요.
-"""
+        당신의 핵심 임무:
+        1. 먼저 지원자에게 짧게 인사를 건네고 첫 질문을 던지세요.
+        2. 'search_job_postings' 도구를 적극적으로 사용하여 현재 해당 직무에서 실제로 요구하는 최신 트렌드나 필요 역량을 검색하세요.
+        3. [중요] 검색한 채용 정보를 지원자에게 요약해주거나 설명해주지 마세요. 당신은 정보 제공 봇이 아니라 '면접관'입니다.
+        4. 검색된 트렌드나 역량을 활용하여, 지원자가 해당 업무를 제대로 이해하고 수행할 수 있는지 검증하는 매우 날카롭고 실무적인 꼬리 질문을 던지세요.
+        5. 한 번에 하나의 핵심만 묻고, 지원자의 대답을 들은 후 다시 파고드는 질문을 하세요.
+        6. 반드시 자연스럽고 권위있는 한국어로 대답하세요.
+        """
 
     # 3. OpenAI 서버에 세션 생성 요청 (토큰 발급)
     headers = {
@@ -52,18 +53,18 @@ async def start_interview(request: StartInterviewRequest):
         "model": "gpt-4o-realtime-preview-2024-12-17",
         "modalities": ["audio", "text"],
         "instructions": instructions,
-        "voice": "sage",  # 목소리 설정 (alloy, ash, ballad, coral, echo, sage, shimmer, verse)
+        "voice": "sage",
         "tools": [
             {
                 "type": "function",
                 "name": "search_job_postings",
-                "description": "지원자의 직무나 기술 스택과 관련된 한국 최신 채용 공고, 우대 조건, 요구 기술을 실시간으로 웹에서 검색합니다. 이 정보를 바탕으로 실무에서 실제로 묻는 깊이 있는 꼬리 질문을 만드세요.",
+                "description": "지원자의 직무나 기술 스택과 관련된 한국 최신 채용 공고, 우대 조건을 실시간으로 검색합니다. 이 정보를 바탕으로 지원자에게 던질 날카로운 실무 면접 질문을 구상하세요.",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "query": {
                             "type": "string",
-                            "description": "검색할 채용 키워드 (예: '프론트엔드 신입 채용 우대조건', 'Next.js 개발자 요구사항')"
+                            "description": "검색할 채용 키워드 (예: '프론트엔드 React 신입 채용 우대조건', 'Next.js 프론트엔드 최적화 경험')"
                         }
                     },
                     "required": ["query"]
@@ -113,7 +114,6 @@ async def execute_search_job(request: ToolSearchRequest):
     
     # LangChain @tool 데코레이터가 붙은 함수는 .invoke()로 실행
     result = search_korean_job_postings.invoke({"query": request.query})
-    
     return {"result": result}
 
 @router.post("/{session_id}/chat", response_model=ChatResponse)
