@@ -149,7 +149,7 @@ export default function InterviewPage() {
           }
           if (realtimeEvent.type === "response.done") {
             setIsSpeaking(false);
-            setStatusText("스페이스바를 누른 채로 대답하세요.");
+            setStatusText("🟢 스페이스바를 누른 채로 대답하세요.");
           }
         });
 
@@ -262,7 +262,7 @@ export default function InterviewPage() {
       await fetch(`http://localhost:8000/api/interview/${sessionId}/end`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // body: JSON.stringify({ transcripts: transcriptRef.current }) -> 이후 백엔드 업데이트 필요
+        body: JSON.stringify({ transcripts: transcriptRef.current })
       });
       router.push("/result");
     } catch (err) {

@@ -133,15 +133,28 @@ async def chat(
     
     return ChatResponse(reply=ai_reply)
 
+from langchain_core.messages import HumanMessage, AIMessage
+
 @router.post("/{session_id}/end", response_model=EndInterviewResponse)
-async def end_interview(session_id: str = Path(..., description="면접 세션 ID")):
+async def end_interview(
+    request: EndInterviewRequest,
+    session_id: str = Path(..., description="면접 세션 ID")
+):
     """
-    면접을 종료하고 Evaluator 노드를 통해 종합 평가 리포트를 생성합니다.
+    면접을 종료하고 프론트엔드에서 전달받은 대화 내역(transcripts)을 바탕으로 Evaluator 노드를 실행합니다.
     """
     config = {"configurable": {"thread_id": session_id}}
     
-    # 상태를 EVALUATING으로 변경하여 라우팅 유도
-    interview_workflow.update_state(config, {"status": "EVALUATING"})
+    # 1. 프론트엔드에서 받은 transcripts를 LangChain Message 객체로 변환
+    lc_messages = []
+    for t in request.transcripts:
+        if t.role == "user":
+            lc_messages.append(HumanMessage(content=t.text))
+        elif t.role == "ai":
+            lc_messages.append(AIMessage(content=t.text))
+            
+    # 2. 상태를 EVALUATING으로 변경하고 메시지 내역 덮어쓰기
+    interview_workflow.update_state(config, {"status": "EVALUATING", "messages": lc_messages})
     
     # 그래프 실행 (Evaluator 노드까지 진행됨)
     final_state = interview_workflow.invoke(None, config=config)
