@@ -14,6 +14,8 @@
 | Date | Tag | Category | Details |
 |:---:|:---:|:---:|:---|
 | **26.05.07** | 🔴 | **Init** | 기존 개발 과정 초기화 및 재설계 (for `v2.0`) |
+| | 🟢🟠🟣 | **Feat** | MVP 기능 구현 (음성 면접 로직 및 화면 구현) |
+
 
 ## 2026년 3월
 | Date | Tag | Category | Details |
