@@ -14,7 +14,6 @@
 
 ## 📐 아키텍처 및 설계 (Design)
 **"이전 버전(v1)의 개발 기록 및 전체 구조 설계"**
-> *버전별 변화 기록을 보존하기 위해 남겨둔 문서들입니다.*
 
 * `architecture.md`: 시스템 전체 구조 설계 [[바로가기](./architecture.md)]
 * `agent_workflow.md`: AI 에이전트 워크플로우 설계 [[바로가기](./agent_workflow.md)]
