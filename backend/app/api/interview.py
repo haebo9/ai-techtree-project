@@ -50,7 +50,7 @@ async def start_interview(request: StartInterviewRequest):
     }
     
     payload = {
-        "model": "gpt-4o-realtime-preview-2024-12-17",
+        "model": "gpt-realtime-mini-2025-12-15",
         "modalities": ["audio", "text"],
         "instructions": instructions,
         "voice": "sage",
@@ -72,6 +72,7 @@ async def start_interview(request: StartInterviewRequest):
             }
         ],
         "tool_choice": "auto",
+        "turn_detection": None,  # 수동 응답(Push-To-Talk)을 위해 VAD 비활성화
     }
     
     # 동기식 요청 (추후 httpx를 활용한 비동기로 고도화 권장)

@@ -1,380 +1,341 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import {
-    Terminal,
-    Activity,
-    MessageSquare,
-    Settings,
-    Send,
-    Trash2,
-    Search,
-    BrainCircuit,
-    ChevronRight,
-    CircleDot
-} from "lucide-react";
+import { useRouter } from "next/navigation";
+
+interface LogEntry {
+  id: number;
+  timestamp: string;
+  source: 'IN' | 'OUT' | 'SYS' | 'TOOL';
+  event: string;
+  data?: any;
+}
+
+let logIdCounter = 0;
 
 export default function DebugPage() {
-    const [input, setInput] = useState("");
-    const [threadId, setThreadId] = useState("debug_session_001");
-    const [loading, setLoading] = useState(false);
-    const [messages, setMessages] = useState<{ role: 'user' | 'ai', content: string }[]>([]);
+  const router = useRouter();
 
-    // 모든 수신 데이터를 담는 로그 배열
-    const [fullLogs, setFullLogs] = useState<any[]>([]);
-    // 현재 추출된 핵심 상태 (State)
-    const [currentState, setCurrentState] = useState<any>({
-        node: "idle",
-        quiz_in_progress: false,
-        current_question: null,
-        feedback: null
-    });
+  const [isRecording, setIsRecording] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [statusText, setStatusText] = useState("대기 중...");
+  const [logs, setLogs] = useState<LogEntry[]>([]);
 
-    const scrollRef = useRef<HTMLDivElement>(null);
-    const chatScrollRef = useRef<HTMLDivElement>(null);
+  const pcRef = useRef<RTCPeerConnection | null>(null);
+  const dcRef = useRef<RTCDataChannel | null>(null);
+  const audioElRef = useRef<HTMLAudioElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const logsEndRef = useRef<HTMLDivElement | null>(null);
 
-    // 로그 자동 스크롤
-    useEffect(() => {
-        if (scrollRef.current) {
-            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const transcriptRef = useRef<{ role: string, text: string }[]>([]);
+
+  const addLog = (source: 'IN' | 'OUT' | 'SYS' | 'TOOL', event: string, data?: any) => {
+    setLogs(prev => [...prev, {
+      id: logIdCounter++,
+      timestamp: new Date().toISOString().split('T')[1].slice(0, -2), // HH:mm:ss.SS
+      source,
+      event,
+      data
+    }]);
+  };
+
+  // 자동 스크롤
+  useEffect(() => {
+    if (logsEndRef.current) {
+      logsEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [logs]);
+
+  const startDebugSession = async () => {
+    if (pcRef.current) return;
+
+    addLog('SYS', 'Init WebRTC Debug Session');
+    const audioEl = document.createElement("audio");
+    audioEl.autoplay = true;
+    audioElRef.current = audioEl;
+
+    try {
+      setStatusText("토큰 발급 중...");
+      addLog('SYS', 'Fetching Ephemeral Token from /api/interview/start');
+
+      const savedProfile = localStorage.getItem("interviewProfile");
+      const profileData = savedProfile ? JSON.parse(savedProfile) : {
+        job_title: "디버그 테스트 직무",
+        experience: "신입",
+        resume: "디버깅용 자동 입력 프로필"
+      };
+
+      const res = await fetch("http://localhost:8000/api/interview/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: "debug@example.com",
+          job_title: profileData.job_title,
+          experience: profileData.experience,
+          resume: profileData.resume
+        })
+      });
+
+      if (!res.ok) throw new Error("토큰 발급 API 오류");
+      const data = await res.json();
+      const EPHEMERAL_KEY = data.ephemeral_token;
+      setSessionId(data.session_id);
+      addLog('SYS', 'Token Received', { session_id: data.session_id });
+
+      setStatusText("WebRTC 연결 중...");
+
+      const pc = new RTCPeerConnection();
+      pcRef.current = pc;
+
+      pc.ontrack = (e) => {
+        addLog('SYS', 'Audio Track Received from OpenAI');
+        if (audioElRef.current) {
+          audioElRef.current.srcObject = e.streams[0];
         }
-    }, [fullLogs]);
+      };
 
-    // 채팅 자동 스크롤
-    useEffect(() => {
-        if (chatScrollRef.current) {
-            chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+      const ms = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = ms;
+      pc.addTrack(ms.getTracks()[0]);
+      ms.getAudioTracks()[0].enabled = false; // Push-To-Talk를 위해 기본 마이크 송출 차단
+      addLog('SYS', 'Microphone Track Added (Muted by default)');
+
+      const dc = pc.createDataChannel("oai-events");
+      dcRef.current = dc;
+
+      dc.addEventListener("open", () => {
+        addLog('SYS', 'Data Channel Opened');
+        dc.send(JSON.stringify({ type: "response.create" }));
+      });
+
+      dc.addEventListener("message", async (e) => {
+        const realtimeEvent = JSON.parse(e.data);
+
+        // 너무 많은 오디오 델타는 로그를 덮으므로 필터링 옵션 (여기선 그냥 보여줌)
+        if (realtimeEvent.type !== 'response.audio.delta') {
+          addLog('IN', realtimeEvent.type, realtimeEvent);
         }
-    }, [messages]);
 
-    const clearLogs = () => {
-        setFullLogs([]);
-        setMessages([]);
-        setCurrentState({
-            node: "idle",
-            quiz_in_progress: false,
-            current_question: null,
-            feedback: null
-        });
-    };
+        if (realtimeEvent.type === "response.function_call_arguments.done") {
+          const callId = realtimeEvent.call_id;
+          const name = realtimeEvent.name;
+          const args = JSON.parse(realtimeEvent.arguments);
 
-    const callAgent = async (message: string) => {
-        if (!message.trim()) return;
+          if (name === "search_job_postings") {
+            setStatusText("🔍 툴 실행 중 (채용 검색)...");
+            addLog('TOOL', 'Executing search_job_postings', args);
 
-        setLoading(true);
-        // 사용자 메시지 추가
-        const userMsg = { role: 'user' as const, content: message };
-        setMessages(prev => [...prev, userMsg]);
-
-        const currentInput = message;
-        setInput("");
-
-        try {
-            const response = await fetch("http://localhost:8000/api/chat/stream", {
+            try {
+              const t1 = Date.now();
+              const toolRes = await fetch("http://localhost:8000/api/interview/tools/search_job", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ message: currentInput, thread_id: threadId }),
-            });
+                body: JSON.stringify({ query: args.query })
+              });
+              const searchData = await toolRes.json();
+              const t2 = Date.now();
 
-            if (!response.body) return;
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let accumulatedBuffer = "";
+              addLog('TOOL', `Search Tool Completed (${t2 - t1}ms)`, searchData);
 
-            while (true) {
-                const { value, done } = await reader.read();
-                if (done) break;
-
-                accumulatedBuffer += decoder.decode(value, { stream: true });
-                const lines = accumulatedBuffer.split("\n\n");
-
-                // 마지막 비완성 데이터는 버퍼에 유지
-                accumulatedBuffer = lines.pop() || "";
-
-                for (const line of lines) {
-                    if (line.startsWith("data: ")) {
-                        try {
-                            const jsonStr = line.replace("data: ", "").trim();
-                            if (!jsonStr) continue;
-
-                            const rawData = JSON.parse(jsonStr);
-                            const nodeName = Object.keys(rawData)[0];
-                            const nodeContent = rawData[nodeName];
-
-                            if (!nodeName || !nodeContent) continue;
-
-                            // 1. 원본 로그 추가 (Console용)
-                            setFullLogs((prev) => [...prev, {
-                                node: nodeName,
-                                data: nodeContent,
-                                time: new Date().toLocaleTimeString('ko-KR', { hour12: false })
-                            }]);
-
-                            // 2. AI 응답 메시지 추출 및 Chat UI 업데이트
-                            if (nodeContent.messages && Array.isArray(nodeContent.messages)) {
-                                const aiMsgs = nodeContent.messages.filter((m: any) =>
-                                    m.type === 'ai' || m.role === 'assistant'
-                                );
-
-                                if (aiMsgs.length > 0) {
-                                    const lastAiMsg = aiMsgs[aiMsgs.length - 1].content;
-
-                                    if (lastAiMsg && typeof lastAiMsg === 'string' && lastAiMsg.trim() !== '') {
-                                        setMessages(prev => {
-                                            const lastMsgInState = prev[prev.length - 1];
-
-                                            // 메시지 내용이 완전히 동일하면 무시
-                                            if (lastMsgInState?.role === 'ai' && lastMsgInState.content === lastAiMsg) {
-                                                return prev;
-                                            }
-
-                                            // 부분 문자열이 포함된 형태 (스트리밍 중복 현상) 방지
-                                            if (lastMsgInState?.role === 'user' && lastAiMsg === currentInput) {
-                                                return prev;
-                                            }
-
-                                            return [...prev, { role: 'ai', content: lastAiMsg }];
-                                        });
-                                    }
-                                }
-                            }
-
-                            // 3. 핵심 상태 추출 (Extraction State용)
-                            if (nodeName === "generate_quiz") {
-                                setCurrentState((prev: any) => ({
-                                    ...prev,
-                                    node: nodeName,
-                                    current_question: nodeContent.current_question,
-                                    quiz_in_progress: nodeContent.quiz_in_progress
-                                }));
-                            } else if (nodeName.includes("score") || nodeName.includes("eval")) {
-                                const feedback = nodeContent.messages?.[nodeContent.messages.length - 1]?.content || nodeContent.feedback;
-                                if (feedback) {
-                                    setCurrentState((prev: any) => ({
-                                        ...prev,
-                                        node: nodeName,
-                                        feedback: feedback
-                                    }));
-                                }
-                            } else {
-                                setCurrentState((prev: any) => ({ ...prev, node: nodeName }));
-                            }
-                        } catch (e) {
-                            console.error("JSON 파싱 에러:", e, "Line:", line);
-                        }
-                    }
+              const outputEvent = {
+                type: "conversation.item.create",
+                item: {
+                  type: "function_call_output",
+                  call_id: callId,
+                  output: JSON.stringify(searchData.result)
                 }
+              };
+              dc.send(JSON.stringify(outputEvent));
+              addLog('OUT', 'conversation.item.create (function output)', outputEvent);
+
+              const responseCreateEvent = { type: "response.create" };
+              dc.send(JSON.stringify(responseCreateEvent));
+              addLog('OUT', 'response.create', responseCreateEvent);
+
+            } catch (err: any) {
+              addLog('TOOL', 'Tool Execution Error', { error: err.message });
             }
-        } catch (error) {
-            console.error("통신 에러:", error);
-        } finally {
-            setLoading(false);
+          }
         }
+
+        if (realtimeEvent.type === "response.audio_transcript.done") {
+          transcriptRef.current.push({ role: "ai", text: realtimeEvent.transcript });
+        }
+        if (realtimeEvent.type === "conversation.item.input_audio_transcription.completed") {
+          transcriptRef.current.push({ role: "user", text: realtimeEvent.transcript });
+        }
+        if (realtimeEvent.type === "response.audio.delta") {
+          setIsSpeaking(true);
+          setStatusText("AI 발화 중...");
+        }
+        if (realtimeEvent.type === "response.done") {
+          setIsSpeaking(false);
+          setStatusText("마이크 활성 - 대답하세요");
+        }
+      });
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      addLog('OUT', 'WebRTC SDP Offer Sent');
+
+      const baseUrl = "https://api.openai.com/v1/realtime";
+      const model = "gpt-realtime-mini-2025-12-15";
+
+      const sdpResponse = await fetch(`${baseUrl}?model=${model}`, {
+        method: "POST",
+        body: offer.sdp,
+        headers: {
+          Authorization: `Bearer ${EPHEMERAL_KEY}`,
+          "Content-Type": "application/sdp"
+        },
+      });
+
+      const answer = {
+        type: "answer" as RTCSdpType,
+        sdp: await sdpResponse.text(),
+      };
+      await pc.setRemoteDescription(answer);
+      addLog('IN', 'WebRTC SDP Answer Received');
+
+      setIsRecording(false);
+      setStatusText("연결 완료 - 스페이스바를 누른 채로 대답하세요");
+
+    } catch (error: any) {
+      addLog('SYS', 'Connection Error', { error: error.message });
+      setStatusText("오류 발생");
+    }
+  };
+
+  const endSession = () => {
+    pcRef.current?.close();
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+    }
+    addLog('SYS', 'Session Ended manually');
+    setStatusText("종료됨");
+  };
+
+  const startRecording = () => {
+    if (streamRef.current && !isRecording && dcRef.current?.readyState === "open") {
+      const audioTrack = streamRef.current.getAudioTracks()[0];
+      audioTrack.enabled = true;
+      setIsRecording(true);
+      setStatusText("듣고 있습니다... (답변 완료 후 손을 떼세요)");
+      dcRef.current.send(JSON.stringify({ type: "input_audio_buffer.clear" }));
+      addLog('SYS', 'Push-To-Talk: Microphone ON');
+    }
+  };
+
+  const stopRecording = () => {
+    if (streamRef.current && isRecording && dcRef.current?.readyState === "open") {
+      const audioTrack = streamRef.current.getAudioTracks()[0];
+      audioTrack.enabled = false;
+      setIsRecording(false);
+      setStatusText("답변 제출 중...");
+
+      dcRef.current.send(JSON.stringify({ type: "input_audio_buffer.commit" }));
+      dcRef.current.send(JSON.stringify({ type: "response.create" }));
+      addLog('SYS', 'Push-To-Talk: Microphone OFF, Buffer Committed');
+    }
+  };
+
+  // 스페이스바 단축키 (Push-To-Talk)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === "Space" && !e.repeat) {
+        e.preventDefault();
+        startRecording();
+      }
     };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === "Space") {
+        e.preventDefault();
+        stopRecording();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    }
+  }, [isRecording]);
 
-    return (
-        <div className="flex flex-col h-screen bg-[#0f1115] text-slate-300 font-sans selection:bg-indigo-500/30">
-            {/* Header */}
-            <header className="h-16 flex items-center justify-between px-6 border-b border-white/5 bg-white/5 backdrop-blur-md sticky top-0 z-50">
-                <div className="flex items-center gap-3">
-                    <div className="p-2 bg-indigo-500/10 rounded-lg">
-                        <BrainCircuit className="w-5 h-5 text-indigo-400" />
-                    </div>
-                    <div>
-                        <h1 className="text-lg font-bold text-white tracking-tight">Agentic Interview Tester</h1>
-                        <p className="text-[10px] text-slate-500 uppercase tracking-widest font-semibold flex items-center gap-1">
-                            <CircleDot className="w-2 h-2 text-emerald-500" /> System live
-                        </p>
-                    </div>
-                </div>
+  return (
+    <div className="flex h-screen bg-[#1e1e1e] text-white font-mono text-sm">
+      {/* Left Panel: Controls & Status */}
+      <div className="w-1/3 border-r border-gray-700 flex flex-col p-4 bg-[#252526]">
+        <h1 className="text-xl font-bold mb-4 text-blue-400">Techtree Agent Debugger</h1>
 
-                <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-full border border-white/10 ring-1 ring-white/5 transition-all hover:ring-indigo-500/50">
-                        <Settings className="w-3.5 h-3.5 text-slate-500" />
-                        <span className="text-xs text-slate-400 font-medium whitespace-nowrap">Thread:</span>
-                        <input
-                            value={threadId}
-                            onChange={(e) => setThreadId(e.target.value)}
-                            className="bg-transparent border-none outline-none text-xs text-indigo-300 w-32 font-mono"
-                        />
-                    </div>
-                    <button
-                        onClick={clearLogs}
-                        className="p-2 hover:bg-rose-500/10 hover:text-rose-400 rounded-lg transition-colors group"
-                        title="Clear all logs"
-                    >
-                        <Trash2 className="w-4 h-4" />
-                    </button>
-                </div>
-            </header>
-
-            <main className="flex-1 flex overflow-hidden p-4 gap-4">
-                {/* Left Section: Interaction & State */}
-                <section className="flex-[1.2] flex flex-col gap-4 min-w-0">
-                    {/* Current State Card */}
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-5 flex flex-col gap-4 relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none group-hover:opacity-10 transition-opacity">
-                            <Activity className="w-24 h-24" />
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-                                <Activity className="w-4 h-4 text-indigo-400" />
-                                Extraction State
-                            </h3>
-                            <span className="text-[10px] px-2 py-0.5 bg-indigo-500/20 text-indigo-300 rounded-full font-mono border border-indigo-500/30">
-                                {currentState.node}
-                            </span>
-                        </div>
-
-                        <div className="bg-black/40 rounded-xl p-4 border border-white/5 font-mono text-xs overflow-auto max-h-[300px] scrollbar-hide">
-                            <pre className="text-indigo-200/80">{JSON.stringify(currentState, null, 2)}</pre>
-                        </div>
-
-                        {/* Quiz Detail View */}
-                        {currentState.current_question && (
-                            <div className="mt-2 p-5 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 rounded-xl border border-indigo-500/20 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                                <div className="flex items-center gap-2 mb-3">
-                                    <div className="w-2 h-2 bg-indigo-400 rounded-full animate-pulse" />
-                                    <span className="text-xs font-bold text-indigo-300 uppercase tracking-wider">Quiz Detected</span>
-                                </div>
-                                <p className="text-sm text-white font-medium mb-4 leading-relaxed">
-                                    {currentState.current_question.question_text}
-                                </p>
-                                <div className="grid grid-cols-1 gap-2">
-                                    {currentState.current_question.options?.map((opt: string, i: number) => (
-                                        <button
-                                            key={i}
-                                            onClick={() => callAgent(opt)}
-                                            className="flex items-center gap-3 w-full p-3 text-left text-xs bg-white/5 hover:bg-indigo-500/20 rounded-lg border border-white/5 transition-all group/opt"
-                                        >
-                                            <span className="w-6 h-6 flex items-center justify-center bg-white/10 rounded-md group-hover/opt:bg-indigo-500/40 text-[10px] font-bold transition-colors">
-                                                {i + 1}
-                                            </span>
-                                            <span className="flex-1 truncate">{opt}</span>
-                                            <ChevronRight className="w-3 h-3 opacity-0 group-hover/opt:opacity-100 transition-all -translate-x-2 group-hover/opt:translate-x-0" />
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Chat Input Section */}
-                    <div className="flex-1 flex flex-col bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
-                        <div className="p-4 border-b border-white/5 bg-white/2 flex items-center justify-between">
-                            <span className="text-xs font-semibold text-slate-400 flex items-center gap-2">
-                                <MessageSquare className="w-3.5 h-3.5" />
-                                Interaction
-                            </span>
-                        </div>
-
-                        <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide">
-                            {messages.length === 0 && (
-                                <div className="h-full flex flex-col items-center justify-center text-slate-600 opacity-50">
-                                    <MessageSquare className="w-8 h-8 mb-2 stroke-1" />
-                                    <p className="text-xs font-medium italic">Waiting for interaction...</p>
-                                </div>
-                            )}
-                            {messages.map((msg, i) => (
-                                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`max-w-[85%] p-3 rounded-2xl text-xs leading-relaxed ${msg.role === 'user'
-                                        ? 'bg-indigo-600 text-white rounded-tr-none'
-                                        : 'bg-white/10 text-slate-200 rounded-tl-none border border-white/5 shadow-xl'
-                                        }`}>
-                                        {msg.content}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className="p-4 bg-white/2 mt-auto">
-                            <div className="relative group/input">
-                                <input
-                                    value={input}
-                                    onChange={(e) => setInput(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
-                                            e.preventDefault();
-                                            if (!loading && input.trim()) {
-                                                callAgent(input);
-                                            }
-                                        }
-                                    }}
-                                    placeholder="Type your message..."
-                                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3.5 pr-14 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all placeholder:text-slate-600"
-                                />
-                                <button
-                                    onClick={() => callAgent(input)}
-                                    disabled={loading || !input.trim()}
-                                    className="absolute right-2 top-2 p-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-400 disabled:opacity-30 disabled:hover:bg-indigo-500 transition-all active:scale-95 shadow-lg shadow-indigo-500/20"
-                                >
-                                    {loading ? (
-                                        <Activity className="w-4 h-4 animate-spin" />
-                                    ) : (
-                                        <Send className="w-4 h-4" />
-                                    )}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                {/* Right Section: Stream Console */}
-                <section className="flex-1 flex flex-col bg-black/50 border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
-                    <div className="p-4 border-b border-white/10 bg-black/40 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <div className="flex gap-1.5 mr-2">
-                                <div className="w-2.5 h-2.5 rounded-full bg-rose-500/50 border border-rose-500/40" />
-                                <div className="w-2.5 h-2.5 rounded-full bg-amber-500/50 border border-amber-500/40" />
-                                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/50 border border-emerald-500/40" />
-                            </div>
-                            <span className="text-xs font-bold text-slate-400 uppercase tracking-tighter flex items-center gap-2">
-                                <Terminal className="w-3.5 h-3.5" />
-                                Stream Console
-                            </span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <div className="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-400 font-mono">
-                                RAW_SOCKET
-                            </div>
-                        </div>
-                    </div>
-
-                    <div
-                        ref={scrollRef}
-                        className="flex-1 overflow-y-auto p-4 font-mono text-[11px] leading-relaxed scrollbar-thin scrollbar-thumb-white/10"
-                    >
-                        {fullLogs.length === 0 ? (
-                            <div className="h-full flex flex-col items-center justify-center text-slate-700 animate-pulse">
-                                <Search className="w-8 h-8 mb-2 stroke-1" />
-                                <p>Listening for backend events...</p>
-                            </div>
-                        ) : (
-                            <div className="space-y-4">
-                                {fullLogs.map((log, idx) => (
-                                    <div key={idx} className="group/log border-l border-white/5 pl-4 ml-1 transition-all hover:border-indigo-500/50">
-                                        <div className="flex items-center gap-3 mb-1.5 opacity-60 group-hover/log:opacity-100 transition-opacity">
-                                            <span className="text-slate-500">[{log.time}]</span>
-                                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${log.node === 'generate_quiz' ? 'bg-indigo-500/20 text-indigo-400' :
-                                                log.node.includes('score') ? 'bg-amber-500/20 text-amber-400' :
-                                                    'bg-slate-800 text-slate-400'
-                                                }`}>
-                                                NODE: {log.node}
-                                            </span>
-                                        </div>
-                                        <div className="bg-white/2 p-3 rounded-lg border border-white/5 backdrop-blur-sm group-hover/log:bg-white/5 transition-colors">
-                                            <pre className="whitespace-pre-wrap break-all text-slate-400 group-hover/log:text-slate-300">
-                                                {JSON.stringify(log.data, null, 1)}
-                                            </pre>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                </section>
-            </main>
+        <div className="bg-[#1e1e1e] p-4 rounded-lg mb-4 border border-gray-700">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-gray-400">Status</span>
+            <span className={`px-2 py-1 rounded text-xs ${isRecording ? 'bg-green-900 text-green-300' : 'bg-gray-700'}`}>
+              {isRecording ? 'CONNECTED' : 'DISCONNECTED'}
+            </span>
+          </div>
+          <p className="text-lg font-semibold">{statusText}</p>
         </div>
-    );
+
+        <div className="flex space-x-2 mb-6">
+          <button
+            onClick={startDebugSession}
+            disabled={isRecording}
+            className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 py-2 rounded font-bold"
+          >
+            Start WebRTC
+          </button>
+          <button
+            onClick={endSession}
+            disabled={!isRecording}
+            className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 py-2 rounded font-bold"
+          >
+            End Session
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto bg-[#1e1e1e] p-4 rounded-lg border border-gray-700">
+          <h2 className="text-gray-400 mb-2 border-b border-gray-700 pb-1">Transcript / Event Summary</h2>
+          <ul className="space-y-2 text-xs">
+            {transcriptRef.current.map((t, idx) => (
+              <li key={idx} className={t.role === 'ai' ? 'text-green-300' : 'text-blue-300'}>
+                <strong>[{t.role.toUpperCase()}]</strong> {t.text}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      {/* Right Panel: Event Logs */}
+      <div className="w-2/3 flex flex-col p-4 bg-[#1e1e1e]">
+        <h2 className="text-gray-400 mb-2">Realtime Data Channel Logs</h2>
+        <div className="flex-1 overflow-y-auto bg-[#000000] p-4 rounded-lg border border-gray-700 font-mono text-[13px] shadow-inner">
+          {logs.map((log) => {
+            let colorClass = 'text-gray-300';
+            if (log.source === 'SYS') colorClass = 'text-yellow-400';
+            if (log.source === 'OUT') colorClass = 'text-blue-400';
+            if (log.source === 'IN') colorClass = 'text-green-400';
+            if (log.source === 'TOOL') colorClass = 'text-purple-400';
+
+            return (
+              <div key={log.id} className="mb-3 border-b border-gray-800 pb-2">
+                <div className="flex space-x-3 mb-1 opacity-80">
+                  <span className="text-gray-500">[{log.timestamp}]</span>
+                  <span className={`font-bold ${colorClass}`}>[{log.source}]</span>
+                  <span className="font-semibold text-white">{log.event}</span>
+                </div>
+                {log.data && (
+                  <pre className="mt-1 pl-4 border-l-2 border-gray-700 text-gray-400 overflow-x-auto whitespace-pre-wrap break-words">
+                    {JSON.stringify(log.data, null, 2)}
+                  </pre>
+                )}
+              </div>
+            )
+          })}
+          <div ref={logsEndRef} />
+        </div>
+      </div>
+    </div>
+  );
 }
