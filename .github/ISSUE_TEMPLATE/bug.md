@@ -1,5 +1,5 @@
 ---
-name: Bug Report(Trouble Shooting)
+name: Bug
 about: issue template for Bug Fix report
 title: "[BUG]desctiption"
 labels: bug

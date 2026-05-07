@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "lucide-react": "^0.576.0",
+    "react-force-graph-2d": "^1.29.1"
+  }
+}

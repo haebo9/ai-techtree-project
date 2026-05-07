@@ -15,7 +15,7 @@ class Settings(BaseSettings):
 
     # 선택적 환경 변수 (기본값 제공)
     PROJECT_NAME: str = "AI TechTree"
-    API_V1_STR: str = "/api/v1"
+    VERSION: str = "1.1.0"
     
     @property
     def is_production(self) -> bool:

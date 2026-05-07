@@ -158,6 +158,7 @@ async def report_star_node(state: KeywordState, config=None):
     # 퀴즈 종료 시 관련 진행 상태 및 횟수 카운터 초기화
     return {
         "messages": [AIMessage(content=report_msg)],
+        "user_intent": "FINISH",
         "keyword": None,
         "keyword_data": None,
         "current_question": None,
@@ -165,5 +166,6 @@ async def report_star_node(state: KeywordState, config=None):
         "quiz_count": 0,
         "quiz_pass_count": 0,
         "level": 0,
-        "quiz_history": []
+        "quiz_history": [],
+        "hint_used": False
     }

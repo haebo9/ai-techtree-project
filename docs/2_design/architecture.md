@@ -1,153 +1,22 @@
-# 시스템 아키텍처 (System Architecture)
+# AI TechTree System Architecture
+> 이 문서는 버전별 배포 아키텍처를 정리한 글입니다.
 
-> **AI TechTree** 서비스의 기술 구조와 배포 환경을 정의한 문서입니다.
-> 초기에는 단일 서버(Monolithic)로 빠르게 개발하되, AI 기능은 모듈화하여 추후 서비스 확장(Microservice 전환)에 유연하게 대비합니다.
+## 🔴 v1.0.0 (2026-01-15)
+> Stateful LangChain Agent Architecture
+- Streamlit의 Session State를 활용한 메모리 기반 상태 유지 
+- LangChain의 tool Call(도구 정의 및 호출) 기능을 활용한 AI 에이전트 구조
+> Stateless MCP Server
+- 사용자 관심사 진단 및 AI 직무 트랙 추천을 위한 Stateless 아키텍처
+- 독립적인 MCP 서버를 통한 검색 및 추천 도구 통합 관리 (Kakao PlayMCP 연동)
 
+![alt text](../../backend/app/source/Techtree-Arch-v1.0.drawio.svg)
 
-1.  [High-Level Architecture](#high-level-architecture)
-2.  [Architecture Components](#architecture-components)
-3.  [Security & Standards](#security--standards)
-4.  [Glossary](#glossary)
+## 🔴 v1.1.0 (2026-03-02)
+> Stateful LangGraph Multi-Agent workflow Architecture
+- 기술 용어 기반의 AI 면접 및 레벨 도전 시스템을 위한 Stateful 아키텍처 
+- LangGraph 서버의 자동 checkpointer를 활용한 In-memory 상태 관리
+- 입력된 user_id를 기반으로 MongoDB Atlas에 영속성 상태 관리 (진행상황 저장)
+- 내부 서비스의 expose 설정을 통해 외부 노출을 차단한 격리된 네트워크 환경 구축 (보안 강화)
 
----
-
-## High-Level Architecture
-
-```mermaid
-graph TD
-    %% 스타일 정의 (Color Palette)
-    classDef frontend fill:#E3F2FD,stroke:#1565C0,stroke-width:2px,color:#0D47A1;
-    classDef backend fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px,color:#1B5E20;
-    classDef ai fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px,color:#4A148C;
-    classDef infra fill:#FFF3E0,stroke:#EF6C00,stroke-width:2px,color:#E65100;
-    classDef db fill:#FFFDE7,stroke:#FBC02D,stroke-width:2px,color:#F57F17;
-
-    %% 사용자 및 클라이언트 (Frontend)
-    User["👤 User"]:::frontend -->|HTTPS| CDN["⚡ Vercel Edge Network"]:::infra
-    CDN -->|Next.js App| Client["🖥 Frontend Application"]:::frontend
-
-    %% 백엔드 진입점 (Infra & Backend)
-    Client -->|REST API / WebSocket| LB["🛡 AWS Load Balancer / Nginx"]:::infra
-    LB -->|Reverse Proxy| API["🚀 Backend Server (FastAPI)"]:::backend
-
-    %% 백엔드 내부 로직
-    subgraph Backend_Infrastructure ["AWS EC2 / Docker Container"]
-        style Backend_Infrastructure fill:#FAFAFA,stroke:#9E9E9E,stroke-width:2px,stroke-dasharray: 5 5
-        
-        API -->|Request| Controller["Auth & User Controller"]:::backend
-        Controller -->|Task| AgentOrch["🤖 AI Agent Orchestrator (LangGraph)"]:::ai
-        
-        %% AI 에이전트 그룹
-        subgraph AI_Agents ["Multi-Agent System"]
-            style AI_Agents fill:#F3E5F5,stroke:#AB47BC,stroke-width:2px
-            
-            AgentOrch -->|Invoke| Interviewer["Interviewer Agent"]:::ai
-            AgentOrch -->|Invoke| Evaluator["Evaluator Agent"]:::ai
-            Interviewer <-->|LLM Call| LLM["🧠 OPENAI API"]:::ai
-            Evaluator <-->|LLM Call| LLM
-        end
-    end
-
-    %% 데이터 저장소 (DB)
-    API -->|Read/Write| DB[("🍃 MongoDB Atlas")]:::db
-    
-    %% 외부 서비스 (Infra)
-    Client -->|Auth| OAuth["🔐 OAuth Provider (Google/GitHub)"]:::infra
-```
-
-```mermaid
-graph TB
-    subgraph Client ["Client (External)"]
-        User["User Browser"]
-    end
-
-    subgraph AWS ["AWS Cloud (VPC)"]
-        subgraph PublicSubnet ["Public Subnet"]
-            subgraph EC2 ["EC2 Instance (Docker Compose)"]
-                NG["Nginx Container (Port 80/443)"]
-                FE["Frontend Container (Streamlit/Next.js)"]
-                BE["Backend Container (FastAPI)"]
-                LG["LangGraph Container (Agent Logic)"]
-                CB["Certbot (SSL)"]
-            end
-        end
-
-        R53["Route 53 (DNS)"]
-    end
-
-    subgraph External ["Managed Services"]
-        DB[(MongoDB Atlas)]
-        AI[OpenAI / LLM API]
-        LS[LangSmith]
-    end
-
-    %% Connections
-    User --> R53
-    R53 -->|techtree.haebo.pro| NG
-    NG -->|Internal Proxy| FE
-    NG -->|Internal Proxy| BE
-    NG -->|Internal Proxy| LG
-    
-    FE -->|API Call| BE
-    BE --> DB
-    BE --> AI
-    LG --> AI
-    LG -->|Trace & Monitor| LS
-    CB <--> NG
-```
-
-
-| 색상 (Color) | Layer | 구성 요소 (Components) |
-| :---: | :--- | :--- |
-| 🔵 | **Frontend** | User, Client Application |
-| 🟢 | **Backend** | FastAPI Server, Controller |
-| 🟣 | **AI Services** | LangGraph Orchestrator, AI Agents, LLM |
-| 🟠 | **Infrastructure** | CDN, Load Balancer, OAuth |
-| 🟡 | **Database** | MongoDB Atlas |
-
----
-## Architecture Components
-
-이 아키텍처는 사용자 경험을 최적화하고 AI 에이전트 간의 효율적인 협업을 지원하기 위해 설계되었습니다. 주요 구성 요소와 흐름은 다음과 같습니다.
-
-1.  **`클라이언트 (Frontend Layer)`**
-    *   **Vercel & Next.js**: Vercel Edge Network 배포, SSR 기반 빠른 로딩 속도 확보.
-    *   **Interactive**: REST API/WebSocket 실시간 통신, OAuth(Google, GitHub) 인증 지원.
-
-2.  **`백엔드 및 인프라 (Backend Layer)`**
-    *   **FastAPI & Docker**: AWS EC2 내 Docker 컨테이너 실행, Python 비동기 고성능 처리.
-    *   **Gateway**: AWS Load Balancer/Nginx 리버스 프록시, 트래픽 분산 및 보안 강화.
-
-3.  **`AI 에이전트 오케스트레이션 (AI Core)`**
-    *   **LangGraph Orchestrator**: AI 작업 흐름 제어, 상태 관리 및 에이전트 간 통신 조율.
-    *   **Multi-Agent System**:
-        *   **Interviewer Agent**: 사용자 질의-응답 인터랙션 및 상황 주도.
-        *   **Evaluator Agent**: 답변 분석, 기술 수준 평가 및 피드백 생성.
-    *   **LLM Integration**: OpenAI API 호출을 통한 지능적 데이터 처리.
-
-4.  **`데이터 계층 (Data Layer)`**
-    *   **MongoDB Atlas**: 유연한 NoSQL 스키마, 사용자 프로필/스킬 트리/로그 관리 (Cloud).
-
----
-## Security & Standards
-
-*   **인증/인가**: JWT (Access/Refresh Token) 기반 Stateless 인증.
-*   **보안**: 민감 정보(API Key, DB URI)는 서버 환경 변수(.env)로 관리.
-*   **기술 스택**:
-    *   **FE**: Next.js 14+ (App Router), TypeScript 5.x
-    *   **BE**: Python 3.11+, FastAPI, Pydantic v2
-
----
-## Glossary
-
-| 용어 (Term) | 설명 (Description) |
-| :--- | :--- |
-| **Monolithic & AI Modules** | 단일 서버로 빠른 개발 지향, AI 기능만 모듈화하여 추후 분리 용이성 확보. |
-| **Microservice** | 작은 독립적인 서비스들로 구성되어 각 서비스가 특정 기능을 수행하는 아키텍처. |
-| **Vercel Edge Network** | 전 세계 분산 서버망 활용, 사용자 위치 기반 최적 속도 제공. |
-| **SSR (Server-Side Rendering)** | 서버에서 화면을 미리 그려 전송, 초기 로딩 속도 및 SEO 최적화. |
-| **Reverse Proxy** | 클라이언트의 요청을 대신 받아 내부 서버로 전달하는 보안 및 부하 분산 서버. |
-| **LangGraph** | 다중 AI 에이전트 간 대화 흐름 및 작업 순서를 제어하는 오케스트레이터. |
-| **JWT (JSON Web Token)** | 유저 인증 정보를 담은 암호화된 토큰으로, 서버가 세션을 저장하지 않고도(Stateless) 인증 가능. |
-| **MongoDB Atlas** | 유연한 JSON 문서 저장 방식의 클라우드 데이터베이스 (Schema-less). |
+![alt text](../../backend/app/source/Techtree-Arch-v1.1.drawio.svg)
 

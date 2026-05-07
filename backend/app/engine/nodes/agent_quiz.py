@@ -15,7 +15,7 @@ from app.engine.prompts.quiz_prompts import (
     CHECK_RESULT_HUMAN_PROMPT
 )
 from app.engine.graphs.state import KeywordState
-from app.engine.agents.schemas_quiz import (
+from app.engine.nodes.schemas_quiz import (
     KeywordAndQuiz,
     ExplanationGeneration,
     QuizGeneration,
@@ -155,8 +155,11 @@ async def generate_quiz_node(state: KeywordState):
     if not question or not question.get("question_text"):
         # 키워드 자체가 없어서 실패한 경우 에러 메시지를 띄우지 않고 조용히 종료 (search_keyword_node에서 이미 안내함)
         if not keyword:
-            return {}
-        return {"messages": [AIMessage(content="Could not generate a quiz at this moment.")]}
+            return {"user_intent": "FINISH"}
+        return {
+            "messages": [AIMessage(content="Could not generate a quiz at this moment.")],
+            "user_intent": "FINISH"
+        }
     
     # 2. 퀴즈 출력 메시지 구성
     options_text = ""
@@ -171,7 +174,9 @@ async def generate_quiz_node(state: KeywordState):
     return {
         "current_question": question, # Ensure state is updated/restored
         "messages": [AIMessage(content=f"### 🎯 주제: **{keyword}** (Level: {level})\n\n**Q. {question['question_text']}**{options_text}")],
-        "quiz_in_progress": True # 퀴즈 모드 활성화
+        "quiz_in_progress": True, # 퀴즈 모드 활성화
+        "user_intent": "FINISH",
+        "hint_used": False # 새 퀴즈 생성 시 힌트 사용 여부 초기화
     }
 
 async def answer_quiz_node(state: KeywordState):
@@ -213,7 +218,7 @@ async def answer_quiz_node(state: KeywordState):
         if result.grade == "perfect":
             grade_text = "✅ 정답"
         elif result.grade == "pass":
-            grade_text = "✅ 정답 (부분 인정)"
+            grade_text = "⚠️ 부분 정답"
         else:
             grade_text = "❌ 오답"
             
