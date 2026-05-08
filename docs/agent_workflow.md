@@ -20,7 +20,7 @@
     - **get_techtree_subject**: 특정 과목(주제)에서 학습해야 할 상세 개념과 수준별 지식 제공.
     - **get_techtree_trend**: 최신 기술 뉴스, 블로그, 논문을 검색하여 실시간 AI 트렌드 정보 제공.
 
-![alt text](../../backend/app/source/v1.0_agent_logic.png)
+![alt text](images/v1.0_agent_logic.png)
 
 ---
 
@@ -42,4 +42,4 @@
 *   **chit_chat_node**: 학습 흐름과 관계없는 일반 대화나 인사말에 유연하게 대응.
 *   **state.py**: 전체 워크플로우를 관통하는 통합 상태 객체(`KeywordState`) 관리.
 
-![alt text](../../backend/app/source/v1.1_agent_logic.png)
+![alt text](images/v1.1_agent_logic.png)

@@ -7,9 +7,16 @@
 > * ⚪️ **Infra** : 배포(AWS, Vercel), 환경 설정, CI/CD
 > * 🔴 **Project** : 프로젝트 초기화, 릴리즈, 마일스톤 
 
-> **+ Category** : **Feat**(기능), **Fix**(수정), **Refactor**(개선), **Add**(추가), **Update**(갱신), **Remove**(삭제), **Init**(초기화)
+> **+ Category** : **Feat**(새로운 기능), **Fix**(수정), **Refactor**(개선), **Add**(추가), **Update**(갱신), **Remove**(삭제), **Init**(초기화)
 
 ---
+## 2026년 5월 
+| Date | Tag | Category | Details |
+|:---:|:---:|:---:|:---|
+| **26.05.07** | 🔴 | **Init** | 기존 개발 과정 초기화 및 재설계 (for `v2.0`) |
+| | 🟢🟠🟣 | **Feat** | MVP 기능 구현 (음성 면접 로직 및 화면 구현) |
+
+
 ## 2026년 3월
 | Date | Tag | Category | Details |
 |:---:|:---:|:---:|:---|

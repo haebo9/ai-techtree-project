@@ -3,6 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     # 필수 환경 변수 (값 없으면 에러 발생)
     OPENAI_API_KEY: str
+    TAVILY_API_KEY: str | None = None
     MONGODB_URL: str | None = None
     DB_NAME: str = "ai_techtree"  
     
@@ -15,7 +16,7 @@ class Settings(BaseSettings):
 
     # 선택적 환경 변수 (기본값 제공)
     PROJECT_NAME: str = "AI TechTree"
-    VERSION: str = "1.1.0"
+    VERSION: str = "2.0.0"
     
     @property
     def is_production(self) -> bool:
