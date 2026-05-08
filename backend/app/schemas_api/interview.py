@@ -41,4 +41,5 @@ class EndInterviewResponse(BaseModel):
     score: int
     strengths: List[str]
     weaknesses: List[str]
+    qa_review: List[Dict[str, str]]
     job_recommendations: List[Dict[str, str]]

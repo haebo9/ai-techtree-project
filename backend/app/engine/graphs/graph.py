@@ -61,8 +61,13 @@ workflow.add_conditional_edges(
 workflow.add_edge("tools", "interviewer")
 workflow.add_edge("evaluate", END)
 
-# 3. 그래프 컴파일 (Memory Checkpointer 추가)
-from langgraph.checkpoint.memory import MemorySaver
-memory = MemorySaver()
-interview_workflow = workflow.compile(checkpointer=memory)
+# 3. 그래프 컴파일
+# LangGraph Studio/Cloud 모니터링용 (Checkpointer 없음)
+studio_workflow = workflow.compile()
+
+# 로컬 FastAPI 백엔드용 (MemorySaver 포함)
+def get_interview_workflow():
+    from langgraph.checkpoint.memory import MemorySaver
+    memory = MemorySaver()
+    return workflow.compile(checkpointer=memory)
 

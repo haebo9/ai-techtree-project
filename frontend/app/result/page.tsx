@@ -1,6 +1,50 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
+
+interface QnAReview {
+  question: string;
+  answer: string;
+  feedback: string;
+}
+
+interface JobRecommendation {
+  company: string;
+  title: string;
+  url?: string;
+}
+
+interface EvaluationResult {
+  score: number;
+  strengths: string[];
+  weaknesses: string[];
+  qa_review: QnAReview[];
+  job_recommendations: JobRecommendation[];
+}
 
 export default function ResultPage() {
+  const [result, setResult] = useState<EvaluationResult | null>(null);
+
+  useEffect(() => {
+    const savedResult = localStorage.getItem("interviewResult");
+    if (savedResult) {
+      try {
+        setResult(JSON.parse(savedResult));
+      } catch (e) {
+        console.error("Failed to parse result", e);
+      }
+    }
+  }, []);
+
+  if (!result) {
+    return (
+      <main className="min-h-screen bg-neutral-50 p-6 sm:p-12 flex items-center justify-center">
+        <div className="text-xl font-bold text-neutral-500 animate-pulse">리포트를 불러오는 중입니다...</div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-neutral-50 p-6 sm:p-12">
       <div className="max-w-4xl mx-auto space-y-8">
@@ -16,7 +60,7 @@ export default function ResultPage() {
           </div>
           <div className="text-right">
             <p className="text-sm text-neutral-500 mb-1">종합 점수</p>
-            <div className="text-5xl font-extrabold text-blue-600">85<span className="text-2xl text-neutral-400 font-medium">/100</span></div>
+            <div className="text-5xl font-extrabold text-blue-600">{result.score}<span className="text-2xl text-neutral-400 font-medium">/100</span></div>
           </div>
         </div>
 
@@ -34,18 +78,20 @@ export default function ResultPage() {
               <div className="space-y-6">
                 <div>
                   <h3 className="text-lg font-semibold text-green-700 mb-2">✅ 강점 (Strengths)</h3>
-                  <p className="text-neutral-600 leading-relaxed">
-                    프론트엔드 상태 관리 도구(Redux, Zustand 등)의 차이점을 명확히 인지하고 있으며, 
-                    프로젝트 규모에 맞는 적절한 기술 선택 능력이 돋보입니다. 특히 답변을 구조화하여 설명하는 논리력이 우수합니다.
-                  </p>
+                  <ul className="list-disc list-inside text-neutral-600 leading-relaxed space-y-1">
+                    {result.strengths?.map((s, idx) => (
+                      <li key={idx}>{s}</li>
+                    ))}
+                  </ul>
                 </div>
                 <div className="h-px w-full bg-neutral-100"></div>
                 <div>
                   <h3 className="text-lg font-semibold text-orange-600 mb-2">🚀 개선점 (Areas for Improvement)</h3>
-                  <p className="text-neutral-600 leading-relaxed">
-                    SSR(Server-Side Rendering)과 관련하여 Next.js의 동작 원리에 대한 깊이 있는 이해가 다소 부족해 보입니다. 
-                    하이드레이션(Hydration) 과정과 최적화 기법에 대해 보완한다면 더 좋은 평가를 받을 수 있습니다.
-                  </p>
+                  <ul className="list-disc list-inside text-neutral-600 leading-relaxed space-y-1">
+                    {result.weaknesses?.map((w, idx) => (
+                      <li key={idx}>{w}</li>
+                    ))}
+                  </ul>
                 </div>
               </div>
             </div>
@@ -54,14 +100,19 @@ export default function ResultPage() {
             <div className="bg-white rounded-3xl p-8 shadow-sm border border-neutral-100">
               <h2 className="text-xl font-bold text-neutral-900 mb-6">📝 상세 답변 분석</h2>
               <div className="space-y-6">
-                <div className="p-5 rounded-2xl bg-neutral-50 border border-neutral-100">
-                  <p className="font-medium text-neutral-900 mb-2">Q. 프론트엔드 개발에서 상태 관리를 위해 주로 어떤 라이브러리를 사용하셨나요?</p>
-                  <p className="text-neutral-600 text-sm mb-4">A. 주로 Zustand를 사용했습니다. 보일러플레이트가 적어... (답변 내용)</p>
-                  <div className="flex items-start bg-blue-50 p-4 rounded-xl text-sm">
-                    <span className="text-blue-600 font-bold mr-2">AI 코멘트:</span>
-                    <span className="text-blue-900">현업 트렌드에 맞는 답변이었습니다. 다만, 복잡한 상태에서의 한계점을 같이 언급했다면 완벽했을 것입니다.</span>
+                {result.qa_review?.map((qa, idx) => (
+                  <div key={idx} className="p-5 rounded-2xl bg-neutral-50 border border-neutral-100">
+                    <p className="font-medium text-neutral-900 mb-2">Q. {qa.question}</p>
+                    <p className="text-neutral-600 text-sm mb-4">A. {qa.answer}</p>
+                    <div className="flex items-start bg-blue-50 p-4 rounded-xl text-sm">
+                      <span className="text-blue-600 font-bold mr-2 whitespace-nowrap">AI 코멘트:</span>
+                      <span className="text-blue-900">{qa.feedback}</span>
+                    </div>
                   </div>
-                </div>
+                ))}
+                {(!result.qa_review || result.qa_review.length === 0) && (
+                  <p className="text-neutral-500 text-sm">추출된 주요 질의응답이 없습니다.</p>
+                )}
               </div>
             </div>
           </div>
@@ -72,16 +123,27 @@ export default function ResultPage() {
             <div className="bg-white rounded-3xl p-8 shadow-sm border border-neutral-100">
               <h2 className="text-lg font-bold text-neutral-900 mb-5">🎯 맞춤 채용 공고</h2>
               <div className="space-y-4">
-                <div className="block p-4 rounded-xl border border-neutral-200 hover:border-blue-500 transition-colors cursor-pointer group">
-                  <p className="text-xs text-blue-600 font-semibold mb-1">토스 (Toss)</p>
-                  <h3 className="font-bold text-neutral-900 group-hover:text-blue-600 transition-colors">Frontend Developer (React)</h3>
-                  <p className="text-xs text-neutral-500 mt-2">경력 3년 이상 · 판교</p>
-                </div>
-                <div className="block p-4 rounded-xl border border-neutral-200 hover:border-blue-500 transition-colors cursor-pointer group">
-                  <p className="text-xs text-blue-600 font-semibold mb-1">카카오 (Kakao)</p>
-                  <h3 className="font-bold text-neutral-900 group-hover:text-blue-600 transition-colors">웹 프론트엔드 개발자</h3>
-                  <p className="text-xs text-neutral-500 mt-2">신입/경력 · 제주/성남</p>
-                </div>
+                {result.job_recommendations?.map((job, idx) => {
+                  const content = (
+                    <>
+                      <p className="text-xs text-blue-600 font-semibold mb-1">{job.company}</p>
+                      <h3 className="font-bold text-neutral-900 group-hover:text-blue-600 transition-colors">{job.title}</h3>
+                    </>
+                  );
+                  
+                  return job.url ? (
+                    <a key={idx} href={job.url} target="_blank" rel="noopener noreferrer" className="block p-4 rounded-xl border border-neutral-200 hover:border-blue-500 transition-colors cursor-pointer group">
+                      {content}
+                    </a>
+                  ) : (
+                    <div key={idx} className="block p-4 rounded-xl border border-neutral-200 transition-colors cursor-default">
+                      {content}
+                    </div>
+                  );
+                })}
+                {(!result.job_recommendations || result.job_recommendations.length === 0) && (
+                  <p className="text-neutral-500 text-sm">추천된 공고가 없습니다.</p>
+                )}
               </div>
             </div>
 

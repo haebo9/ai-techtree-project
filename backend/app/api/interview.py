@@ -17,8 +17,10 @@ import requests
 from app.core.config import settings
 from app.engine.prompts.api_interviewer import INTERVIEWER_SYSTEM_PROMPT
 
-from app.engine.graphs.graph import interview_workflow
+from app.engine.graphs.graph import get_interview_workflow
 from langchain_core.messages import HumanMessage
+
+interview_workflow = get_interview_workflow()
 
 temp_sessions: Dict[str, Any] = {}
 
@@ -166,5 +168,6 @@ async def end_interview(
         score=evaluation.get("score", 0),
         strengths=evaluation.get("strengths", []),
         weaknesses=evaluation.get("weaknesses", []),
+        qa_review=evaluation.get("qa_review", []),
         job_recommendations=evaluation.get("job_recommendations", [])
     )

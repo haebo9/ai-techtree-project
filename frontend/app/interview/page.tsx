@@ -259,11 +259,14 @@ export default function InterviewPage() {
     try {
       setStatusText("대화 내용을 평가하고 있습니다...");
       // 텍스트 변환된 transcriptRef.current 를 백엔드의 평가 노드로 전송합니다.
-      await fetch(`http://localhost:8000/api/interview/${sessionId}/end`, {
+      const response = await fetch(`http://localhost:8000/api/interview/${sessionId}/end`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ transcripts: transcriptRef.current })
       });
+      const resultData = await response.json();
+      localStorage.setItem("interviewResult", JSON.stringify(resultData));
+      
       router.push("/result");
     } catch (err) {
       console.error("종료 에러:", err);

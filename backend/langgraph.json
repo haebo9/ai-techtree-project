@@ -4,7 +4,7 @@
     "."
   ],
   "graphs": {
-    "agent": "./app/engine/graphs/graph.py:agent_workflow"
+    "interview": "./app/engine/graphs/graph.py:studio_workflow"
   },
   "image_distro": "wolfi"
 }
