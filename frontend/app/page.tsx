@@ -10,7 +10,7 @@ export default function Home() {
   const [education, setEducation] = useState("학사(4년제)");
 
   // 이력서 관련 상태
-  const [resumeMode, setResumeMode] = useState<"text" | "file">("text");
+  const [resumeMode, setResumeMode] = useState<"none" | "text" | "file">("none");
   const [resumeText, setResumeText] = useState("");
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [isParsingResume, setIsParsingResume] = useState(false);
@@ -116,7 +116,7 @@ export default function Home() {
       job_title: jobTitle || "직무 미상",
       experience: experience,
       education: education,
-      resume: resumeText || "특별한 이력 없음",
+      resume: resumeMode === "none" ? "이력서 없음" : (resumeText || "특별한 이력 없음"),
       job_description: jdMode === "text" ? jdText : "",
       job_image: jdMode === "image" ? jdImageBase64 : null
     }));
@@ -125,10 +125,85 @@ export default function Home() {
     router.push("/interview");
   };
 
+  const loadDummyData = async () => {
+    try {
+      setJobTitle("AI Engineer");
+      setExperience("신입");
+      setEducation("학사(4년제)");
+
+      // Load dummy resume PDF
+      setResumeMode("file");
+      setIsParsingResume(true);
+      const resumeRes = await fetch("/dummy/dummy_resume.pdf");
+      const resumeBlob = await resumeRes.blob();
+      const resumeFile = new File([resumeBlob], "dummy_resume.pdf", { type: "application/pdf" });
+      setResumeFile(resumeFile);
+
+      const formData = new FormData();
+      formData.append("file", resumeFile);
+      const parseRes = await fetch("http://localhost:8000/api/upload/parse-pdf", {
+        method: "POST",
+        body: formData,
+      });
+      if (parseRes.ok) {
+        const data = await parseRes.json();
+        setResumeText(data.text);
+      }
+      setIsParsingResume(false);
+
+      // Load dummy job posting PNG
+      setJdMode("image");
+      const jdRes = await fetch("/dummy/dummy_position.png");
+      const jdBlob = await jdRes.blob();
+      const jdFile = new File([jdBlob], "dummy_position.png", { type: "image/png" });
+      setJdFileName(jdFile.name);
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          const MAX_WIDTH = 800;
+          let width = img.width;
+          let height = img.height;
+          if (width > MAX_WIDTH) {
+            height = Math.round((height * MAX_WIDTH) / width);
+            width = MAX_WIDTH;
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressedBase64 = canvas.toDataURL("image/jpeg", 0.6);
+            setJdImageBase64(compressedBase64);
+          }
+        };
+        if (event.target?.result) {
+          img.src = event.target.result as string;
+        }
+      };
+      reader.readAsDataURL(jdFile);
+
+      alert("더미 데이터가 성공적으로 로드되었습니다.");
+    } catch (error) {
+      console.error("더미 데이터 로드 중 오류:", error);
+      alert("더미 데이터 로드 실패");
+      setIsParsingResume(false);
+    }
+  };
+
   return (
     <main className="min-h-screen bg-neutral-50 py-12 px-6">
-      <div className="max-w-2xl mx-auto w-full bg-white rounded-3xl shadow-sm border border-neutral-100 p-8 sm:p-10">
-        <div className="text-center mb-10">
+      <div className="max-w-2xl mx-auto w-full bg-white rounded-3xl shadow-sm border border-neutral-100 p-8 sm:p-10 relative">
+        <button
+          onClick={loadDummyData}
+          className="absolute top-8 right-8 px-4 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-sm font-medium rounded-lg transition-colors"
+          type="button"
+        >
+          ⚙️ 테스트 데이터 사용
+        </button>
+        <div className="text-center mb-10 mt-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-50 mb-6">
             <svg className="w-8 h-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
@@ -183,12 +258,17 @@ export default function Home() {
             <div className="flex justify-between items-center border-b pb-2">
               <h2 className="text-lg font-bold text-neutral-800">2. 이력서 (Resume)</h2>
               <div className="flex bg-neutral-100 p-1 rounded-lg">
+                <button type="button" onClick={() => setResumeMode("none")} className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${resumeMode === "none" ? "bg-white shadow-sm text-neutral-900" : "text-neutral-500 hover:text-neutral-700"}`}>사용 안 함</button>
                 <button type="button" onClick={() => setResumeMode("text")} className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${resumeMode === "text" ? "bg-white shadow-sm text-neutral-900" : "text-neutral-500 hover:text-neutral-700"}`}>직접 입력</button>
                 <button type="button" onClick={() => setResumeMode("file")} className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${resumeMode === "file" ? "bg-white shadow-sm text-neutral-900" : "text-neutral-500 hover:text-neutral-700"}`}>파일 업로드</button>
               </div>
             </div>
 
-            {resumeMode === "text" ? (
+            {resumeMode === "none" ? (
+              <div className="text-sm text-neutral-500 p-4 bg-neutral-50 rounded-xl text-center">
+                이력서 없이 직무 기반의 일반적인 면접을 진행합니다.
+              </div>
+            ) : resumeMode === "text" ? (
               <textarea
                 value={resumeText}
                 onChange={(e) => setResumeText(e.target.value)}
@@ -203,7 +283,7 @@ export default function Home() {
                 <label htmlFor="resumeFile" className="cursor-pointer text-blue-600 font-medium hover:underline">PDF 또는 TXT 파일 선택</label>
                 <p className="text-xs text-neutral-400 mt-2">파일을 업로드하면 자동으로 텍스트가 추출됩니다.</p>
                 {resumeFile && <p className="text-sm font-medium text-neutral-700 mt-4">✅ {resumeFile.name}</p>}
-                {isParsingResume && <p className="text-sm text-blue-500 mt-2 animate-pulse">파일을 분석 중입니다...</p>}
+                {isParsingResume && <p className="text-sm text-blue-600 mt-2 font-medium">텍스트 추출 중... ⏳</p>}
                 {!isParsingResume && resumeText && resumeMode === "file" && <p className="text-xs text-green-600 mt-2">성공적으로 텍스트를 추출했습니다.</p>}
               </div>
             )}

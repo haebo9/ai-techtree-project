@@ -4,14 +4,12 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 
 interface LogEntry {
-  id: number;
+  id: string;
   timestamp: string;
   source: 'IN' | 'OUT' | 'SYS' | 'TOOL';
   event: string;
   data?: any;
 }
-
-let logIdCounter = 0;
 
 export default function DebugPage() {
   const router = useRouter();
@@ -32,7 +30,7 @@ export default function DebugPage() {
 
   const addLog = (source: 'IN' | 'OUT' | 'SYS' | 'TOOL', event: string, data?: any) => {
     setLogs(prev => [...prev, {
-      id: logIdCounter++,
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       timestamp: new Date().toISOString().split('T')[1].slice(0, -2), // HH:mm:ss.SS
       source,
       event,
@@ -75,7 +73,9 @@ export default function DebugPage() {
           job_title: profileData.job_title || "직무 미상",
           education: profileData.education || "학사(4년제)",
           experience: profileData.experience || "신입",
-          resume: profileData.resume || "정보 없음"
+          resume: profileData.resume || "정보 없음",
+          job_image: profileData.job_image || null,
+          job_description: profileData.job_description || ""
         })
       });
 
@@ -108,6 +108,24 @@ export default function DebugPage() {
 
       dc.addEventListener("open", () => {
         addLog('SYS', 'Data Channel Opened');
+
+        if (profileData.job_image) {
+          const base64Data = profileData.job_image;
+          const imageEvent = {
+            type: "conversation.item.create",
+            item: {
+              type: "message",
+              role: "user",
+              content: [
+                { type: "input_image", image_url: base64Data },
+                { type: "input_text", text: "이 이미지는 제가 지원하고자 하는 채용 공고입니다. 이 내용을 바탕으로 맞춤형 면접 질문을 해주세요." }
+              ]
+            }
+          };
+          dc.send(JSON.stringify(imageEvent));
+          addLog('OUT', 'conversation.item.create (image)', imageEvent);
+        }
+
         dc.send(JSON.stringify({ type: "response.create" }));
       });
 
@@ -282,11 +300,84 @@ export default function DebugPage() {
     }
   }, [isRecording]);
 
+  const loadDummyData = async () => {
+    try {
+      setStatusText("더미 데이터 로드 중...");
+      const resumeRes = await fetch("/dummy/dummy_resume.pdf");
+      const resumeBlob = await resumeRes.blob();
+      const resumeFile = new File([resumeBlob], "dummy_resume.pdf", { type: "application/pdf" });
+
+      const formData = new FormData();
+      formData.append("file", resumeFile);
+      const parseRes = await fetch("http://localhost:8000/api/upload/parse-pdf", {
+        method: "POST",
+        body: formData,
+      });
+      let resumeText = "";
+      if (parseRes.ok) {
+        const data = await parseRes.json();
+        resumeText = data.text;
+      }
+
+      const jdRes = await fetch("/dummy/dummy_position.png");
+      const jdBlob = await jdRes.blob();
+      const jdFile = new File([jdBlob], "dummy_position.png", { type: "image/png" });
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          const MAX_WIDTH = 800;
+          let width = img.width;
+          let height = img.height;
+          if (width > MAX_WIDTH) {
+            height = Math.round((height * MAX_WIDTH) / width);
+            width = MAX_WIDTH;
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressedBase64 = canvas.toDataURL("image/jpeg", 0.6);
+
+            localStorage.setItem("interviewProfile", JSON.stringify({
+              job_title: "AI Engineer",
+              experience: "신입",
+              education: "학사(4년제)",
+              resume: resumeText || "특별한 이력 없음",
+              job_description: "",
+              job_image: compressedBase64
+            }));
+            setStatusText("더미 데이터 설정 완료!");
+            addLog('SYS', 'Dummy data loaded into localStorage');
+          }
+        };
+        if (event.target?.result) {
+          img.src = event.target.result as string;
+        }
+      };
+      reader.readAsDataURL(jdFile);
+    } catch (error) {
+      console.error("더미 데이터 로드 중 오류:", error);
+      setStatusText("더미 데이터 로드 실패");
+    }
+  };
+
   return (
     <div className="flex h-screen bg-[#1e1e1e] text-white font-mono text-sm">
       {/* Left Panel: Controls & Status */}
       <div className="w-1/3 border-r border-gray-700 flex flex-col p-4 bg-[#252526]">
-        <h1 className="text-xl font-bold mb-4 text-blue-400">Techtree Agent Debugger</h1>
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-xl font-bold text-blue-400">Techtree Agent Debugger</h1>
+          <button
+            onClick={loadDummyData}
+            className="px-3 py-1 bg-gray-600 hover:bg-gray-500 text-xs rounded transition-colors"
+          >
+            ⚙️ 테스트 데이터 사용
+          </button>
+        </div>
 
         <div className="bg-[#1e1e1e] p-4 rounded-lg mb-4 border border-gray-700">
           <div className="flex justify-between items-center mb-2">
