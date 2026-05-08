@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 export default function Home() {
   const router = useRouter();
   const [jobTitle, setJobTitle] = useState("");
-  const [experience, setExperience] = useState("신입");
-  const [education, setEducation] = useState("학사(4년제)");
+  const [experience, setExperience] = useState("");
+  const [education, setEducation] = useState("");
 
   // 이력서 관련 상태
   const [resumeMode, setResumeMode] = useState<"none" | "text" | "file">("none");
@@ -23,6 +23,8 @@ export default function Home() {
   const [jdFileName, setJdFileName] = useState("");
   const [isDraggingResume, setIsDraggingResume] = useState(false);
   const [isDraggingJd, setIsDraggingJd] = useState(false);
+  const [isAnalyzingJd, setIsAnalyzingJd] = useState(false);
+  const [isAutoFilled, setIsAutoFilled] = useState(false);
 
   const processResumeFile = async (file: File) => {
     // 파일이 PDF나 TXT인지 확인하고 서버로 파싱 요청
@@ -121,6 +123,29 @@ export default function Home() {
     reader.readAsDataURL(targetFile);
   };
 
+  const analyzeJdContent = async (text?: string, image?: string) => {
+    if (!text && !image) return;
+    setIsAnalyzingJd(true);
+    try {
+      const res = await fetch("http://localhost:8000/api/upload/analyze-jd", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, image }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.job_title) {
+          setJobTitle(data.job_title);
+          setIsAutoFilled(true);
+        }
+      }
+    } catch (error) {
+      console.error("JD 분석 에러:", error);
+    } finally {
+      setIsAnalyzingJd(false);
+    }
+  };
+
   const handleResumeFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       processResumeFile(e.target.files[0]);
@@ -132,6 +157,23 @@ export default function Home() {
       processJdImage(e.target.files[0]);
     }
   };
+
+  // jdImageBase64가 변경될 때 자동 분석
+  useEffect(() => {
+    if (jdImageBase64) {
+      analyzeJdContent(undefined, jdImageBase64);
+    }
+  }, [jdImageBase64]);
+
+  // jdText가 일정 길이 이상일 때 자동 분석 (디바운스 고려)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (jdText && jdText.length > 20) {
+        analyzeJdContent(jdText);
+      }
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [jdText]);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -153,6 +195,11 @@ export default function Home() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!jobTitle || !experience || !education) {
+      alert("지원 직무, 경력, 최종 학력을 모두 입력 및 선택해 주세요.");
+      return;
+    }
 
     if (isParsingResume) {
       alert("이력서 파일을 분석 중입니다. 잠시만 기다려주세요.");
@@ -280,56 +327,15 @@ export default function Home() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-12">
-          {/* Section 1: Basic Info - Unified Top Bar */}
-          <div className="bg-neutral-50/50 p-6 sm:p-8 rounded-[2rem] border border-neutral-100 shadow-inner">
-            <h2 className="text-sm font-bold text-blue-600 uppercase tracking-widest mb-6 flex items-center gap-2">
-              <span className="w-2 h-2 bg-blue-600 rounded-full animate-pulse" />
-              STEP 1. 기본 프로필
-            </h2>
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-              <div className="lg:col-span-2">
-                <label htmlFor="jobTitle" className="block text-xs font-bold text-neutral-600 mb-2 ml-1">지원 직무</label>
-                <input
-                  type="text"
-                  id="jobTitle"
-                  value={jobTitle}
-                  onChange={(e) => setJobTitle(e.target.value)}
-                  placeholder="예: 프론트엔드 개발자"
-                  className="w-full px-5 py-3.5 rounded-2xl border border-neutral-200 focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none text-base font-semibold transition-all bg-white"
-                  required
-                />
-              </div>
-              <div>
-                <label htmlFor="experience" className="block text-xs font-bold text-neutral-600 mb-2 ml-1">경력</label>
-                <select id="experience" value={experience} onChange={(e) => setExperience(e.target.value)} className="w-full px-5 py-3.5 rounded-2xl border border-neutral-200 bg-white outline-none cursor-pointer focus:ring-4 focus:ring-blue-100 transition-all appearance-none font-bold">
-                  <option value="신입">신입 (0년)</option>
-                  <option value="1~3년차">1~3년차</option>
-                  <option value="3~5년차">3~5년차</option>
-                  <option value="5년차 이상">5년차 이상</option>
-                </select>
-              </div>
-              <div>
-                <label htmlFor="education" className="block text-xs font-bold text-neutral-600 mb-2 ml-1">최종 학력</label>
-                <select id="education" value={education} onChange={(e) => setEducation(e.target.value)} className="w-full px-5 py-3.5 rounded-2xl border border-neutral-200 bg-white outline-none cursor-pointer focus:ring-4 focus:ring-blue-100 transition-all appearance-none font-bold">
-                  <option value="고졸">고졸</option>
-                  <option value="전문학사">전문학사</option>
-                  <option value="학사(4년제)">학사(4년제)</option>
-                  <option value="석사">석사</option>
-                  <option value="박사">박사</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Section 2: Optional Enhancements - Two Column Layout */}
+          {/* Section 1: JD & Resume Analysis - Two Column Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Left: Job Description */}
-            <div className="flex flex-col h-full bg-white p-6 sm:p-8 rounded-[2rem] border border-neutral-100 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex flex-col h-full bg-white p-6 sm:p-8 rounded-[2rem] border border-neutral-100 shadow-sm hover:shadow-md transition-shadow relative">
               <div className="flex justify-between items-start mb-6">
                 <div>
                   <h2 className="text-sm font-bold text-emerald-600 uppercase tracking-widest mb-1 flex items-center gap-2">
-                    <span className="w-2 h-2 bg-emerald-600 rounded-full" />
-                    STEP 2. 공고 분석
+                    <span className="w-2 h-2 bg-emerald-600 rounded-full animate-pulse" />
+                    STEP 1. 공고 분석
                   </h2>
                   <p className="text-xs text-neutral-600 font-medium ml-4">채용 공고를 기반으로 한 맞춤 면접</p>
                 </div>
@@ -385,7 +391,7 @@ export default function Home() {
                 <div>
                   <h2 className="text-sm font-bold text-indigo-600 uppercase tracking-widest mb-1 flex items-center gap-2">
                     <span className="w-2 h-2 bg-indigo-600 rounded-full" />
-                    STEP 3. 이력서 분석
+                    STEP 2. 이력서 분석
                   </h2>
                   <p className="text-xs text-neutral-600 font-medium ml-4">제출하신 이력서를 바탕으로 심층 질문</p>
                 </div>
@@ -430,6 +436,68 @@ export default function Home() {
                     <p className="text-xs text-neutral-600 font-medium leading-tight">이력서 없이 진행합니다.<br />일반적인 지원자 수준에 맞춰 질문합니다.</p>
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+
+          {/* Section 3: Basic Info - Now at the Bottom */}
+          <div className="bg-neutral-50/50 p-6 sm:p-8 rounded-[2rem] border border-neutral-100 shadow-inner relative overflow-hidden">
+            {isAnalyzingJd && (
+              <div className="absolute inset-0 bg-white/40 backdrop-blur-[2px] flex items-center justify-center z-10 transition-all">
+                <div className="bg-white px-4 py-2 rounded-full shadow-lg border border-neutral-100 flex items-center gap-3">
+                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                  <span className="text-xs font-bold text-blue-600">공고에서 직무 탐지 중...</span>
+                </div>
+              </div>
+            )}
+            <h2 className="text-sm font-bold text-blue-600 uppercase tracking-widest mb-6 flex items-center gap-2">
+              <span className="w-2 h-2 bg-blue-600 rounded-full" />
+              STEP 3. 기본 프로필
+            </h2>
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+              <div className="lg:col-span-2">
+                <label htmlFor="jobTitle" className="block text-xs font-bold text-neutral-600 mb-2 ml-1">지원 직무</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    id="jobTitle"
+                    value={jobTitle}
+                    onChange={(e) => {
+                      setJobTitle(e.target.value);
+                      setIsAutoFilled(false);
+                    }}
+                    placeholder="공고 분석 시 자동으로 입력됩니다"
+                    className={`w-full px-5 py-3.5 rounded-2xl border ${!jobTitle ? 'border-red-200 bg-red-50/30' : 'border-neutral-200 bg-white'} focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none text-base font-semibold transition-all`}
+                    required
+                  />
+                  {jobTitle && isAutoFilled && !isAnalyzingJd && (
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1.5 px-2 py-1 bg-emerald-50 rounded-lg border border-emerald-100">
+                      <span className="text-[10px] font-black text-emerald-600">AUTO</span>
+                      <svg className="w-3 h-3 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div>
+                <label htmlFor="experience" className="block text-xs font-bold text-neutral-600 mb-2 ml-1">경력</label>
+                <select id="experience" value={experience} onChange={(e) => setExperience(e.target.value)} className={`w-full px-5 py-3.5 rounded-2xl border ${!experience ? 'border-red-200 bg-red-50/30' : 'border-neutral-200 bg-white'} outline-none cursor-pointer focus:ring-4 focus:ring-blue-100 transition-all appearance-none font-bold`}>
+                  <option value="" disabled>선택하기</option>
+                  <option value="신입">신입 (0년)</option>
+                  <option value="1~3년차">1~3년차</option>
+                  <option value="3~5년차">3~5년차</option>
+                  <option value="5년차 이상">5년차 이상</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="education" className="block text-xs font-bold text-neutral-600 mb-2 ml-1">최종 학력</label>
+                <select id="education" value={education} onChange={(e) => setEducation(e.target.value)} className={`w-full px-5 py-3.5 rounded-2xl border ${!education ? 'border-red-200 bg-red-50/30' : 'border-neutral-200 bg-white'} outline-none cursor-pointer focus:ring-4 focus:ring-blue-100 transition-all appearance-none font-bold`}>
+                  <option value="" disabled>선택하기</option>
+                  <option value="고졸">고졸</option>
+                  <option value="전문학사">전문학사</option>
+                  <option value="학사(4년제)">학사(4년제)</option>
+                  <option value="석사">석사</option>
+                  <option value="박사">박사</option>
+                </select>
               </div>
             </div>
           </div>

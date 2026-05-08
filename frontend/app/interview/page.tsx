@@ -10,6 +10,7 @@ export default function InterviewPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [statusText, setStatusText] = useState("마이크 권한을 확인 중입니다...");
+  const [isEnding, setIsEnding] = useState(false);
 
   // WebRTC 및 Media 참조
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -291,6 +292,8 @@ export default function InterviewPage() {
       return;
     }
 
+    setIsEnding(true);
+
     try {
       setStatusText("대화 내용을 평가하고 있습니다...");
       
@@ -348,8 +351,12 @@ export default function InterviewPage() {
             <span className="text-sm font-medium opacity-80">면접 진행 중</span>
           </div>
         </div>
-        <button onClick={endInterview} className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white rounded-lg text-sm font-medium transition-colors border border-neutral-700">
-          면접 종료하기
+        <button 
+          onClick={endInterview} 
+          disabled={isEnding}
+          className={`px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white rounded-lg text-sm font-medium transition-colors border border-neutral-700 ${isEnding ? "opacity-50 cursor-not-allowed" : ""}`}
+        >
+          {isEnding ? "종료중" : "면접 종료하기"}
         </button>
       </div>
 
