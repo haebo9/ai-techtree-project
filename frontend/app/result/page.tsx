@@ -25,9 +25,19 @@ interface EvaluationResult {
 
 export default function ResultPage() {
   const [result, setResult] = useState<EvaluationResult | null>(null);
+  const [transcripts, setTranscripts] = useState<any[]>([]);
+  const [duration, setDuration] = useState("");
+  const [date, setDate] = useState("");
+  const [email, setEmail] = useState("");
+  const [isSending, setIsSending] = useState(false);
+  const [emailStatus, setEmailStatus] = useState<"idle" | "success" | "error">("idle");
 
   useEffect(() => {
     const savedResult = localStorage.getItem("interviewResult");
+    const savedTranscripts = localStorage.getItem("interviewTranscripts");
+    const savedDuration = localStorage.getItem("interviewDuration");
+    const savedDate = localStorage.getItem("interviewDate");
+    
     if (savedResult) {
       try {
         setResult(JSON.parse(savedResult));
@@ -35,7 +45,54 @@ export default function ResultPage() {
         console.error("Failed to parse result", e);
       }
     }
+    
+    if (savedTranscripts) {
+      try {
+        setTranscripts(JSON.parse(savedTranscripts));
+      } catch (e) {
+        console.error("Failed to parse transcripts", e);
+      }
+    }
+
+    if (savedDuration) setDuration(savedDuration);
+    if (savedDate) setDate(savedDate);
   }, []);
+
+  const handleSendEmail = async () => {
+    if (!email || !result) return;
+    
+    setIsSending(true);
+    setEmailStatus("idle");
+    
+    try {
+      const response = await fetch(`http://localhost:8000/api/interview/${result.session_id || 'default'}/email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email,
+          score: result.score,
+          strengths: result.strengths,
+          weaknesses: result.weaknesses,
+          qa_review: result.qa_review || [],
+          job_recommendations: result.job_recommendations || [],
+          transcripts: transcripts,
+          interview_date: date,
+          interview_duration: duration
+        })
+      });
+      
+      if (response.ok) {
+        setEmailStatus("success");
+      } else {
+        setEmailStatus("error");
+      }
+    } catch (e) {
+      console.error(e);
+      setEmailStatus("error");
+    } finally {
+      setIsSending(false);
+    }
+  };
 
   if (!result) {
     return (
@@ -152,10 +209,22 @@ export default function ResultPage() {
               <h2 className="text-lg font-bold mb-2">리포트 소장하기</h2>
               <p className="text-neutral-300 text-sm mb-6">입력하신 이메일로 상세 리포트와 채용 정보를 보내드립니다.</p>
               <div className="space-y-3">
-                <input type="email" placeholder="이메일 주소 입력" className="w-full px-4 py-3 rounded-xl bg-neutral-800 border border-neutral-600 text-white placeholder-neutral-400 focus:outline-none focus:border-white transition-colors" />
-                <button className="w-full py-3 px-4 bg-white text-neutral-900 font-bold rounded-xl hover:bg-neutral-100 transition-colors">
-                  이메일로 받기
+                <input 
+                  type="email" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="이메일 주소 입력" 
+                  className="w-full px-4 py-3 rounded-xl bg-neutral-800 border border-neutral-600 text-white placeholder-neutral-400 focus:outline-none focus:border-white transition-colors" 
+                />
+                <button 
+                  onClick={handleSendEmail}
+                  disabled={isSending || !email}
+                  className="w-full py-3 px-4 bg-white text-neutral-900 font-bold rounded-xl hover:bg-neutral-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isSending ? "전송 중..." : "이메일로 받기"}
                 </button>
+                {emailStatus === "success" && <p className="text-green-400 text-sm mt-2 text-center">✅ 성공적으로 전송되었습니다!</p>}
+                {emailStatus === "error" && <p className="text-red-400 text-sm mt-2 text-center">❌ 전송에 실패했습니다.</p>}
               </div>
               
               <div className="mt-6 pt-6 border-t border-neutral-700">

@@ -19,6 +19,7 @@ export default function InterviewPage() {
 
   // 세션 정보 및 대화 기록(Transcript) 임시 저장소
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [startTime, setStartTime] = useState<number | null>(null);
   const transcriptRef = useRef<{ role: string, text: string }[]>([]);
 
   // 1. 컴포넌트 마운트 시 WebRTC 직접 연결 시도
@@ -84,6 +85,7 @@ export default function InterviewPage() {
         dcRef.current = dc;
 
         dc.addEventListener("open", () => {
+          setStartTime(Date.now());
           // VAD가 꺼져 있으므로 연결 직후 첫 인사 생성을 수동 요청
           dc.send(JSON.stringify({ type: "response.create" }));
         });
@@ -258,6 +260,21 @@ export default function InterviewPage() {
 
     try {
       setStatusText("대화 내용을 평가하고 있습니다...");
+      
+      // 시간 계산
+      const endTime = Date.now();
+      const diffMs = startTime ? endTime - startTime : 0;
+      const minutes = Math.floor(diffMs / 60000);
+      const seconds = Math.floor((diffMs % 60000) / 1000);
+      const durationStr = `${minutes}분 ${seconds}초`;
+      const dateStr = new Date().toLocaleDateString('ko-KR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
       // 텍스트 변환된 transcriptRef.current 를 백엔드의 평가 노드로 전송합니다.
       const response = await fetch(`http://localhost:8000/api/interview/${sessionId}/end`, {
         method: "POST",
@@ -265,7 +282,11 @@ export default function InterviewPage() {
         body: JSON.stringify({ transcripts: transcriptRef.current })
       });
       const resultData = await response.json();
+      
       localStorage.setItem("interviewResult", JSON.stringify(resultData));
+      localStorage.setItem("interviewTranscripts", JSON.stringify(transcriptRef.current));
+      localStorage.setItem("interviewDuration", durationStr);
+      localStorage.setItem("interviewDate", dateStr);
       
       router.push("/result");
     } catch (err) {

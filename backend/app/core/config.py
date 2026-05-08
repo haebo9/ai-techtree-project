@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     TELEGRAM_BOT_TOKEN: str | None = None
     TELEGRAM_CHAT_ID: str | None = None
 
+    # 이메일 전송 (Resend API) 설정
+    RESEND_API_KEY: str | None = None
+
     # 선택적 환경 변수 (기본값 제공)
     PROJECT_NAME: str = "AI TechTree"
     VERSION: str = "2.0.0"
