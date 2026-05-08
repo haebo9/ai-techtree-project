@@ -20,86 +20,133 @@ export default function Home() {
   const [jdText, setJdText] = useState("");
   const [jdImageBase64, setJdImageBase64] = useState<string | null>(null);
   const [jdFileName, setJdFileName] = useState("");
+  const [isDraggingResume, setIsDraggingResume] = useState(false);
+  const [isDraggingJd, setIsDraggingJd] = useState(false);
+
+  const processResumeFile = async (file: File) => {
+    // 파일이 PDF나 TXT인지 확인하고 서버로 파싱 요청
+    if (file.type === "application/pdf") {
+      setResumeFile(file);
+      setIsParsingResume(true);
+      const formData = new FormData();
+      formData.append("file", file);
+
+      try {
+        const res = await fetch("http://localhost:8000/api/upload/parse-pdf", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          setResumeText(data.text);
+        } else {
+          alert("PDF 파싱에 실패했습니다. 텍스트로 직접 입력해주세요.");
+          setResumeMode("text");
+          setResumeFile(null);
+        }
+      } catch (error) {
+        console.error("PDF 파싱 에러:", error);
+        alert("오류가 발생했습니다. 텍스트로 직접 입력해주세요.");
+        setResumeMode("text");
+        setResumeFile(null);
+      } finally {
+        setIsParsingResume(false);
+      }
+    } else if (file.type === "text/plain" || file.name.toLowerCase().endsWith(".txt")) {
+      setResumeFile(file);
+      const text = await file.text();
+      setResumeText(text);
+    } else {
+      alert("지원하지 않는 파일 형식입니다. 이력서에는 PDF 또는 TXT 파일만 업로드 가능합니다.");
+      setResumeFile(null);
+    }
+  };
+
+  const processJdImage = async (file: File) => {
+    let targetFile = file;
+
+    // HEIC 파일 처리 (iPhone 등에서 주로 사용)
+    if (file.name.toLowerCase().endsWith(".heic") || file.type === "image/heic" || file.type === "image/heif") {
+      try {
+        const heic2any = (await import("heic2any")).default;
+        const blob = await heic2any({
+          blob: file,
+          toType: "image/jpeg",
+          quality: 0.7
+        });
+        const convertedBlob = Array.isArray(blob) ? blob[0] : blob;
+        targetFile = new File([convertedBlob], file.name.replace(/\.(heic|heif)$/i, ".jpg"), { type: "image/jpeg" });
+      } catch (err) {
+        console.error("HEIC 변환 에러:", err);
+        alert("HEIC 파일 변환에 실패했습니다. JPG 또는 PNG 파일을 사용해 주세요.");
+        return;
+      }
+    }
+
+    if (!targetFile.type.startsWith("image/")) {
+      alert("이미지 파일만 업로드 가능합니다.");
+      return;
+    }
+    setJdFileName(targetFile.name);
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const MAX_WIDTH = 800;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > MAX_WIDTH) {
+          height = Math.round((height * MAX_WIDTH) / width);
+          width = MAX_WIDTH;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressedBase64 = canvas.toDataURL("image/jpeg", 0.6);
+          setJdImageBase64(compressedBase64);
+        }
+      };
+      if (event.target?.result) {
+        img.src = event.target.result as string;
+      }
+    };
+    reader.readAsDataURL(targetFile);
+  };
 
   const handleResumeFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setResumeFile(file);
-
-      // 파일이 PDF나 TXT인지 확인하고 서버로 파싱 요청
-      if (file.type === "application/pdf") {
-        setIsParsingResume(true);
-        const formData = new FormData();
-        formData.append("file", file);
-
-        try {
-          const res = await fetch("http://localhost:8000/api/upload/parse-pdf", {
-            method: "POST",
-            body: formData,
-          });
-
-          if (res.ok) {
-            const data = await res.json();
-            setResumeText(data.text);
-          } else {
-            alert("PDF 파싱에 실패했습니다. 텍스트로 직접 입력해주세요.");
-            setResumeMode("text");
-          }
-        } catch (error) {
-          console.error("PDF 파싱 에러:", error);
-          alert("오류가 발생했습니다. 텍스트로 직접 입력해주세요.");
-          setResumeMode("text");
-        } finally {
-          setIsParsingResume(false);
-        }
-      } else if (file.type === "text/plain") {
-        const text = await file.text();
-        setResumeText(text);
-      } else {
-        alert("지원하지 않는 파일 형식입니다. PDF 또는 TXT 파일만 업로드 가능합니다.");
-      }
+      processResumeFile(e.target.files[0]);
     }
   };
 
   const handleJdImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      if (!file.type.startsWith("image/")) {
-        alert("이미지 파일만 업로드 가능합니다.");
-        return;
-      }
-      setJdFileName(file.name);
+      processJdImage(e.target.files[0]);
+    }
+  };
 
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const img = new Image();
-        img.onload = () => {
-          // WebRTC 데이터 채널 용량 제한(약 64KB~256KB)을 피하기 위해 이미지 리사이즈 및 압축
-          const canvas = document.createElement("canvas");
-          const MAX_WIDTH = 800; // 해상도 제한 (글씨 식별 가능한 수준 유지)
-          let width = img.width;
-          let height = img.height;
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
 
-          if (width > MAX_WIDTH) {
-            height = Math.round((height * MAX_WIDTH) / width);
-            width = MAX_WIDTH;
-          }
+  const handleDrop = (e: React.DragEvent, type: 'resume' | 'jd') => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (type === 'resume') setIsDraggingResume(false);
+    else setIsDraggingJd(false);
 
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext("2d");
-          if (ctx) {
-            ctx.drawImage(img, 0, 0, width, height);
-            // JPEG 형식으로 압축률 0.6 설정하여 용량 대폭 감소 (Base64 URL 생성)
-            const compressedBase64 = canvas.toDataURL("image/jpeg", 0.6);
-            setJdImageBase64(compressedBase64);
-          }
-        };
-        if (event.target?.result) {
-          img.src = event.target.result as string;
-        }
-      };
-      reader.readAsDataURL(file);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0];
+      if (type === 'resume') processResumeFile(file);
+      else processJdImage(file);
     }
   };
 
@@ -185,7 +232,6 @@ export default function Home() {
       };
       reader.readAsDataURL(jdFile);
 
-      alert("더미 데이터가 성공적으로 로드되었습니다.");
     } catch (error) {
       console.error("더미 데이터 로드 중 오류:", error);
       alert("더미 데이터 로드 실패");
@@ -256,7 +302,7 @@ export default function Home() {
           {/* 2. 이력서 입력 */}
           <div className="space-y-4">
             <div className="flex justify-between items-center border-b pb-2">
-              <h2 className="text-lg font-bold text-neutral-800">2. 이력서 (Resume)</h2>
+              <h2 className="text-lg font-bold text-neutral-800">2. 이력서 (선택)</h2>
               <div className="flex bg-neutral-100 p-1 rounded-lg">
                 <button type="button" onClick={() => setResumeMode("none")} className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${resumeMode === "none" ? "bg-white shadow-sm text-neutral-900" : "text-neutral-500 hover:text-neutral-700"}`}>사용 안 함</button>
                 <button type="button" onClick={() => setResumeMode("text")} className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${resumeMode === "text" ? "bg-white shadow-sm text-neutral-900" : "text-neutral-500 hover:text-neutral-700"}`}>직접 입력</button>
@@ -278,13 +324,23 @@ export default function Home() {
                 required
               />
             ) : (
-              <div className="border-2 border-dashed border-neutral-200 rounded-xl p-8 text-center bg-neutral-50">
+              <div
+                className={`border-2 border-dashed rounded-xl p-8 text-center transition-all ${isDraggingResume ? 'border-blue-500 bg-blue-50' : 'border-neutral-200 bg-neutral-50'}`}
+                onDragOver={handleDragOver}
+                onDragEnter={(e) => { e.preventDefault(); setIsDraggingResume(true); }}
+                onDragLeave={(e) => { e.preventDefault(); setIsDraggingResume(false); }}
+                onDrop={(e) => handleDrop(e, 'resume')}
+              >
                 <input type="file" id="resumeFile" accept=".pdf,.txt" onChange={handleResumeFileChange} className="hidden" />
-                <label htmlFor="resumeFile" className="cursor-pointer text-blue-600 font-medium hover:underline">PDF 또는 TXT 파일 선택</label>
-                <p className="text-xs text-neutral-400 mt-2">파일을 업로드하면 자동으로 텍스트가 추출됩니다.</p>
-                {resumeFile && <p className="text-sm font-medium text-neutral-700 mt-4">✅ {resumeFile.name}</p>}
-                {isParsingResume && <p className="text-sm text-blue-600 mt-2 font-medium">텍스트 추출 중... ⏳</p>}
-                {!isParsingResume && resumeText && resumeMode === "file" && <p className="text-xs text-green-600 mt-2">성공적으로 텍스트를 추출했습니다.</p>}
+                <div className={isDraggingResume ? "pointer-events-none" : ""}>
+                  <label htmlFor="resumeFile" className="cursor-pointer text-blue-600 font-medium hover:underline inline-block mb-1">
+                    파일을 여기에 드래그하거나 선택하세요
+                  </label>
+                  <p className="text-xs text-neutral-400">PDF 또는 TXT 파일 업로드</p>
+                  {resumeFile && <p className="text-sm font-medium text-neutral-700 mt-4">✅ {resumeFile.name}</p>}
+                  {isParsingResume && <p className="text-sm text-blue-600 mt-2 font-medium">텍스트 추출 중... ⏳</p>}
+                  {!isParsingResume && resumeText && resumeMode === "file" && <p className="text-xs text-green-600 mt-2">성공적으로 텍스트를 추출했습니다.</p>}
+                </div>
               </div>
             )}
           </div>
@@ -292,7 +348,7 @@ export default function Home() {
           {/* 3. 채용 공고 (선택) */}
           <div className="space-y-4">
             <div className="flex flex-wrap gap-2 sm:gap-0 justify-between items-center border-b pb-2">
-              <h2 className="text-lg font-bold text-neutral-800">3. 지원 공고 맞춤형 (선택)</h2>
+              <h2 className="text-lg font-bold text-neutral-800">3. 지원 공고 역량 (선택)</h2>
               <div className="flex bg-neutral-100 p-1 rounded-lg">
                 <button type="button" onClick={() => setJdMode("none")} className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${jdMode === "none" ? "bg-white shadow-sm text-neutral-900" : "text-neutral-500 hover:text-neutral-700"}`}>사용 안함</button>
                 <button type="button" onClick={() => setJdMode("text")} className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${jdMode === "text" ? "bg-white shadow-sm text-neutral-900" : "text-neutral-500 hover:text-neutral-700"}`}>텍스트 붙여넣기</button>
@@ -311,11 +367,21 @@ export default function Home() {
             )}
 
             {jdMode === "image" && (
-              <div className="border-2 border-dashed border-neutral-200 rounded-xl p-8 text-center bg-neutral-50">
+              <div
+                className={`border-2 border-dashed rounded-xl p-8 text-center transition-all ${isDraggingJd ? 'border-blue-500 bg-blue-50' : 'border-neutral-200 bg-neutral-50'}`}
+                onDragOver={handleDragOver}
+                onDragEnter={(e) => { e.preventDefault(); setIsDraggingJd(true); }}
+                onDragLeave={(e) => { e.preventDefault(); setIsDraggingJd(false); }}
+                onDrop={(e) => handleDrop(e, 'jd')}
+              >
                 <input type="file" id="jdImageFile" accept="image/*" onChange={handleJdImageChange} className="hidden" />
-                <label htmlFor="jdImageFile" className="cursor-pointer text-blue-600 font-medium hover:underline">채용 공고 캡처본(이미지) 선택</label>
-                <p className="text-xs text-neutral-400 mt-2">AI가 이미지를 인식하여 면접에 반영합니다.</p>
-                {jdFileName && <p className="text-sm font-medium text-neutral-700 mt-4">✅ {jdFileName}</p>}
+                <div className={isDraggingJd ? "pointer-events-none" : ""}>
+                  <label htmlFor="jdImageFile" className="cursor-pointer text-blue-600 font-medium hover:underline inline-block mb-1">
+                    파일을 여기에 드래그하거나 선택하세요
+                  </label>
+                  <p className="text-xs text-neutral-400">PNG, JPG, JPEG, HEIC 지원</p>
+                  {jdFileName && <p className="text-sm font-medium text-neutral-700 mt-4">✅ {jdFileName}</p>}
+                </div>
               </div>
             )}
 

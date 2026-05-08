@@ -16,6 +16,7 @@ interface JobRecommendation {
 }
 
 interface EvaluationResult {
+  session_id?: string;
   score: number;
   strengths: string[];
   weaknesses: string[];
