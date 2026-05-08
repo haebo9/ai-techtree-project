@@ -40,3 +40,6 @@ tavily-python==0.5.0
 
 # Telegram
 python-telegram-bot==21.11
+
+# Email
+resend

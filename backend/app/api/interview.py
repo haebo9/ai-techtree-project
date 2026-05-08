@@ -17,8 +17,10 @@ import requests
 from app.core.config import settings
 from app.engine.prompts.api_interviewer import INTERVIEWER_SYSTEM_PROMPT
 
-from app.engine.graphs.graph import interview_workflow
+from app.engine.graphs.graph import get_interview_workflow
 from langchain_core.messages import HumanMessage
+
+interview_workflow = get_interview_workflow()
 
 temp_sessions: Dict[str, Any] = {}
 
@@ -153,8 +155,12 @@ async def end_interview(
         elif t.role == "ai":
             lc_messages.append(AIMessage(content=t.text))
             
-    # 2. 상태를 EVALUATING으로 변경하고 메시지 내역 덮어쓰기
-    interview_workflow.update_state(config, {"status": "EVALUATING", "messages": lc_messages})
+    # 2. 상태를 EVALUATING으로 변경하고 메시지 내역 덮어쓰기 및 검색된 일자리 저장
+    interview_workflow.update_state(config, {
+        "status": "EVALUATING", 
+        "messages": lc_messages,
+        "saved_jobs": request.saved_jobs
+    })
     
     # 그래프 실행 (Evaluator 노드까지 진행됨)
     final_state = interview_workflow.invoke(None, config=config)
@@ -166,5 +172,121 @@ async def end_interview(
         score=evaluation.get("score", 0),
         strengths=evaluation.get("strengths", []),
         weaknesses=evaluation.get("weaknesses", []),
+        qa_review=evaluation.get("qa_review", []),
         job_recommendations=evaluation.get("job_recommendations", [])
     )
+
+from app.schemas_api.email import SendEmailRequest
+import resend
+
+@router.post("/{session_id}/email")
+async def send_interview_email(session_id: str, request: SendEmailRequest):
+    """
+    면접 결과 리포트와 전체 대화 내역을 이메일로 전송합니다. (Resend API 사용)
+    """
+    if not settings.RESEND_API_KEY:
+        print(f"⚠️ RESEND_API_KEY 설정이 없습니다. 이메일 발송을 시뮬레이션합니다.\nTarget Email: {request.email}")
+        return {"status": "success", "message": "Resend API 키가 없어 이메일 발송을 콘솔에 시뮬레이션했습니다."}
+
+    resend.api_key = settings.RESEND_API_KEY
+
+    # 이메일 내용 구성 (HTML)
+    html_content = f"""
+    <html>
+        <head>
+            <style>
+                body {{ font-family: 'Apple SD Gothic Neo', sans-serif; line-height: 1.6; color: #333; }}
+                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                .header {{ background-color: #2563eb; color: white; padding: 20px; border-radius: 10px 10px 0 0; text-align: center; }}
+                .content {{ padding: 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px; }}
+                .section {{ margin-bottom: 24px; }}
+                .section-title {{ color: #1e40af; border-bottom: 2px solid #bfdbfe; padding-bottom: 8px; margin-bottom: 16px; }}
+                .score {{ font-size: 32px; font-weight: bold; color: #2563eb; text-align: center; }}
+                .item-list {{ margin: 0; padding-left: 20px; }}
+                .qa-box {{ background-color: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 12px; }}
+                .job-box {{ border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; margin-bottom: 8px; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h2>면접 종합 평가 리포트</h2>
+                </div>
+                <div class="content">
+                    <div style="text-align: right; font-size: 12px; color: #666; margin-bottom: 10px;">
+                        {f'일시: {request.interview_date}' if request.interview_date else ''}<br/>
+                        {f'소요 시간: {request.interview_duration}' if request.interview_duration else ''}
+                    </div>
+                    <div class="section">
+                        <div class="score">{request.score} / 100 점</div>
+                    </div>
+                    
+                    <div class="section">
+                        <h3 class="section-title">✅ 강점 (Strengths)</h3>
+                        <ul class="item-list">
+                            {"".join([f"<li>{s}</li>" for s in request.strengths])}
+                        </ul>
+                    </div>
+
+                    <div class="section">
+                        <h3 class="section-title">🚀 개선점 (Areas for Improvement)</h3>
+                        <ul class="item-list">
+                            {"".join([f"<li>{w}</li>" for w in request.weaknesses])}
+                        </ul>
+                    </div>
+
+                    <div class="section">
+                        <h3 class="section-title">📝 상세 답변 분석</h3>
+                        {"".join([f'''
+                        <div class="qa-box">
+                            <p><strong>Q.</strong> {qa.get('question', '')}</p>
+                            <p><strong>A.</strong> {qa.get('answer', '')}</p>
+                            <p style="color: #2563eb;"><strong>AI 코멘트:</strong> {qa.get('feedback', '')}</p>
+                        </div>
+                        ''' for qa in request.qa_review])}
+                    </div>
+
+                    <div class="section">
+                        <h3 class="section-title">🎯 맞춤 채용 공고</h3>
+                        {"".join([f'''
+                        <div class="job-box">
+                            <p style="color: #2563eb; font-weight: bold; margin: 0 0 4px 0;">{job.get('company', '')}</p>
+                            <p style="margin: 0; font-weight: bold;">
+                                <a href="{job.get('url', '#')}" style="color: #333; text-decoration: none;">{job.get('title', '')}</a>
+                            </p>
+                        </div>
+                        ''' for job in request.job_recommendations])}
+                    </div>
+                    
+                    <div class="section">
+                        <h3 class="section-title">🗣️ 전체 대화 내역</h3>
+                        <div style="background-color: #f1f5f9; padding: 15px; border-radius: 8px; font-size: 14px;">
+                            {"".join([f'''
+                            <p style="margin-bottom: 12px;">
+                                <strong>{'면접관' if t.get('role') == 'ai' else '지원자'}:</strong><br/>
+                                {t.get('text', '')}
+                            </p>
+                            ''' for t in request.transcripts])}
+                        </div>
+                    </div>
+                    
+                </div>
+            </div>
+        </body>
+    </html>
+    """
+
+    params = {
+        "from": "TechTree <no-reply@haebo.pro>",
+        "to": [request.email],
+        "subject": "TechTree 가상 면접 종합 평가 리포트",
+        "html": html_content,
+    }
+
+    try:
+        resend.Emails.send(params)
+        return {"status": "success", "message": "이메일이 성공적으로 전송되었습니다."}
+    except Exception as e:
+        print(f"❌ Resend 이메일 전송 실패: {e}")
+        raise HTTPException(status_code=500, detail="이메일 전송에 실패했습니다.")
+

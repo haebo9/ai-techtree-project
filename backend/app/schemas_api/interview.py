@@ -35,10 +35,12 @@ class TranscriptItem(BaseModel):
 
 class EndInterviewRequest(BaseModel):
     transcripts: List[TranscriptItem] = Field(default=[], description="전체 대화 내역")
+    saved_jobs: List[Dict[str, Any]] = Field(default=[], description="면접 중 검색된 실제 채용 공고 정보")
 
 class EndInterviewResponse(BaseModel):
     session_id: str
     score: int
     strengths: List[str]
     weaknesses: List[str]
+    qa_review: List[Dict[str, str]]
     job_recommendations: List[Dict[str, str]]

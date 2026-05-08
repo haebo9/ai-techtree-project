@@ -43,7 +43,7 @@ def search_korean_job_postings(query: str) -> str:
         
         results = []
         for res in data.get("results", []):
-            results.append(f"- {res.get('title')}: {res.get('content')}")
+            results.append(f"- {res.get('title')}: {res.get('content')} (링크: {res.get('url')})")
             
         summary = f"[{query}] 최신 채용 검색 결과:\n" + "\n".join(results)
         return summary

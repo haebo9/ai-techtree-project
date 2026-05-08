@@ -19,7 +19,9 @@ export default function InterviewPage() {
 
   // 세션 정보 및 대화 기록(Transcript) 임시 저장소
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [startTime, setStartTime] = useState<number | null>(null);
   const transcriptRef = useRef<{ role: string, text: string }[]>([]);
+  const savedJobsRef = useRef<any[]>([]);
 
   // 1. 컴포넌트 마운트 시 WebRTC 직접 연결 시도
   useEffect(() => {
@@ -84,6 +86,7 @@ export default function InterviewPage() {
         dcRef.current = dc;
 
         dc.addEventListener("open", () => {
+          setStartTime(Date.now());
           // VAD가 꺼져 있으므로 연결 직후 첫 인사 생성을 수동 요청
           dc.send(JSON.stringify({ type: "response.create" }));
         });
@@ -110,6 +113,11 @@ export default function InterviewPage() {
                 });
                 const searchData = await res.json();
                 console.log("[Tool] 검색 결과 수신 완료", searchData.result);
+                
+                // 실제 검색 결과를 LLM 환각 방지를 위해 별도로 저장
+                if (Array.isArray(searchData.result)) {
+                  savedJobsRef.current = [...savedJobsRef.current, ...searchData.result];
+                }
 
                 // 검색 결과를 OpenAI Realtime API 컨텍스트에 추가
                 dc.send(JSON.stringify({
@@ -258,12 +266,38 @@ export default function InterviewPage() {
 
     try {
       setStatusText("대화 내용을 평가하고 있습니다...");
+      
+      // 시간 계산
+      const endTime = Date.now();
+      const diffMs = startTime ? endTime - startTime : 0;
+      const minutes = Math.floor(diffMs / 60000);
+      const seconds = Math.floor((diffMs % 60000) / 1000);
+      const durationStr = `${minutes}분 ${seconds}초`;
+      const dateStr = new Date().toLocaleDateString('ko-KR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
       // 텍스트 변환된 transcriptRef.current 를 백엔드의 평가 노드로 전송합니다.
-      await fetch(`http://localhost:8000/api/interview/${sessionId}/end`, {
+      // 더불어 환각 방지를 위해 수집된 실제 채용 공고(savedJobsRef.current)도 함께 보냅니다.
+      const response = await fetch(`http://localhost:8000/api/interview/${sessionId}/end`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transcripts: transcriptRef.current })
+        body: JSON.stringify({ 
+          transcripts: transcriptRef.current,
+          saved_jobs: savedJobsRef.current
+        })
       });
+      const resultData = await response.json();
+      
+      localStorage.setItem("interviewResult", JSON.stringify(resultData));
+      localStorage.setItem("interviewTranscripts", JSON.stringify(transcriptRef.current));
+      localStorage.setItem("interviewDuration", durationStr);
+      localStorage.setItem("interviewDate", dateStr);
+      
       router.push("/result");
     } catch (err) {
       console.error("종료 에러:", err);
