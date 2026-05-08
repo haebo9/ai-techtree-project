@@ -18,7 +18,7 @@ from app.core.config import settings
 from app.engine.prompts.api_interviewer import INTERVIEWER_SYSTEM_PROMPT
 
 from app.engine.graphs.graph import get_interview_workflow
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, AIMessage
 
 interview_workflow = get_interview_workflow()
 
@@ -32,12 +32,15 @@ async def start_interview(request: StartInterviewRequest):
     """
     session_id = str(uuid.uuid4())
     
+    job_desc = request.job_description if request.job_description else "맞춤형 채용 공고 정보 없음"
+    
     # 1. 면접관 지침 준비
     instructions = INTERVIEWER_SYSTEM_PROMPT.format(
         job_title=request.job_title if request.job_title else "정보 없음",
         education=request.education if request.education else "정보 없음",
         experience=request.experience if request.experience else "정보 없음",
-        resume=request.resume if request.resume else "정보 없음"
+        resume=request.resume if request.resume else "정보 없음",
+        job_description=job_desc
     )
 
     import random
@@ -87,6 +90,7 @@ async def start_interview(request: StartInterviewRequest):
         "experience": request.experience,
         "education": request.education,
         "resume": request.resume,
+        "job_description": job_desc,
         "major": "",  # request에 없음
         "messages": [],
         "status": "IN_PROGRESS"

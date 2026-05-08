@@ -52,7 +52,9 @@ export default function InterviewPage() {
             job_title: profileData.job_title || "직무 미상",
             education: profileData.education || "학사(4년제)",
             experience: profileData.experience || "신입",
-            resume: profileData.resume || "정보 없음"
+            resume: profileData.resume || "정보 없음",
+            job_description: profileData.job_description || "",
+            job_image: profileData.job_image || null
           })
         });
 
@@ -87,6 +89,31 @@ export default function InterviewPage() {
 
         dc.addEventListener("open", () => {
           setStartTime(Date.now());
+          
+          // 이미지가 업로드된 경우, 초기 컨텍스트로 전달 (올바른 Realtime API 포맷 사용)
+          if (profileData.job_image) {
+            // "data:image/jpeg;base64,..." 그대로 사용
+            const base64Data = profileData.job_image;
+            
+            dc.send(JSON.stringify({
+              type: "conversation.item.create",
+              item: {
+                type: "message",
+                role: "user",
+                content: [
+                  { 
+                    type: "input_image", 
+                    image_url: base64Data
+                  },
+                  { 
+                    type: "input_text", 
+                    text: "이 이미지는 제가 지원하고자 하는 채용 공고입니다. 이 내용을 바탕으로 맞춤형 면접 질문을 해주세요." 
+                  }
+                ]
+              }
+            }));
+          }
+
           // VAD가 꺼져 있으므로 연결 직후 첫 인사 생성을 수동 요청
           dc.send(JSON.stringify({ type: "response.create" }));
         });
