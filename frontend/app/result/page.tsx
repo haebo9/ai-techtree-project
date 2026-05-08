@@ -31,21 +31,26 @@ export default function ResultPage() {
   const [email, setEmail] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [emailStatus, setEmailStatus] = useState<"idle" | "success" | "error">("idle");
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     const savedResult = localStorage.getItem("interviewResult");
     const savedTranscripts = localStorage.getItem("interviewTranscripts");
     const savedDuration = localStorage.getItem("interviewDuration");
     const savedDate = localStorage.getItem("interviewDate");
-    
+
     if (savedResult) {
       try {
         setResult(JSON.parse(savedResult));
       } catch (e) {
         console.error("Failed to parse result", e);
+        setLoadError(true);
       }
+    } else {
+      const timer = setTimeout(() => setLoadError(true), 3000);
+      return () => clearTimeout(timer);
     }
-    
+
     if (savedTranscripts) {
       try {
         setTranscripts(JSON.parse(savedTranscripts));
@@ -60,10 +65,10 @@ export default function ResultPage() {
 
   const handleSendEmail = async () => {
     if (!email || !result) return;
-    
+
     setIsSending(true);
     setEmailStatus("idle");
-    
+
     try {
       const response = await fetch(`http://localhost:8000/api/interview/${result.session_id || 'default'}/email`, {
         method: "POST",
@@ -80,7 +85,7 @@ export default function ResultPage() {
           interview_duration: duration
         })
       });
-      
+
       if (response.ok) {
         setEmailStatus("success");
       } else {
@@ -94,6 +99,18 @@ export default function ResultPage() {
     }
   };
 
+  if (loadError) {
+    return (
+      <main className="min-h-screen bg-neutral-50 p-6 sm:p-12 flex flex-col items-center justify-center">
+        <div className="text-xl font-bold text-neutral-800 mb-4">리포트를 불러오지 못했습니다.</div>
+        <p className="text-neutral-500 mb-6 text-center">면접 내용이 부족하거나 평가 중 오류가 발생했을 수 있습니다.<br />홈으로 돌아가서 다시 시도해주세요.</p>
+        <Link href="/" className="px-6 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors">
+          홈으로 돌아가기
+        </Link>
+      </main>
+    );
+  }
+
   if (!result) {
     return (
       <main className="min-h-screen bg-neutral-50 p-6 sm:p-12 flex items-center justify-center">
@@ -105,7 +122,7 @@ export default function ResultPage() {
   return (
     <main className="min-h-screen bg-neutral-50 p-6 sm:p-12">
       <div className="max-w-4xl mx-auto space-y-8">
-        
+
         {/* Header Section */}
         <div className="bg-white rounded-3xl p-8 shadow-sm border border-neutral-100 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
@@ -123,7 +140,7 @@ export default function ResultPage() {
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          
+
           {/* Left Column: Feedback */}
           <div className="md:col-span-2 space-y-8">
             <div className="bg-white rounded-3xl p-8 shadow-sm border border-neutral-100">
@@ -131,7 +148,7 @@ export default function ResultPage() {
                 <span className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mr-3 text-sm">💡</span>
                 주요 피드백
               </h2>
-              
+
               <div className="space-y-6">
                 <div>
                   <h3 className="text-lg font-semibold text-green-700 mb-2">✅ 강점 (Strengths)</h3>
@@ -187,7 +204,7 @@ export default function ResultPage() {
                       <h3 className="font-bold text-neutral-900 group-hover:text-blue-600 transition-colors">{job.title}</h3>
                     </>
                   );
-                  
+
                   return job.url ? (
                     <a key={idx} href={job.url} target="_blank" rel="noopener noreferrer" className="block p-4 rounded-xl border border-neutral-200 hover:border-blue-500 transition-colors cursor-pointer group">
                       {content}
@@ -209,14 +226,14 @@ export default function ResultPage() {
               <h2 className="text-lg font-bold mb-2">리포트 소장하기</h2>
               <p className="text-neutral-300 text-sm mb-6">입력하신 이메일로 상세 리포트와 채용 정보를 보내드립니다.</p>
               <div className="space-y-3">
-                <input 
-                  type="email" 
+                <input
+                  type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="이메일 주소 입력" 
-                  className="w-full px-4 py-3 rounded-xl bg-neutral-800 border border-neutral-600 text-white placeholder-neutral-400 focus:outline-none focus:border-white transition-colors" 
+                  placeholder="이메일 주소 입력"
+                  className="w-full px-4 py-3 rounded-xl bg-neutral-800 border border-neutral-600 text-white placeholder-neutral-400 focus:outline-none focus:border-white transition-colors"
                 />
-                <button 
+                <button
                   onClick={handleSendEmail}
                   disabled={isSending || !email}
                   className="w-full py-3 px-4 bg-white text-neutral-900 font-bold rounded-xl hover:bg-neutral-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -226,7 +243,7 @@ export default function ResultPage() {
                 {emailStatus === "success" && <p className="text-green-400 text-sm mt-2 text-center">✅ 성공적으로 전송되었습니다!</p>}
                 {emailStatus === "error" && <p className="text-red-400 text-sm mt-2 text-center">❌ 전송에 실패했습니다.</p>}
               </div>
-              
+
               <div className="mt-6 pt-6 border-t border-neutral-700">
                 <Link href="/" className="block text-center text-neutral-300 hover:text-white text-sm font-medium transition-colors">
                   홈으로 돌아가기

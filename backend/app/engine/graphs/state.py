@@ -21,5 +21,8 @@ class InterviewState(TypedDict):
     # 3. 면접 평가 결과 (면접 종료 시 Evaluator 노드에서 작성)
     evaluation_result: Optional[Dict[str, Any]]
     
-    # 4. 진행 상태 제어 플래그
+    # 4. 툴 실행 결과 저장 (Tavily 등에서 찾은 실제 채용 공고 정보)
+    saved_jobs: Optional[list[Dict[str, Any]]]
+    
+    # 5. 진행 상태 제어 플래그
     status: str          # "IN_PROGRESS"(진행 중) -> "EVALUATING"(평가 중) -> "COMPLETED"(완료)

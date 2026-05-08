@@ -21,6 +21,7 @@ export default function InterviewPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [startTime, setStartTime] = useState<number | null>(null);
   const transcriptRef = useRef<{ role: string, text: string }[]>([]);
+  const savedJobsRef = useRef<any[]>([]);
 
   // 1. 컴포넌트 마운트 시 WebRTC 직접 연결 시도
   useEffect(() => {
@@ -112,6 +113,11 @@ export default function InterviewPage() {
                 });
                 const searchData = await res.json();
                 console.log("[Tool] 검색 결과 수신 완료", searchData.result);
+                
+                // 실제 검색 결과를 LLM 환각 방지를 위해 별도로 저장
+                if (Array.isArray(searchData.result)) {
+                  savedJobsRef.current = [...savedJobsRef.current, ...searchData.result];
+                }
 
                 // 검색 결과를 OpenAI Realtime API 컨텍스트에 추가
                 dc.send(JSON.stringify({
@@ -276,10 +282,14 @@ export default function InterviewPage() {
       });
 
       // 텍스트 변환된 transcriptRef.current 를 백엔드의 평가 노드로 전송합니다.
+      // 더불어 환각 방지를 위해 수집된 실제 채용 공고(savedJobsRef.current)도 함께 보냅니다.
       const response = await fetch(`http://localhost:8000/api/interview/${sessionId}/end`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transcripts: transcriptRef.current })
+        body: JSON.stringify({ 
+          transcripts: transcriptRef.current,
+          saved_jobs: savedJobsRef.current
+        })
       });
       const resultData = await response.json();
       

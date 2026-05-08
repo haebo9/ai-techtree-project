@@ -155,8 +155,12 @@ async def end_interview(
         elif t.role == "ai":
             lc_messages.append(AIMessage(content=t.text))
             
-    # 2. 상태를 EVALUATING으로 변경하고 메시지 내역 덮어쓰기
-    interview_workflow.update_state(config, {"status": "EVALUATING", "messages": lc_messages})
+    # 2. 상태를 EVALUATING으로 변경하고 메시지 내역 덮어쓰기 및 검색된 일자리 저장
+    interview_workflow.update_state(config, {
+        "status": "EVALUATING", 
+        "messages": lc_messages,
+        "saved_jobs": request.saved_jobs
+    })
     
     # 그래프 실행 (Evaluator 노드까지 진행됨)
     final_state = interview_workflow.invoke(None, config=config)
