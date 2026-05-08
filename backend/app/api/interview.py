@@ -32,7 +32,12 @@ async def start_interview(request: StartInterviewRequest):
     """
     session_id = str(uuid.uuid4())
     
-    job_desc = request.job_description if request.job_description else "맞춤형 채용 공고 정보 없음"
+    if request.job_description:
+        job_desc = request.job_description
+    elif request.job_image:
+        job_desc = "[사용자가 이미지(캡처본) 형태로 채용 공고를 직접 제공했습니다.]"
+    else:
+        job_desc = "맞춤형 채용 공고 정보 없음"
     
     # 1. 면접관 지침 준비
     instructions = INTERVIEWER_SYSTEM_PROMPT.format(
