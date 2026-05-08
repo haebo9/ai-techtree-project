@@ -241,10 +241,14 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-neutral-50 py-12 px-6">
-      <div className="max-w-2xl mx-auto w-full bg-white rounded-3xl shadow-sm border border-neutral-100 p-8 sm:p-10 relative">
-        <div className="absolute top-8 left-8">
-          <Link href="/debug" className="text-neutral-200 hover:text-neutral-400 transition-colors" title="개발자 디버그 페이지">
+    <main className="min-h-screen bg-neutral-50 py-12 px-4 sm:px-6">
+      <div className="max-w-4xl mx-auto w-full bg-white rounded-[2rem] shadow-xl border border-neutral-100 p-8 sm:p-12 relative overflow-hidden">
+        {/* Background Decoration */}
+        <div className="absolute -top-24 -right-24 w-64 h-64 bg-blue-50 rounded-full opacity-50 blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-emerald-50 rounded-full opacity-50 blur-3xl pointer-events-none" />
+
+        <div className="absolute top-10 left-10 flex items-center gap-4">
+          <Link href="/debug" className="text-neutral-400 hover:text-neutral-600 transition-colors p-2 hover:bg-neutral-50 rounded-full" title="개발자 디버그 페이지">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -254,51 +258,61 @@ export default function Home() {
 
         <button
           onClick={loadDummyData}
-          className="absolute top-8 right-8 px-4 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-sm font-medium rounded-lg transition-colors"
+          className="absolute top-10 right-10 px-4 py-2 bg-neutral-100 hover:bg-blue-50 hover:text-blue-600 text-neutral-600 text-xs font-bold rounded-full transition-all border border-neutral-200 hover:border-blue-200"
           type="button"
         >
-          ⚙️ 테스트 데이터 사용
+          ✨ 테스트 데이터 로드
         </button>
-        <div className="text-center mb-10 mt-8">
-          <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-white mb-6 shadow-md overflow-hidden border border-neutral-100">
-            <img src="/logo.png" alt="TechTree Logo" className="w-full h-full object-cover" />
+
+        <div className="flex flex-col items-center text-center mb-12">
+          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-emerald-400 p-0.5 mb-6 shadow-lg rotate-3">
+            <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center overflow-hidden">
+              <img src="/logo.png" alt="TechTree Logo" className="w-4/5 h-4/5 object-contain" />
+            </div>
           </div>
-          <h1 className="text-3xl font-bold text-neutral-900 tracking-tight mb-3">AI 가상 면접 서비스 : TechTree</h1>
-          <p className="text-neutral-500 text-sm">지원자님의 프로필과 공고를 기반으로 맞춤형 면접을 생성합니다.</p>
+          <h1 className="text-4xl font-extrabold text-neutral-900 tracking-tight mb-4">
+            AI 가상 면접 서비스 <span className="text-blue-600">: TechTree</span>
+          </h1>
+          <p className="text-neutral-600 text-lg max-w-lg font-medium">
+            당신만을 위한 맞춤형 질문과 피드백으로<br />
+            꿈꾸는 직무에 한 걸음 더 가까이 다가가세요.
+          </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-8">
-
-          {/* 1. 기본 정보 */}
-          <div className="space-y-5">
-            <h2 className="text-lg font-bold text-neutral-800 border-b pb-2">1. 기본 정보</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <div className="sm:col-span-2">
-                <label htmlFor="jobTitle" className="block text-sm font-medium text-neutral-700 mb-2">지원 직무</label>
+        <form onSubmit={handleSubmit} className="space-y-12">
+          {/* Section 1: Basic Info - Unified Top Bar */}
+          <div className="bg-neutral-50/50 p-6 sm:p-8 rounded-[2rem] border border-neutral-100 shadow-inner">
+            <h2 className="text-sm font-bold text-blue-600 uppercase tracking-widest mb-6 flex items-center gap-2">
+              <span className="w-2 h-2 bg-blue-600 rounded-full animate-pulse" />
+              STEP 1. 기본 프로필
+            </h2>
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+              <div className="lg:col-span-2">
+                <label htmlFor="jobTitle" className="block text-xs font-bold text-neutral-600 mb-2 ml-1">지원 직무</label>
                 <input
                   type="text"
                   id="jobTitle"
                   value={jobTitle}
                   onChange={(e) => setJobTitle(e.target.value)}
-                  placeholder="예: AI 엔지니어, 프론트엔드 개발자"
-                  className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="예: 프론트엔드 개발자"
+                  className="w-full px-5 py-3.5 rounded-2xl border border-neutral-200 focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none text-base font-semibold transition-all bg-white"
                   required
                 />
               </div>
               <div>
-                <label htmlFor="experience" className="block text-sm font-medium text-neutral-700 mb-2">경력</label>
-                <select id="experience" value={experience} onChange={(e) => setExperience(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-neutral-200 bg-white outline-none">
-                  <option value="신입">신입</option>
+                <label htmlFor="experience" className="block text-xs font-bold text-neutral-600 mb-2 ml-1">경력</label>
+                <select id="experience" value={experience} onChange={(e) => setExperience(e.target.value)} className="w-full px-5 py-3.5 rounded-2xl border border-neutral-200 bg-white outline-none cursor-pointer focus:ring-4 focus:ring-blue-100 transition-all appearance-none font-bold">
+                  <option value="신입">신입 (0년)</option>
                   <option value="1~3년차">1~3년차</option>
                   <option value="3~5년차">3~5년차</option>
                   <option value="5년차 이상">5년차 이상</option>
                 </select>
               </div>
               <div>
-                <label htmlFor="education" className="block text-sm font-medium text-neutral-700 mb-2">최종 학력</label>
-                <select id="education" value={education} onChange={(e) => setEducation(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-neutral-200 bg-white outline-none">
+                <label htmlFor="education" className="block text-xs font-bold text-neutral-600 mb-2 ml-1">최종 학력</label>
+                <select id="education" value={education} onChange={(e) => setEducation(e.target.value)} className="w-full px-5 py-3.5 rounded-2xl border border-neutral-200 bg-white outline-none cursor-pointer focus:ring-4 focus:ring-blue-100 transition-all appearance-none font-bold">
                   <option value="고졸">고졸</option>
-                  <option value="전문학사(2~3년제)">전문학사(2~3년제)</option>
+                  <option value="전문학사">전문학사</option>
                   <option value="학사(4년제)">학사(4년제)</option>
                   <option value="석사">석사</option>
                   <option value="박사">박사</option>
@@ -307,113 +321,150 @@ export default function Home() {
             </div>
           </div>
 
-          {/* 2. 이력서 입력 */}
-          <div className="space-y-4">
-            <div className="flex justify-between items-center border-b pb-2">
-              <h2 className="text-lg font-bold text-neutral-800">2. 이력서 (선택)</h2>
-              <div className="flex bg-neutral-100 p-1 rounded-lg">
-                <button type="button" onClick={() => setResumeMode("none")} className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${resumeMode === "none" ? "bg-white shadow-sm text-neutral-900" : "text-neutral-500 hover:text-neutral-700"}`}>사용 안 함</button>
-                <button type="button" onClick={() => setResumeMode("text")} className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${resumeMode === "text" ? "bg-white shadow-sm text-neutral-900" : "text-neutral-500 hover:text-neutral-700"}`}>직접 입력</button>
-                <button type="button" onClick={() => setResumeMode("file")} className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${resumeMode === "file" ? "bg-white shadow-sm text-neutral-900" : "text-neutral-500 hover:text-neutral-700"}`}>파일 업로드</button>
+          {/* Section 2: Optional Enhancements - Two Column Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Left: Job Description */}
+            <div className="flex flex-col h-full bg-white p-6 sm:p-8 rounded-[2rem] border border-neutral-100 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h2 className="text-sm font-bold text-emerald-600 uppercase tracking-widest mb-1 flex items-center gap-2">
+                    <span className="w-2 h-2 bg-emerald-600 rounded-full" />
+                    STEP 2. 공고 분석
+                  </h2>
+                  <p className="text-xs text-neutral-600 font-medium ml-4">채용 공고를 기반으로 한 맞춤 면접</p>
+                </div>
+                <div className="flex bg-neutral-100 p-1 rounded-xl">
+                  <button type="button" onClick={() => setJdMode("none")} className={`px-2.5 py-1 text-[10px] font-bold rounded-lg transition-all ${jdMode === "none" ? "bg-white shadow-sm text-neutral-900" : "text-neutral-500"}`}>없음</button>
+                  <button type="button" onClick={() => setJdMode("text")} className={`px-2.5 py-1 text-[10px] font-bold rounded-lg transition-all ${jdMode === "text" ? "bg-white shadow-sm text-neutral-900" : "text-neutral-500"}`}>텍스트</button>
+                  <button type="button" onClick={() => setJdMode("image")} className={`px-2.5 py-1 text-[10px] font-bold rounded-lg transition-all ${jdMode === "image" ? "bg-white shadow-sm text-neutral-900" : "text-neutral-500"}`}>이미지</button>
+                </div>
+              </div>
+
+              <div className="flex-grow flex flex-col min-h-[160px]">
+                {jdMode === "text" && (
+                  <textarea
+                    value={jdText}
+                    onChange={(e) => setJdText(e.target.value)}
+                    placeholder="채용 공고 내용을 붙여넣어 주세요..."
+                    className="flex-grow w-full px-4 py-3 rounded-xl border border-neutral-100 bg-neutral-50 focus:bg-white focus:ring-4 focus:ring-emerald-50 focus:border-emerald-200 outline-none resize-none text-sm leading-relaxed"
+                  />
+                )}
+
+                {jdMode === "image" && (
+                  <div
+                    className={`flex-grow border-2 border-dashed rounded-xl p-6 text-center flex flex-col items-center justify-center transition-all ${isDraggingJd ? 'border-emerald-500 bg-emerald-50' : 'border-neutral-100 bg-neutral-50'}`}
+                    onDragOver={handleDragOver}
+                    onDragEnter={(e) => { e.preventDefault(); setIsDraggingJd(true); }}
+                    onDragLeave={(e) => { e.preventDefault(); setIsDraggingJd(false); }}
+                    onDrop={(e) => handleDrop(e, 'jd')}
+                  >
+                    <input type="file" id="jdImageFile" accept="image/*" onChange={handleJdImageChange} className="hidden" />
+                    <label htmlFor="jdImageFile" className="cursor-pointer group flex flex-col items-center">
+                      <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm border border-neutral-100 mb-2 group-hover:scale-110 transition-transform">
+                        <svg className="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                      </div>
+                      <span className="text-xs font-bold text-emerald-600">공고 이미지 업로드</span>
+                      <span className="text-[10px] text-neutral-600 mt-1 font-bold">PNG, JPG, JPEG, HEIC 지원</span>
+                    </label>
+                    {jdFileName && <p className="text-[11px] font-bold text-emerald-700 mt-3 bg-emerald-100/50 px-2 py-1 rounded-md">✓ {jdFileName}</p>}
+                  </div>
+                )}
+
+                {jdMode === "none" && (
+                  <div className="flex-grow flex flex-col items-center justify-center p-6 text-center bg-neutral-50/50 rounded-xl border border-dashed border-neutral-100">
+                    <svg className="w-8 h-8 text-neutral-300 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    <p className="text-xs text-neutral-600 font-medium leading-tight">선택한 공고가 없습니다.<br />직무 기반 일반 면접으로 진행합니다.</p>
+                  </div>
+                )}
               </div>
             </div>
 
-            {resumeMode === "none" ? (
-              <div className="text-sm text-neutral-500 p-4 bg-neutral-50 rounded-xl text-center">
-                이력서 없이 직무 기반의 일반적인 면접을 진행합니다.
-              </div>
-            ) : resumeMode === "text" ? (
-              <textarea
-                value={resumeText}
-                onChange={(e) => setResumeText(e.target.value)}
-                placeholder="간단한 이력 및 자기소개를 입력해주세요."
-                rows={4}
-                className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-blue-500 outline-none resize-none"
-                required
-              />
-            ) : (
-              <div
-                className={`border-2 border-dashed rounded-xl p-8 text-center transition-all ${isDraggingResume ? 'border-blue-500 bg-blue-50' : 'border-neutral-200 bg-neutral-50'}`}
-                onDragOver={handleDragOver}
-                onDragEnter={(e) => { e.preventDefault(); setIsDraggingResume(true); }}
-                onDragLeave={(e) => { e.preventDefault(); setIsDraggingResume(false); }}
-                onDrop={(e) => handleDrop(e, 'resume')}
-              >
-                <input type="file" id="resumeFile" accept=".pdf,.txt" onChange={handleResumeFileChange} className="hidden" />
-                <div className={isDraggingResume ? "pointer-events-none" : ""}>
-                  <label htmlFor="resumeFile" className="cursor-pointer text-blue-600 font-medium hover:underline inline-block mb-1">
-                    파일을 여기에 드래그하거나 선택하세요
-                  </label>
-                  <p className="text-xs text-neutral-400">PDF 또는 TXT 파일 업로드</p>
-                  {resumeFile && <p className="text-sm font-medium text-neutral-700 mt-4">✅ {resumeFile.name}</p>}
-                  {isParsingResume && <p className="text-sm text-blue-600 mt-2 font-medium">텍스트 추출 중... ⏳</p>}
-                  {!isParsingResume && resumeText && resumeMode === "file" && <p className="text-xs text-green-600 mt-2">성공적으로 텍스트를 추출했습니다.</p>}
+            {/* Right: Resume */}
+            <div className="flex flex-col h-full bg-white p-6 sm:p-8 rounded-[2rem] border border-neutral-100 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h2 className="text-sm font-bold text-indigo-600 uppercase tracking-widest mb-1 flex items-center gap-2">
+                    <span className="w-2 h-2 bg-indigo-600 rounded-full" />
+                    STEP 3. 이력서 분석
+                  </h2>
+                  <p className="text-xs text-neutral-600 font-medium ml-4">제출하신 이력서를 바탕으로 심층 질문</p>
+                </div>
+                <div className="flex bg-neutral-100 p-1 rounded-xl">
+                  <button type="button" onClick={() => setResumeMode("none")} className={`px-2.5 py-1 text-[10px] font-bold rounded-lg transition-all ${resumeMode === "none" ? "bg-white shadow-sm text-neutral-900" : "text-neutral-500"}`}>없음</button>
+                  <button type="button" onClick={() => setResumeMode("text")} className={`px-2.5 py-1 text-[10px] font-bold rounded-lg transition-all ${resumeMode === "text" ? "bg-white shadow-sm text-neutral-900" : "text-neutral-500"}`}>입력</button>
+                  <button type="button" onClick={() => setResumeMode("file")} className={`px-2.5 py-1 text-[10px] font-bold rounded-lg transition-all ${resumeMode === "file" ? "bg-white shadow-sm text-neutral-900" : "text-neutral-500"}`}>파일</button>
                 </div>
               </div>
-            )}
-          </div>
 
-          {/* 3. 채용 공고 (선택) */}
-          <div className="space-y-4">
-            <div className="flex flex-wrap gap-2 sm:gap-0 justify-between items-center border-b pb-2">
-              <h2 className="text-lg font-bold text-neutral-800">3. 지원 공고 역량 (선택)</h2>
-              <div className="flex bg-neutral-100 p-1 rounded-lg">
-                <button type="button" onClick={() => setJdMode("none")} className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${jdMode === "none" ? "bg-white shadow-sm text-neutral-900" : "text-neutral-500 hover:text-neutral-700"}`}>사용 안함</button>
-                <button type="button" onClick={() => setJdMode("text")} className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${jdMode === "text" ? "bg-white shadow-sm text-neutral-900" : "text-neutral-500 hover:text-neutral-700"}`}>텍스트 붙여넣기</button>
-                <button type="button" onClick={() => setJdMode("image")} className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${jdMode === "image" ? "bg-white shadow-sm text-neutral-900" : "text-neutral-500 hover:text-neutral-700"}`}>이미지 캡처</button>
+              <div className="flex-grow flex flex-col min-h-[160px]">
+                {resumeMode === "text" ? (
+                  <textarea
+                    value={resumeText}
+                    onChange={(e) => setResumeText(e.target.value)}
+                    placeholder="자기소개 또는 주요 경력을 입력하세요..."
+                    className="flex-grow w-full px-4 py-3 rounded-xl border border-neutral-100 bg-neutral-50 focus:bg-white focus:ring-4 focus:ring-indigo-50 focus:border-indigo-200 outline-none resize-none text-sm leading-relaxed"
+                    required
+                  />
+                ) : resumeMode === "file" ? (
+                  <div
+                    className={`flex-grow border-2 border-dashed rounded-xl p-6 text-center flex flex-col items-center justify-center transition-all ${isDraggingResume ? 'border-indigo-500 bg-indigo-50' : 'border-neutral-100 bg-neutral-50'}`}
+                    onDragOver={handleDragOver}
+                    onDragEnter={(e) => { e.preventDefault(); setIsDraggingResume(true); }}
+                    onDragLeave={(e) => { e.preventDefault(); setIsDraggingResume(false); }}
+                    onDrop={(e) => handleDrop(e, 'resume')}
+                  >
+                    <input type="file" id="resumeFile" accept=".pdf,.txt" onChange={handleResumeFileChange} className="hidden" />
+                    <label htmlFor="resumeFile" className="cursor-pointer group flex flex-col items-center">
+                      <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm border border-neutral-100 mb-2 group-hover:scale-110 transition-transform">
+                        <svg className="w-5 h-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                      </div>
+                      <span className="text-xs font-bold text-indigo-600">이력서 파일 업로드</span>
+                      <span className="text-[10px] text-neutral-600 mt-1 font-bold">PDF, TXT 파일 지원</span>
+                    </label>
+                    {resumeFile && <p className="text-[11px] font-bold text-indigo-700 mt-3 bg-indigo-100/50 px-2 py-1 rounded-md truncate max-w-full">✓ {resumeFile.name}</p>}
+                    {isParsingResume && <p className="text-[10px] text-indigo-600 mt-2 animate-pulse font-bold">분석 중...</p>}
+                  </div>
+                ) : (
+                  <div className="flex-grow flex flex-col items-center justify-center p-6 text-center bg-neutral-50/50 rounded-xl border border-dashed border-neutral-100">
+                    <svg className="w-8 h-8 text-neutral-300 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                    <p className="text-xs text-neutral-600 font-medium leading-tight">이력서 없이 진행합니다.<br />일반적인 지원자 수준에 맞춰 질문합니다.</p>
+                  </div>
+                )}
               </div>
             </div>
-
-            {jdMode === "text" && (
-              <textarea
-                value={jdText}
-                onChange={(e) => setJdText(e.target.value)}
-                placeholder="채용 공고의 자격 요건, 우대 사항 등을 붙여넣어 주세요."
-                rows={4}
-                className="w-full px-4 py-3 rounded-xl border border-neutral-200 focus:ring-2 focus:ring-blue-500 outline-none resize-none"
-              />
-            )}
-
-            {jdMode === "image" && (
-              <div
-                className={`border-2 border-dashed rounded-xl p-8 text-center transition-all ${isDraggingJd ? 'border-blue-500 bg-blue-50' : 'border-neutral-200 bg-neutral-50'}`}
-                onDragOver={handleDragOver}
-                onDragEnter={(e) => { e.preventDefault(); setIsDraggingJd(true); }}
-                onDragLeave={(e) => { e.preventDefault(); setIsDraggingJd(false); }}
-                onDrop={(e) => handleDrop(e, 'jd')}
-              >
-                <input type="file" id="jdImageFile" accept="image/*" onChange={handleJdImageChange} className="hidden" />
-                <div className={isDraggingJd ? "pointer-events-none" : ""}>
-                  <label htmlFor="jdImageFile" className="cursor-pointer text-blue-600 font-medium hover:underline inline-block mb-1">
-                    파일을 여기에 드래그하거나 선택하세요
-                  </label>
-                  <p className="text-xs text-neutral-400">PNG, JPG, JPEG, HEIC 지원</p>
-                  {jdFileName && <p className="text-sm font-medium text-neutral-700 mt-4">✅ {jdFileName}</p>}
-                </div>
-              </div>
-            )}
-
-            {jdMode === "none" && (
-              <p className="text-sm text-neutral-500 py-4 bg-neutral-50 rounded-xl text-center border border-neutral-100">
-                특정 공고 없이 일반적인 직무 면접으로 진행합니다.
-              </p>
-            )}
           </div>
 
-          <div className="pt-6">
-            <button type="submit" disabled={isParsingResume} className="w-full flex justify-center items-center py-4 px-4 border border-transparent rounded-xl shadow-sm text-base font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-colors">
-              AI 면접 시작하기
-              <svg className="ml-2 w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-              </svg>
+          {/* Action Footer */}
+          <div className="pt-8 border-t border-neutral-100 flex flex-col items-center gap-6">
+            <button
+              type="submit"
+              disabled={isParsingResume}
+              className="group relative w-full sm:w-auto sm:min-w-[320px] flex justify-center items-center py-5 px-10 rounded-[2rem] shadow-2xl text-xl font-black text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 transition-all active:scale-95 overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+              <span className="relative flex items-center gap-3">
+                AI 면접 시작하기
+                <svg className="w-6 h-6 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+              </span>
             </button>
+
+            <div className="text-center space-y-2">
+              <p className="text-[12px] text-neutral-700 font-bold">
+                🛡️ 입력하신 데이터(이력서, 공고 등)는 분석 직후 즉시 파기되며 절대 저장되지 않습니다.
+              </p>
+              <p className="text-[11px] text-neutral-600 font-medium">
+                단, 면접 대화 내용은 AI 모델의 품질 향상을 위한 학습 데이터로 활용될 수 있습니다.
+              </p>
+            </div>
           </div>
         </form>
       </div>
 
-      <footer className="mt-8 text-center text-xs text-neutral-400 max-w-md mx-auto leading-relaxed">
-        <p>제공해주신 모든 데이터(이력서, 채용 공고 등)는 실시간 면접 분석을 위해서만 사용되며,<br />면접 종료 후 별도로 저장되지 않습니다.</p>
-      </footer>
+      <div className="mt-12 flex justify-center opacity-30 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-500">
+        {/* Placeholder for partner logos or tech stack icons if needed */}
+      </div>
     </main>
   );
 }
