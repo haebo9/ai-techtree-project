@@ -1,6 +1,6 @@
-# AI Techtree Agent System
+# 마지막 승부 Agent System
 
-> 이 문서는 AI TechTree Agent의 발전 과정과 방향을 정리한 글입니다. 
+> 이 문서는 마지막 승부 Agent의 발전 과정과 방향을 정리한 글입니다. 
 
 ---
 

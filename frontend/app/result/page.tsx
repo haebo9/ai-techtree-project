@@ -194,6 +194,14 @@ export default function ResultPage() {
 
           {/* Right Column: Recommendations & Actions */}
           <div className="space-y-8">
+            {/* New: Restart Button */}
+            <Link href="/" className="w-full flex justify-center items-center py-4 px-6 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-md transition-all transform hover:scale-[1.02] active:scale-[0.98]">
+              <svg className="mr-2 w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              새로운 면접 보러가기
+            </Link>
+
             {/* Job Recommendations */}
             <div className="bg-white rounded-3xl p-8 shadow-sm border border-neutral-100">
               <h2 className="text-lg font-bold text-neutral-900 mb-5">🎯 맞춤 채용 공고</h2>
@@ -225,7 +233,10 @@ export default function ResultPage() {
             {/* Action Card */}
             <div className="bg-gradient-to-br from-neutral-900 to-neutral-800 rounded-3xl p-8 shadow-lg text-white">
               <h2 className="text-lg font-bold mb-2">리포트 소장하기</h2>
-              <p className="text-neutral-300 text-sm mb-6">입력하신 이메일로 상세 리포트와 채용 정보를 보내드립니다.</p>
+              <p className="text-neutral-300 text-sm mb-6 leading-relaxed">
+                입력하신 이메일로 상세 리포트와 채용 정보를 보내드립니다.<br />
+                <span className="text-xs opacity-70">(전체 면접 내용도 있습니다!)</span>
+              </p>
               <div className="space-y-3">
                 <input
                   type="email"
@@ -243,12 +254,9 @@ export default function ResultPage() {
                 </button>
                 {emailStatus === "success" && <p className="text-green-400 text-sm mt-2 text-center">✅ 성공적으로 전송되었습니다!</p>}
                 {emailStatus === "error" && <p className="text-red-400 text-sm mt-2 text-center">❌ 전송에 실패했습니다.</p>}
-              </div>
-
-              <div className="mt-6 pt-6 border-t border-neutral-700">
-                <Link href="/" className="block text-center text-neutral-300 hover:text-white text-sm font-medium transition-colors">
-                  홈으로 돌아가기
-                </Link>
+                <p className="text-[10px] text-neutral-400 mt-4 text-center leading-tight opacity-50">
+                  기록 저장을 위해 면접 리포트는 반드시<br />본인의 이메일로 즉시 소장해 주시기 바랍니다.
+                </p>
               </div>
             </div>
           </div>

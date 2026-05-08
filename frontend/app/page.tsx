@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function Home() {
   const router = useRouter();
@@ -242,6 +243,15 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-neutral-50 py-12 px-6">
       <div className="max-w-2xl mx-auto w-full bg-white rounded-3xl shadow-sm border border-neutral-100 p-8 sm:p-10 relative">
+        <div className="absolute top-8 left-8">
+          <Link href="/debug" className="text-neutral-200 hover:text-neutral-400 transition-colors" title="개발자 디버그 페이지">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </Link>
+        </div>
+
         <button
           onClick={loadDummyData}
           className="absolute top-8 right-8 px-4 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-sm font-medium rounded-lg transition-colors"
@@ -255,7 +265,9 @@ export default function Home() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold text-neutral-900 tracking-tight mb-3">TechTree 면접 설정</h1>
+          <h1 className="text-3xl font-bold text-neutral-900 tracking-tight mb-3">
+            마지막 승부 <span className="text-blue-600 font-medium text-2xl ml-1">TechTree</span>
+          </h1>
           <p className="text-neutral-500 text-sm">지원자님의 프로필과 공고를 기반으로 맞춤형 면접을 생성합니다.</p>
         </div>
 
@@ -402,6 +414,10 @@ export default function Home() {
           </div>
         </form>
       </div>
+
+      <footer className="mt-8 text-center text-xs text-neutral-400 max-w-md mx-auto leading-relaxed">
+        <p>제공해주신 모든 데이터(이력서, 채용 공고 등)는 실시간 면접 분석을 위해서만 사용되며,<br />면접 종료 후 별도로 저장되지 않습니다.</p>
+      </footer>
     </main>
   );
 }
