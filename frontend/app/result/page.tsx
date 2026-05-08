@@ -127,8 +127,13 @@ export default function ResultPage() {
         {/* Header Section */}
         <div className="bg-white rounded-3xl p-8 shadow-sm border border-neutral-100 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-            <div className="inline-block px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full mb-3">
-              분석 완료
+            <div className="flex items-center gap-4 mb-3">
+              <div className="w-10 h-10 rounded-lg overflow-hidden border border-neutral-100 shadow-sm">
+                <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" />
+              </div>
+              <div className="inline-block px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full">
+                분석 완료
+              </div>
             </div>
             <h1 className="text-3xl font-bold text-neutral-900 mb-2">면접 종합 평가 리포트</h1>
             <p className="text-neutral-500">지원자님의 가상 면접 결과를 다각도로 분석했습니다.</p>

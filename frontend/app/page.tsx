@@ -260,14 +260,10 @@ export default function Home() {
           ⚙️ 테스트 데이터 사용
         </button>
         <div className="text-center mb-10 mt-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-50 mb-6">
-            <svg className="w-8 h-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-            </svg>
+          <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-white mb-6 shadow-md overflow-hidden border border-neutral-100">
+            <img src="/logo.png" alt="TechTree Logo" className="w-full h-full object-cover" />
           </div>
-          <h1 className="text-3xl font-bold text-neutral-900 tracking-tight mb-3">
-            마지막 승부 <span className="text-blue-600 font-medium text-2xl ml-1">TechTree</span>
-          </h1>
+          <h1 className="text-3xl font-bold text-neutral-900 tracking-tight mb-3">AI 가상 면접 서비스 : TechTree</h1>
           <p className="text-neutral-500 text-sm">지원자님의 프로필과 공고를 기반으로 맞춤형 면접을 생성합니다.</p>
         </div>
 

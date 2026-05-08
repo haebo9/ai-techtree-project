@@ -339,9 +339,14 @@ export default function InterviewPage() {
   return (
     <main className="min-h-screen bg-neutral-900 flex flex-col items-center justify-center p-4 relative">
       <div className="absolute top-0 w-full p-6 flex justify-between items-center z-10 max-w-5xl">
-        <div className="flex items-center space-x-3 text-white">
-          <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-          <span className="font-medium">면접 진행 중</span>
+        <div className="flex items-center space-x-4">
+          <div className="w-8 h-8 rounded-lg overflow-hidden border border-neutral-700">
+            <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" />
+          </div>
+          <div className="flex items-center space-x-2 text-white">
+            <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+            <span className="text-sm font-medium opacity-80">면접 진행 중</span>
+          </div>
         </div>
         <button onClick={endInterview} className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white rounded-lg text-sm font-medium transition-colors border border-neutral-700">
           면접 종료하기

@@ -28,7 +28,7 @@ app.include_router(api_router, prefix="/api")
 @app.get("/")
 async def root():
     return {
-        "message": "Welcome to 마지막 승부 (TechTree)", 
+        "message": "Welcome to TechTree", 
         "docs": {
             "mcp": "/mcp/docs",
             "api": "/docs"

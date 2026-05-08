@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "마지막 승부 (TechTree) | AI 가상 면접 서비스",
-  description: "당신의 취업을 위한 마지막 승부, 실시간 AI 면접관과 함께 준비하세요.",
+  title: "TechTree",
+  description: "AI 가상 면접 서비스, TechTree",
 };
 
 export default function RootLayout({

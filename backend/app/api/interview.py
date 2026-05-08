@@ -286,9 +286,9 @@ async def send_interview_email(session_id: str, request: SendEmailRequest):
     """
 
     params = {
-        "from": "마지막 승부 (TechTree) <no-reply@haebo.pro>",
+        "from": "TechTree <no-reply@haebo.pro>",
         "to": [request.email],
-        "subject": "마지막 승부 (TechTree) 가상 면접 종합 평가 리포트",
+        "subject": "TechTree 가상 면접 종합 평가 리포트",
         "html": html_content,
     }
 
