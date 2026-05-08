@@ -201,8 +201,8 @@ export default function Home() {
       return;
     }
 
-    if (isParsingResume) {
-      alert("이력서 파일을 분석 중입니다. 잠시만 기다려주세요.");
+    if (isParsingResume || isAnalyzingJd) {
+      alert("분석 작업이 진행 중입니다. 잠시만 기다려주세요.");
       return;
     }
 
@@ -506,15 +506,24 @@ export default function Home() {
           <div className="pt-8 border-t border-neutral-100 flex flex-col items-center gap-6">
             <button
               type="submit"
-              disabled={isParsingResume}
+              disabled={isParsingResume || isAnalyzingJd}
               className="group relative w-full sm:w-auto sm:min-w-[320px] flex justify-center items-center py-5 px-10 rounded-[2rem] shadow-2xl text-xl font-black text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 transition-all active:scale-95 overflow-hidden"
             >
               <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
               <span className="relative flex items-center gap-3">
-                AI 면접 시작하기
-                <svg className="w-6 h-6 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
+                {isParsingResume || isAnalyzingJd ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    분석 중...
+                  </>
+                ) : (
+                  <>
+                    AI 면접 시작하기
+                    <svg className="w-6 h-6 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                  </>
+                )}
               </span>
             </button>
 
