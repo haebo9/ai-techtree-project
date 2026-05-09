@@ -1,21 +1,22 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 interface LogEntry {
   id: string;
   timestamp: string;
   source: 'IN' | 'OUT' | 'SYS' | 'TOOL';
   event: string;
-  data?: any;
+  data?: unknown;
+}
+
+interface JobSearchResult {
+  company?: string;
+  title?: string;
 }
 
 export default function DebugPage() {
-  const router = useRouter();
-
   const [isRecording, setIsRecording] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
   const [statusText, setStatusText] = useState("대기 중...");
   const [logs, setLogs] = useState<LogEntry[]>([]);
 
@@ -25,10 +26,9 @@ export default function DebugPage() {
   const streamRef = useRef<MediaStream | null>(null);
   const logsEndRef = useRef<HTMLDivElement | null>(null);
 
-  const [sessionId, setSessionId] = useState<string | null>(null);
   const [transcripts, setTranscripts] = useState<{ id: string, role: string, text: string }[]>([]);
 
-  const addLog = (source: 'IN' | 'OUT' | 'SYS' | 'TOOL', event: string, data?: any) => {
+  const addLog = (source: 'IN' | 'OUT' | 'SYS' | 'TOOL', event: string, data?: unknown) => {
     setLogs(prev => [...prev, {
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       timestamp: new Date().toISOString().split('T')[1].slice(0, -2), // HH:mm:ss.SS
@@ -82,7 +82,6 @@ export default function DebugPage() {
       if (!res.ok) throw new Error("토큰 발급 API 오류");
       const data = await res.json();
       const EPHEMERAL_KEY = data.ephemeral_token;
-      setSessionId(data.session_id);
       addLog('SYS', 'Token Received', { session_id: data.session_id });
 
       setStatusText("WebRTC 연결 중...");
@@ -151,7 +150,11 @@ export default function DebugPage() {
               const toolRes = await fetch("http://localhost:8000/api/interview/tools/search_job", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ query: args.query })
+                body: JSON.stringify({
+                  query: args.query,
+                  experience: profileData.experience || "",
+                  education: profileData.education || ""
+                })
               });
               const searchData = await toolRes.json();
               const t2 = Date.now();
@@ -159,10 +162,13 @@ export default function DebugPage() {
               addLog('TOOL', `Search Tool Completed (${t2 - t1}ms)`, searchData);
 
               // 검색 결과를 좌측 요약 패널에도 예쁘게 표시
+              const resultText = Array.isArray(searchData.result)
+                ? searchData.result.map((job: JobSearchResult) => `- ${job.company || "회사명 미상"}: ${job.title || "공고명 미상"}`).join("\n")
+                : String(searchData.result || "");
               setTranscripts(prev => [...prev, {
                 id: `sys-${Date.now()}`,
                 role: "sys",
-                text: `[🔍 Tavily 검색 완료] ${searchData.result}`
+                text: `[🔍 Tavily 검색 완료]\n${resultText}`
               }]);
 
               const outputEvent = {
@@ -180,8 +186,8 @@ export default function DebugPage() {
               dc.send(JSON.stringify(responseCreateEvent));
               addLog('OUT', 'response.create', responseCreateEvent);
 
-            } catch (err: any) {
-              addLog('TOOL', 'Tool Execution Error', { error: err.message });
+            } catch (err: unknown) {
+              addLog('TOOL', 'Tool Execution Error', { error: err instanceof Error ? err.message : String(err) });
             }
           }
         }
@@ -204,11 +210,9 @@ export default function DebugPage() {
           ));
         }
         if (realtimeEvent.type === "response.audio.delta") {
-          setIsSpeaking(true);
           setStatusText("AI 발화 중...");
         }
         if (realtimeEvent.type === "response.done") {
-          setIsSpeaking(false);
           setStatusText("🟢 스페이스바를 누른 채로 대답하세요.");
         }
       });
@@ -239,8 +243,8 @@ export default function DebugPage() {
       setIsRecording(false);
       setStatusText("🟢 스페이스바를 누른 채로 대답하세요.");
 
-    } catch (error: any) {
-      addLog('SYS', 'Connection Error', { error: error.message });
+    } catch (error: unknown) {
+      addLog('SYS', 'Connection Error', { error: error instanceof Error ? error.message : String(error) });
       setStatusText("오류 발생");
     }
   };
@@ -254,7 +258,7 @@ export default function DebugPage() {
     setStatusText("종료됨");
   };
 
-  const startRecording = () => {
+  const startRecording = useCallback(() => {
     if (streamRef.current && !isRecording && dcRef.current?.readyState === "open") {
       const audioTrack = streamRef.current.getAudioTracks()[0];
       audioTrack.enabled = true;
@@ -263,9 +267,9 @@ export default function DebugPage() {
       dcRef.current.send(JSON.stringify({ type: "input_audio_buffer.clear" }));
       addLog('SYS', 'Push-To-Talk: Microphone ON');
     }
-  };
+  }, [isRecording]);
 
-  const stopRecording = () => {
+  const stopRecording = useCallback(() => {
     if (streamRef.current && isRecording && dcRef.current?.readyState === "open") {
       const audioTrack = streamRef.current.getAudioTracks()[0];
       audioTrack.enabled = false;
@@ -276,7 +280,7 @@ export default function DebugPage() {
       dcRef.current.send(JSON.stringify({ type: "response.create" }));
       addLog('SYS', 'Push-To-Talk: Microphone OFF, Buffer Committed');
     }
-  };
+  }, [isRecording]);
 
   // 스페이스바 단축키 (Push-To-Talk)
   useEffect(() => {
@@ -298,7 +302,7 @@ export default function DebugPage() {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     }
-  }, [isRecording]);
+  }, [startRecording, stopRecording]);
 
   const loadDummyData = async () => {
     try {
@@ -439,7 +443,7 @@ export default function DebugPage() {
                   <span className={`font-bold ${colorClass}`}>[{log.source}]</span>
                   <span className="font-semibold text-white">{log.event}</span>
                 </div>
-                {log.data && (
+                {log.data !== undefined && (
                   <pre className="mt-1 pl-4 border-l-2 border-gray-700 text-gray-400 overflow-x-auto whitespace-pre-wrap break-words">
                     {JSON.stringify(log.data, null, 2)}
                   </pre>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 
 interface QnAReview {
@@ -24,9 +25,14 @@ interface EvaluationResult {
   job_recommendations: JobRecommendation[];
 }
 
+interface TranscriptItem {
+  role: string;
+  text: string;
+}
+
 export default function ResultPage() {
   const [result, setResult] = useState<EvaluationResult | null>(null);
-  const [transcripts, setTranscripts] = useState<any[]>([]);
+  const [transcripts, setTranscripts] = useState<TranscriptItem[]>([]);
   const [duration, setDuration] = useState("");
   const [date, setDate] = useState("");
   const [email, setEmail] = useState("");
@@ -156,7 +162,7 @@ export default function ResultPage() {
             <div className="flex items-center gap-4">
               <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-500 p-0.5 shadow-lg rotate-3 shrink-0">
                 <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center overflow-hidden">
-                  <img src="/logo.png" alt="Logo" className="w-3/4 h-3/4 object-contain" />
+                  <Image src="/logo.png" alt="Logo" width={42} height={42} className="w-3/4 h-3/4 object-contain" priority />
                 </div>
               </div>
               <div className="px-4 py-1.5 bg-emerald-50 text-emerald-600 text-[10px] font-black rounded-full uppercase tracking-[0.2em] border border-emerald-100 animate-pulse">

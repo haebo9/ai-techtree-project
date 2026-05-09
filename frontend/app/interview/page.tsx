@@ -1,8 +1,15 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import Link from "next/link";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
+
+interface JobSearchResult {
+  company?: string;
+  title?: string;
+  url?: string;
+  content?: string;
+}
 
 export default function InterviewPage() {
   const router = useRouter();
@@ -22,7 +29,7 @@ export default function InterviewPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [startTime, setStartTime] = useState<number | null>(null);
   const transcriptRef = useRef<{ role: string, text: string }[]>([]);
-  const savedJobsRef = useRef<any[]>([]);
+  const savedJobsRef = useRef<JobSearchResult[]>([]);
 
   // 1. 컴포넌트 마운트 시 WebRTC 직접 연결 시도
   useEffect(() => {
@@ -137,7 +144,11 @@ export default function InterviewPage() {
                 const res = await fetch("http://localhost:8000/api/interview/tools/search_job", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ query: args.query })
+                  body: JSON.stringify({
+                    query: args.query,
+                    experience: profileData.experience || "",
+                    education: profileData.education || ""
+                  })
                 });
                 const searchData = await res.json();
                 console.log("[Tool] 검색 결과 수신 완료", searchData.result);
@@ -239,7 +250,7 @@ export default function InterviewPage() {
   }, []);
 
   // 2. 마이크 Push-To-Talk 핸들러
-  const startRecording = () => {
+  const startRecording = useCallback(() => {
     if (streamRef.current && !isRecording && dcRef.current?.readyState === "open") {
       const audioTrack = streamRef.current.getAudioTracks()[0];
       audioTrack.enabled = true;
@@ -248,9 +259,9 @@ export default function InterviewPage() {
       // 잔여 버퍼 비우기
       dcRef.current.send(JSON.stringify({ type: "input_audio_buffer.clear" }));
     }
-  };
+  }, [isRecording]);
 
-  const stopRecording = () => {
+  const stopRecording = useCallback(() => {
     if (streamRef.current && isRecording && dcRef.current?.readyState === "open") {
       const audioTrack = streamRef.current.getAudioTracks()[0];
       audioTrack.enabled = false;
@@ -261,7 +272,7 @@ export default function InterviewPage() {
       dcRef.current.send(JSON.stringify({ type: "input_audio_buffer.commit" }));
       dcRef.current.send(JSON.stringify({ type: "response.create" }));
     }
-  };
+  }, [isRecording]);
 
   // 스페이스바 단축키 (Push-To-Talk)
   useEffect(() => {
@@ -283,7 +294,7 @@ export default function InterviewPage() {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     }
-  }, [isRecording]);
+  }, [startRecording, stopRecording]);
 
   // 3. 면접 종료 시 대화 기록을 백엔드로 넘기고 결과창으로 이동
   const endInterview = async () => {
@@ -344,7 +355,7 @@ export default function InterviewPage() {
       <div className="absolute top-0 w-full p-6 flex justify-between items-center z-10 max-w-5xl">
         <div className="flex items-center space-x-4">
           <div className="w-8 h-8 rounded-lg overflow-hidden border border-neutral-700">
-            <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" />
+            <Image src="/logo.png" alt="Logo" width={32} height={32} className="w-full h-full object-cover" priority />
           </div>
           <div className="flex items-center space-x-2 text-white">
             <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>

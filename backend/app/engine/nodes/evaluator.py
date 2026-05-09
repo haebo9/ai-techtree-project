@@ -1,4 +1,6 @@
-from typing import List
+import json
+import re
+from typing import Any, Dict, List
 from pydantic import BaseModel, Field
 from app.engine.graphs.state import InterviewState
 from app.core.llm import get_llm
@@ -30,6 +32,49 @@ class EvaluationSchema(BaseModel):
     class Config:
         extra = "forbid"
 
+def _normalize_saved_jobs(raw_jobs: Any) -> List[Dict[str, str]]:
+    """
+    Convert search results from Tavily/tool calls into the report schema.
+    Handles the current structured list and older string summaries defensively.
+    """
+    if not raw_jobs:
+        return []
+
+    if isinstance(raw_jobs, str):
+        try:
+            raw_jobs = json.loads(raw_jobs)
+        except json.JSONDecodeError:
+            jobs = []
+            for line in raw_jobs.splitlines():
+                match = re.search(r"-\s*(?P<title>.*?)(?:\s*\(링크:\s*(?P<url>.*?)\))?$", line.strip())
+                if not match:
+                    continue
+                title = match.group("title").strip()
+                if title:
+                    jobs.append({
+                        "company": "회사명 미상",
+                        "title": title,
+                        "url": (match.group("url") or "").strip(),
+                    })
+            return jobs
+
+    if isinstance(raw_jobs, dict):
+        raw_jobs = [raw_jobs]
+
+    if not isinstance(raw_jobs, list):
+        return []
+
+    normalized = []
+    for job in raw_jobs:
+        if not isinstance(job, dict):
+            continue
+        normalized.append({
+            "company": str(job.get("company") or "회사명 미상"),
+            "title": str(job.get("title") or "공고명 미상"),
+            "url": str(job.get("url") or ""),
+        })
+    return normalized
+
 def evaluator_node(state: InterviewState):
     """
     평가자 AI 노드:
@@ -41,6 +86,8 @@ def evaluator_node(state: InterviewState):
     user_id = state.get('user_id', '지원자')
     job_title = state.get('job_title', '정보 없음')
     job_description = state.get('job_description', '맞춤형 채용 공고 정보 없음')
+    experience = state.get('experience', '')
+    education = state.get('education', '')
     
     system_prompt = f"""
     당신은 전문 채용 평가관입니다. 지원자({user_id})의 면접 대화 전체를 분석하여 
@@ -61,30 +108,23 @@ def evaluator_node(state: InterviewState):
     result_dict = result.dict()
     
     # LLM 환각 방지를 위해, 프론트엔드에서 수집한 실제 검색 결과(saved_jobs)를 강제로 주입
-    saved_jobs = state.get("saved_jobs", [])
+    saved_jobs = _normalize_saved_jobs(state.get("saved_jobs", []))
     
     # 만약 면접 중에 검색이 이뤄지지 않아 saved_jobs가 비어있다면, 평가 단계에서 백그라운드로 검색 실행
     if not saved_jobs:
         try:
             from app.engine.tools.job_search import search_korean_job_postings
             search_query = f"{job_title} 채용"
-            search_result = search_korean_job_postings.invoke({"query": search_query})
-            if isinstance(search_result, list):
-                saved_jobs = search_result
+            search_result = search_korean_job_postings.invoke({
+                "query": search_query,
+                "experience": experience,
+                "education": education
+            })
+            saved_jobs = _normalize_saved_jobs(search_result)
         except Exception as e:
             print(f"Evaluator fallback search failed: {e}")
 
-    filtered_jobs = []
-    if saved_jobs:
-        # Pydantic 스키마에 맞게 필터링
-        for job in saved_jobs:
-            filtered_jobs.append({
-                "company": job.get("company", "회사명 미상"),
-                "title": job.get("title", "공고명 미상"),
-                "url": job.get("url", "")
-            })
-            if len(filtered_jobs) >= 3: # 최대 3개까지만
-                break
+    filtered_jobs = saved_jobs[:3]
                 
     result_dict["job_recommendations"] = filtered_jobs
     

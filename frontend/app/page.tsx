@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import NextImage from "next/image";
 
 export default function Home() {
   const router = useRouter();
@@ -314,7 +315,7 @@ export default function Home() {
         <div className="flex flex-col items-center text-center mb-12">
           <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-emerald-400 p-0.5 mb-6 shadow-lg rotate-3">
             <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center overflow-hidden">
-              <img src="/logo.png" alt="TechTree Logo" className="w-4/5 h-4/5 object-contain" />
+              <NextImage src="/logo.png" alt="TechTree Logo" width={64} height={64} className="w-4/5 h-4/5 object-contain" priority />
             </div>
           </div>
           <h1 className="text-4xl font-extrabold text-neutral-900 tracking-tight mb-4">
