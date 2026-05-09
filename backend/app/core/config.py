@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     RESEND_API_KEY: str | None = None
 
     # 선택적 환경 변수 (기본값 제공)
-    PROJECT_NAME: str = "AI TechTree"
+    PROJECT_NAME: str = "TechTree"
     VERSION: str = "2.0.0"
     
     @property

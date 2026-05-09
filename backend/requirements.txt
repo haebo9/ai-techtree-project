@@ -4,6 +4,7 @@ uvicorn[standard]==0.40.0
 pydantic[email]==2.12.5
 pydantic-settings==2.12.0
 python-dotenv==1.2.1
+python-multipart
 
 # AI & LLM
 langchain>=0.2.0
@@ -25,11 +26,13 @@ watchdog==6.0.0
 streamlit-agraph
 Pillow
 
-# Utilities
+# Utilities & File Processing
 numpy==2.4.0
 scikit-learn
 requests==2.32.5
 httpx==0.28.1
+PyPDF2
+fpdf2
 
 # Testing
 pytest==9.0.2

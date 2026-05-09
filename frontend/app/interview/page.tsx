@@ -10,6 +10,7 @@ export default function InterviewPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [statusText, setStatusText] = useState("마이크 권한을 확인 중입니다...");
+  const [isEnding, setIsEnding] = useState(false);
 
   // WebRTC 및 Media 참조
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -52,7 +53,9 @@ export default function InterviewPage() {
             job_title: profileData.job_title || "직무 미상",
             education: profileData.education || "학사(4년제)",
             experience: profileData.experience || "신입",
-            resume: profileData.resume || "정보 없음"
+            resume: profileData.resume || "정보 없음",
+            job_description: profileData.job_description || "",
+            job_image: profileData.job_image || null
           })
         });
 
@@ -87,6 +90,31 @@ export default function InterviewPage() {
 
         dc.addEventListener("open", () => {
           setStartTime(Date.now());
+          
+          // 이미지가 업로드된 경우, 초기 컨텍스트로 전달 (올바른 Realtime API 포맷 사용)
+          if (profileData.job_image) {
+            // "data:image/jpeg;base64,..." 그대로 사용
+            const base64Data = profileData.job_image;
+            
+            dc.send(JSON.stringify({
+              type: "conversation.item.create",
+              item: {
+                type: "message",
+                role: "user",
+                content: [
+                  { 
+                    type: "input_image", 
+                    image_url: base64Data
+                  },
+                  { 
+                    type: "input_text", 
+                    text: "이 이미지는 제가 지원하고자 하는 채용 공고입니다. 이 내용을 바탕으로 맞춤형 면접 질문을 해주세요." 
+                  }
+                ]
+              }
+            }));
+          }
+
           // VAD가 꺼져 있으므로 연결 직후 첫 인사 생성을 수동 요청
           dc.send(JSON.stringify({ type: "response.create" }));
         });
@@ -264,6 +292,8 @@ export default function InterviewPage() {
       return;
     }
 
+    setIsEnding(true);
+
     try {
       setStatusText("대화 내용을 평가하고 있습니다...");
       
@@ -312,12 +342,21 @@ export default function InterviewPage() {
   return (
     <main className="min-h-screen bg-neutral-900 flex flex-col items-center justify-center p-4 relative">
       <div className="absolute top-0 w-full p-6 flex justify-between items-center z-10 max-w-5xl">
-        <div className="flex items-center space-x-3 text-white">
-          <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-          <span className="font-medium">면접 진행 중</span>
+        <div className="flex items-center space-x-4">
+          <div className="w-8 h-8 rounded-lg overflow-hidden border border-neutral-700">
+            <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" />
+          </div>
+          <div className="flex items-center space-x-2 text-white">
+            <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+            <span className="text-sm font-medium opacity-80">면접 진행 중</span>
+          </div>
         </div>
-        <button onClick={endInterview} className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white rounded-lg text-sm font-medium transition-colors border border-neutral-700">
-          면접 종료하기
+        <button 
+          onClick={endInterview} 
+          disabled={isEnding}
+          className={`px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white rounded-lg text-sm font-medium transition-colors border border-neutral-700 ${isEnding ? "opacity-50 cursor-not-allowed" : ""}`}
+        >
+          {isEnding ? "종료중" : "면접 종료하기"}
         </button>
       </div>
 

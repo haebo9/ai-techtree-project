@@ -40,12 +40,14 @@ def evaluator_node(state: InterviewState):
     
     user_id = state.get('user_id', '지원자')
     job_title = state.get('job_title', '정보 없음')
+    job_description = state.get('job_description', '맞춤형 채용 공고 정보 없음')
     
     system_prompt = f"""
     당신은 전문 채용 평가관입니다. 지원자({user_id})의 면접 대화 전체를 분석하여 
     객관적이고 전문적인 피드백을 제공하세요.
     - 지원 직무: {job_title}
-    - 강점과 약점은 실무적인 관점에서 구체적으로 작성하세요.
+    - 맞춤형 채용 공고 요건 (참고용): {job_description}
+    - 강점과 약점은 위 직무 및 공고 요건(있을 경우)의 실무적인 관점에서 구체적으로 작성하세요.
     - 면접 중 가장 핵심이 되었던 주요 질문과 답변을 3개 이내로 선정하고, 해당 답변이 어땠는지(현업 트렌드, 논리성 등) 구체적인 코멘트를 'qa_review' 항목에 작성하세요.
     - 'job_recommendations' 항목은 항상 빈 배열([])로 반환하세요. 공고 정보는 시스템이 별도로 주입합니다.
     
@@ -60,17 +62,30 @@ def evaluator_node(state: InterviewState):
     
     # LLM 환각 방지를 위해, 프론트엔드에서 수집한 실제 검색 결과(saved_jobs)를 강제로 주입
     saved_jobs = state.get("saved_jobs", [])
+    
+    # 만약 면접 중에 검색이 이뤄지지 않아 saved_jobs가 비어있다면, 평가 단계에서 백그라운드로 검색 실행
+    if not saved_jobs:
+        try:
+            from app.engine.tools.job_search import search_korean_job_postings
+            search_query = f"{job_title} 채용"
+            search_result = search_korean_job_postings.invoke({"query": search_query})
+            if isinstance(search_result, list):
+                saved_jobs = search_result
+        except Exception as e:
+            print(f"Evaluator fallback search failed: {e}")
+
+    filtered_jobs = []
     if saved_jobs:
         # Pydantic 스키마에 맞게 필터링
-        filtered_jobs = []
         for job in saved_jobs:
             filtered_jobs.append({
                 "company": job.get("company", "회사명 미상"),
                 "title": job.get("title", "공고명 미상"),
                 "url": job.get("url", "")
             })
-        result_dict["job_recommendations"] = filtered_jobs
-    else:
-        result_dict["job_recommendations"] = []
+            if len(filtered_jobs) >= 3: # 최대 3개까지만
+                break
+                
+    result_dict["job_recommendations"] = filtered_jobs
     
     return {"evaluation_result": result_dict, "status": "COMPLETED"}

@@ -1,4 +1,4 @@
-# AI TechTree System Architecture
+# TechTree System Architecture
 > 이 문서는 버전별 배포 아키텍처를 정리한 글입니다.
 
 ## 🔴 v1.0.0 (2026-01-15)

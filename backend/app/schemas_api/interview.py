@@ -10,6 +10,8 @@ class StartInterviewRequest(BaseModel):
     experience: str = Field(..., description="경력 (예: 신입, 1-3년차 등)")
     education: str = Field(..., description="학력 (예: 고졸, 전문학사, 학사, 석사, 박사 등)")
     resume: str = Field(..., description="간단한 이력 또는 자기소개 요약")
+    job_description: Optional[str] = Field(default="", description="사용자가 직접 입력한 채용 공고 텍스트")
+    job_image: Optional[str] = Field(default=None, description="채용 공고 이미지의 Base64 인코딩 문자열")
 
 class StartInterviewResponse(BaseModel):
     session_id: str = Field(..., description="생성된 면접 고유 세션 ID")

@@ -1,4 +1,4 @@
-# 개발자의 성장이 게임이 되는 곳, AI TechTree
+# 개발자의 성장이 게임이 되는 곳, TechTree
 > ### 👉 [서비스 바로가기](https://techtree.haebo.pro) 👈
 
 <img src="backend/app/source/techtree-tree.png" width="300" height="300" alt="TechTree Tree" style="border-radius: 50%; object-fit: cover;">
@@ -6,7 +6,7 @@
 
 <br/>
 
-> **AI TechTree**는 기술 용어를 중심으로 단계별 면접에 게임처럼 도전하여 자신의 실력을 확인받는 서비스입니다. 
+> **TechTree**는 기술 용어를 중심으로 단계별 면접에 게임처럼 도전하여 자신의 실력을 확인받는 서비스입니다. 
 >
 > * **🕵️ 키워드 AI 면접**: 면접을 원하는 키워드를 입력하고 도전해보세요! AI가 다양한 문제를 생성합니다 !
 > * **⚔️ 심층 평가 AI**: 문제별 정답을 AI가 평가하고 즉각적인 피드백을 제공합니다 ! 
@@ -99,7 +99,7 @@
 | **v1.0.0** | **MCP Tool Calling Agent**<br>MCP tool을 활용한 챗봇 서비스 | Langchain, MCP, FastAPI, AWS, streamlit | 2026.01.15|
 | **v1.1.0** | **Agentic Quiz System**<br>키워드 기반 동적 문제 풀이 서비스 | LangGraph, MongoDB, Langsmith, streamlit | 2026.03.02<br/>(Now)  |
 | **v1.2.0** | **Web Service & Agent**<br>복합적이고 유동적인 면접 서비스 | LangGraph, FastAPI, Next.js, Vercel | 2026.03.21<br/> |
-| **v2.0.0** | **AI TechTree Full Release**<br>정식 서비스 출시 | LangGraph, RAG, MongoDB, Next.js, Vercel | 2026.04.11<br/> |
+| **v2.0.0** | **TechTree Full Release**<br>정식 서비스 출시 | LangGraph, RAG, MongoDB, Next.js, Vercel | 2026.04.11<br/> |
 
 ---
 
