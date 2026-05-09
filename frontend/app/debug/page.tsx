@@ -8,7 +8,12 @@ interface LogEntry {
   timestamp: string;
   source: 'IN' | 'OUT' | 'SYS' | 'TOOL';
   event: string;
-  data?: any;
+  data?: unknown;
+}
+
+interface JobSearchResult {
+  company?: string;
+  title?: string;
 }
 
 export default function DebugPage() {
@@ -28,7 +33,7 @@ export default function DebugPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [transcripts, setTranscripts] = useState<{ id: string, role: string, text: string }[]>([]);
 
-  const addLog = (source: 'IN' | 'OUT' | 'SYS' | 'TOOL', event: string, data?: any) => {
+  const addLog = (source: 'IN' | 'OUT' | 'SYS' | 'TOOL', event: string, data?: unknown) => {
     setLogs(prev => [...prev, {
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       timestamp: new Date().toISOString().split('T')[1].slice(0, -2), // HH:mm:ss.SS
@@ -159,10 +164,13 @@ export default function DebugPage() {
               addLog('TOOL', `Search Tool Completed (${t2 - t1}ms)`, searchData);
 
               // 검색 결과를 좌측 요약 패널에도 예쁘게 표시
+              const resultText = Array.isArray(searchData.result)
+                ? searchData.result.map((job: JobSearchResult) => `- ${job.company || "회사명 미상"}: ${job.title || "공고명 미상"}`).join("\n")
+                : String(searchData.result || "");
               setTranscripts(prev => [...prev, {
                 id: `sys-${Date.now()}`,
                 role: "sys",
-                text: `[🔍 Tavily 검색 완료] ${searchData.result}`
+                text: `[🔍 Tavily 검색 완료]\n${resultText}`
               }]);
 
               const outputEvent = {
@@ -180,8 +188,8 @@ export default function DebugPage() {
               dc.send(JSON.stringify(responseCreateEvent));
               addLog('OUT', 'response.create', responseCreateEvent);
 
-            } catch (err: any) {
-              addLog('TOOL', 'Tool Execution Error', { error: err.message });
+            } catch (err: unknown) {
+              addLog('TOOL', 'Tool Execution Error', { error: err instanceof Error ? err.message : String(err) });
             }
           }
         }
@@ -239,8 +247,8 @@ export default function DebugPage() {
       setIsRecording(false);
       setStatusText("🟢 스페이스바를 누른 채로 대답하세요.");
 
-    } catch (error: any) {
-      addLog('SYS', 'Connection Error', { error: error.message });
+    } catch (error: unknown) {
+      addLog('SYS', 'Connection Error', { error: error instanceof Error ? error.message : String(error) });
       setStatusText("오류 발생");
     }
   };

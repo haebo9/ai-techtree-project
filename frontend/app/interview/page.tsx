@@ -4,6 +4,13 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+interface JobSearchResult {
+  company?: string;
+  title?: string;
+  url?: string;
+  content?: string;
+}
+
 export default function InterviewPage() {
   const router = useRouter();
 
@@ -22,7 +29,7 @@ export default function InterviewPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [startTime, setStartTime] = useState<number | null>(null);
   const transcriptRef = useRef<{ role: string, text: string }[]>([]);
-  const savedJobsRef = useRef<any[]>([]);
+  const savedJobsRef = useRef<JobSearchResult[]>([]);
 
   // 1. 컴포넌트 마운트 시 WebRTC 직접 연결 시도
   useEffect(() => {

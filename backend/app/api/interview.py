@@ -98,6 +98,7 @@ async def start_interview(request: StartInterviewRequest):
         "job_description": job_desc,
         "major": "",  # request에 없음
         "messages": [],
+        "saved_jobs": [],
         "status": "IN_PROGRESS"
     }
     interview_workflow.update_state({"configurable": {"thread_id": session_id}}, initial_state)
@@ -298,4 +299,3 @@ async def send_interview_email(session_id: str, request: SendEmailRequest):
     except Exception as e:
         print(f"❌ Resend 이메일 전송 실패: {e}")
         raise HTTPException(status_code=500, detail="이메일 전송에 실패했습니다.")
-

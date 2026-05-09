@@ -24,9 +24,14 @@ interface EvaluationResult {
   job_recommendations: JobRecommendation[];
 }
 
+interface TranscriptItem {
+  role: string;
+  text: string;
+}
+
 export default function ResultPage() {
   const [result, setResult] = useState<EvaluationResult | null>(null);
-  const [transcripts, setTranscripts] = useState<any[]>([]);
+  const [transcripts, setTranscripts] = useState<TranscriptItem[]>([]);
   const [duration, setDuration] = useState("");
   const [date, setDate] = useState("");
   const [email, setEmail] = useState("");
