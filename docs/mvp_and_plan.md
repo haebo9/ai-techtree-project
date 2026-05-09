@@ -31,7 +31,7 @@ MVP는 "기본 정보 입력 → AI 면접 진행 → 평가 리포트 확인"�
 | Frontend | Next.js 입력 화면, 면접 화면, 결과 리포트, 이메일 전송 UI, 디버그 페이지 |
 | Upload | 이력서 PDF/TXT 파싱, 채용 공고 텍스트/이미지 기반 직무 추출 |
 | Interview | OpenAI Realtime 세션 생성, WebRTC 음성 연결, Space 기반 Push-To-Talk, 종료 멘트 감지 후 리포트 자동 생성 |
-| Agent | 면접관 프롬프트, Realtime tool calling, LangGraph 평가 workflow |
+| Agent | 면접관 프롬프트, Realtime tool calling, LangGraph 평가 workflow, 로컬 Reflexion 학습 |
 | Job Search | Tavily 검색, 상세 공고 URL 필터, 마감 공고 필터, 경력/학력 조건 반영 |
 | Report | transcript 기반 평가, `saved_jobs` 기반 실제 공고 추천, Resend 이메일 발송 |
 | Quality | backend compile, 검색 필터 테스트, frontend lint/build, import chain 점검 |
@@ -59,9 +59,10 @@ MVP는 "기본 정보 입력 → AI 면접 진행 → 평가 리포트 확인"�
 | 2 | 면접 에이전트 자율성 조정 | 답변 품질에 따른 난이도/꼬리 질문/주제 전환 조정, 평가 전 정보 충분성 판단 |
 | 3 | 전공 정보 활용 | 선택 입력으로 추가, 검색에는 약한 힌트로 사용, 면접 질문 개인화에 반영 |
 | 4 | 채용 검색 고도화 | 사이트별 상세 페이지 파싱, 마감일/경력/학력 요건 구조화, 추천 이유 제공 |
-| 5 | 리포트 개선 | PDF 다운로드, 질문별 점수, 공고 적합도, 답변 개선 예시 |
-| 6 | 배포 준비 | Docker 구조 최신화, 환경 변수/secret 관리, health check, Nginx 라우팅 정리 |
-| 7 | AWS 배포 | EC2 + Docker Compose + Nginx/Certbot, 로그/모니터링, 도메인/CORS 정리 |
+| 5 | Reflexion 저장소 고도화 | 로컬 JSONL 학습 지침을 벡터 DB 기반 장기 기억 저장소로 전환 |
+| 6 | 리포트 개선 | PDF 다운로드, 질문별 점수, 공고 적합도, 답변 개선 예시 |
+| 7 | 배포 준비 | Docker 구조 최신화, 환경 변수/secret 관리, health check, Nginx 라우팅 정리 |
+| 8 | AWS 배포 | EC2 + Docker Compose + Nginx/Certbot, 로그/모니터링, 도메인/CORS 정리 |
 
 ---
 
@@ -87,7 +88,8 @@ MVP는 "기본 정보 입력 → AI 면접 진행 → 평가 리포트 확인"�
 
 ## 다음 마일스톤
 
-1. 면접 에이전트 자율성 조정 로직 설계
-2. 채용 공고 검색 결과의 요건/우대조건 구조화
-3. Docker 배포 구조 정리
-4. AWS 테스트 배포
+1. 로컬 Reflexion 학습 품질 확인
+2. 면접 에이전트 자율성 조정 로직 설계
+3. 채용 공고 검색 결과의 요건/우대조건 구조화
+4. Docker 배포 구조 정리
+5. AWS 테스트 배포

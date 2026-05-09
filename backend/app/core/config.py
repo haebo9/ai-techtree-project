@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     # 이메일 전송 (Resend API) 설정
     RESEND_API_KEY: str | None = None
 
+    # Reflexion 로컬 학습 저장소
+    REFLECTION_STORE_PATH: str = "backend/app/source/interview_reflections.jsonl"
+
     # 선택적 환경 변수 (기본값 제공)
     PROJECT_NAME: str = "TechTree"
     VERSION: str = "2.0.0"

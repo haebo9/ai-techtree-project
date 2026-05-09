@@ -19,7 +19,8 @@ def interviewer_node(state: InterviewState):
         education=state.get("education", "정보 없음"),
         experience=state.get("experience", "정보 없음"),
         resume=state.get("resume", "정보 없음"),
-        job_description=state.get("job_description", "맞춤형 채용 공고 정보 없음")
+        job_description=state.get("job_description", "맞춤형 채용 공고 정보 없음"),
+        reflection_guidelines=state.get("reflection_guidelines", "")
     )
     
     messages = [SystemMessage(content=system_content)] + state["messages"]

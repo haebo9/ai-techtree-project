@@ -15,6 +15,7 @@ class InterviewState(TypedDict):
     resume: str          # 이력서 요약 또는 텍스트
     major: str           # 전공 여부
     job_description: str # 채용 공고 텍스트 (옵션)
+    reflection_guidelines: str # 이전 면접에서 학습한 운영 지침
     
     # 2. 대화 기록 (LangGraph의 add_messages reducer를 통해 누적됨)
     messages: Annotated[list[BaseMessage], add_messages]

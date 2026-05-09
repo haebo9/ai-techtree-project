@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Path
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Path
 from pydantic import BaseModel
 from typing import Dict, Any
 from app.schemas_api.interview import (
@@ -15,12 +15,15 @@ router = APIRouter()
 import uuid
 import requests
 from app.core.config import settings
+from app.core.logger import get_logger
 from app.engine.prompts.api_interviewer import INTERVIEWER_SYSTEM_PROMPT
+from app.services.reflection_service import ReflectionService, safe_generate_and_store_reflections
 
 from app.engine.graphs.graph import get_interview_workflow
 from langchain_core.messages import HumanMessage, AIMessage
 
 interview_workflow = get_interview_workflow()
+logger = get_logger(__name__)
 
 temp_sessions: Dict[str, Any] = {}
 
@@ -38,6 +41,17 @@ async def start_interview(request: StartInterviewRequest):
         job_desc = "[사용자가 이미지(캡처본) 형태로 채용 공고를 직접 제공했습니다.]"
     else:
         job_desc = "맞춤형 채용 공고 정보 없음"
+
+    try:
+        reflection_guidelines = ReflectionService().get_prompt_guidelines(
+            job_title=request.job_title,
+            experience=request.experience,
+            education=request.education,
+            limit=5,
+        )
+    except Exception as e:
+        logger.warning("Reflection guideline lookup failed: %s", e)
+        reflection_guidelines = ""
     
     # 1. 면접관 지침 준비
     instructions = INTERVIEWER_SYSTEM_PROMPT.format(
@@ -45,7 +59,8 @@ async def start_interview(request: StartInterviewRequest):
         education=request.education if request.education else "정보 없음",
         experience=request.experience if request.experience else "정보 없음",
         resume=request.resume if request.resume else "정보 없음",
-        job_description=job_desc
+        job_description=job_desc,
+        reflection_guidelines=reflection_guidelines
     )
 
     import random
@@ -96,6 +111,7 @@ async def start_interview(request: StartInterviewRequest):
         "education": request.education,
         "resume": request.resume,
         "job_description": job_desc,
+        "reflection_guidelines": reflection_guidelines,
         "major": "",  # request에 없음
         "messages": [],
         "saved_jobs": [],
@@ -155,6 +171,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 
 @router.post("/{session_id}/end", response_model=EndInterviewResponse)
 async def end_interview(
+    background_tasks: BackgroundTasks,
     request: EndInterviewRequest,
     session_id: str = Path(..., description="면접 세션 ID")
 ):
@@ -182,6 +199,16 @@ async def end_interview(
     final_state = interview_workflow.invoke(None, config=config)
     
     evaluation = final_state.get("evaluation_result", {})
+    background_tasks.add_task(
+        safe_generate_and_store_reflections,
+        session_id=session_id,
+        job_title=final_state.get("job_title", ""),
+        experience=final_state.get("experience", ""),
+        education=final_state.get("education", ""),
+        messages=final_state.get("messages", lc_messages),
+        evaluation=evaluation,
+        saved_jobs=evaluation.get("job_recommendations") or request.saved_jobs,
+    )
     
     return EndInterviewResponse(
         session_id=session_id,
