@@ -18,7 +18,7 @@ MVP는 "기본 정보 입력 → AI 면접 진행 → 평가 리포트 확인"�
 | --- | --- |
 | 기본 정보 | 지원 직무, 경력, 학력, 이력서, 선택적 채용 공고 입력 |
 | 공고/이력서 분석 | PDF/TXT 이력서 텍스트 추출, 공고 텍스트/이미지 분석, 직무명 자동 추출 |
-| 실시간 면접 | OpenAI Realtime + WebRTC 기반 음성 면접, Push-To-Talk 답변, 꼬리 질문 |
+| 실시간 면접 | OpenAI Realtime + WebRTC 기반 음성 면접, Push-To-Talk 답변, 꼬리 질문, 자동 종료 감지 |
 | 채용 검색 | Tavily 기반 실제 채용 공고 검색, 마감/목록/직무 불일치 공고 필터링 |
 | 최종 리포트 | 점수, 강점, 개선점, Q&A 피드백, 추천 공고, 이메일 전송 |
 
@@ -30,7 +30,7 @@ MVP는 "기본 정보 입력 → AI 면접 진행 → 평가 리포트 확인"�
 | --- | --- |
 | Frontend | Next.js 입력 화면, 면접 화면, 결과 리포트, 이메일 전송 UI, 디버그 페이지 |
 | Upload | 이력서 PDF/TXT 파싱, 채용 공고 텍스트/이미지 기반 직무 추출 |
-| Interview | OpenAI Realtime 세션 생성, WebRTC 음성 연결, Space 기반 Push-To-Talk |
+| Interview | OpenAI Realtime 세션 생성, WebRTC 음성 연결, Space 기반 Push-To-Talk, 종료 멘트 감지 후 리포트 자동 생성 |
 | Agent | 면접관 프롬프트, Realtime tool calling, LangGraph 평가 workflow |
 | Job Search | Tavily 검색, 상세 공고 URL 필터, 마감 공고 필터, 경력/학력 조건 반영 |
 | Report | transcript 기반 평가, `saved_jobs` 기반 실제 공고 추천, Resend 이메일 발송 |

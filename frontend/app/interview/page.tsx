@@ -11,6 +11,21 @@ interface JobSearchResult {
   content?: string;
 }
 
+const INTERVIEW_CLOSING_PATTERNS = [
+  /오늘은\s*여기까지/,
+  /오늘\s*(면접|인터뷰).*(여기까지|마치)/,
+  /(면접|인터뷰).*(여기까지|마치겠습니다|마무리하겠습니다|종료하겠습니다)/,
+  /이상으로\s*(면접|인터뷰).*(마치겠습니다|마무리하겠습니다)/,
+  /오늘\s*수고\s*많으셨습니다/,
+  /고생\s*많으셨습니다.*(면접|인터뷰)/,
+  /좋은\s*결과.*(있기를|바라겠습니다)/,
+];
+
+function isInterviewClosingTranscript(text: string) {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  return INTERVIEW_CLOSING_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
 export default function InterviewPage() {
   const router = useRouter();
 
@@ -26,10 +41,89 @@ export default function InterviewPage() {
   const streamRef = useRef<MediaStream | null>(null);
 
   // 세션 정보 및 대화 기록(Transcript) 임시 저장소
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [startTime, setStartTime] = useState<number | null>(null);
   const transcriptRef = useRef<{ role: string, text: string }[]>([]);
   const savedJobsRef = useRef<JobSearchResult[]>([]);
+  const sessionIdRef = useRef<string | null>(null);
+  const startTimeRef = useRef<number | null>(null);
+  const isEndingRef = useRef(false);
+  const autoEndTimerRef = useRef<number | null>(null);
+
+  const cleanupRealtimeSession = useCallback(() => {
+    if (autoEndTimerRef.current) {
+      window.clearTimeout(autoEndTimerRef.current);
+      autoEndTimerRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+    dcRef.current?.close();
+    dcRef.current = null;
+    pcRef.current?.close();
+    pcRef.current = null;
+  }, []);
+
+  const endInterview = useCallback(async () => {
+    if (isEndingRef.current) return;
+    isEndingRef.current = true;
+    setIsEnding(true);
+    cleanupRealtimeSession();
+
+    const currentSessionId = sessionIdRef.current;
+    if (!currentSessionId) {
+      router.push("/result");
+      return;
+    }
+
+    try {
+      setStatusText("대화 내용을 평가하고 있습니다...");
+      
+      // 시간 계산
+      const endTime = Date.now();
+      const diffMs = startTimeRef.current ? endTime - startTimeRef.current : 0;
+      const minutes = Math.floor(diffMs / 60000);
+      const seconds = Math.floor((diffMs % 60000) / 1000);
+      const durationStr = `${minutes}분 ${seconds}초`;
+      const dateStr = new Date().toLocaleDateString('ko-KR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      // 텍스트 변환된 transcriptRef.current 를 백엔드의 평가 노드로 전송합니다.
+      // 더불어 환각 방지를 위해 수집된 실제 채용 공고(savedJobsRef.current)도 함께 보냅니다.
+      const response = await fetch(`http://localhost:8000/api/interview/${currentSessionId}/end`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          transcripts: transcriptRef.current,
+          saved_jobs: savedJobsRef.current
+        })
+      });
+      const resultData = await response.json();
+      
+      localStorage.setItem("interviewResult", JSON.stringify(resultData));
+      localStorage.setItem("interviewTranscripts", JSON.stringify(transcriptRef.current));
+      localStorage.setItem("interviewDuration", durationStr);
+      localStorage.setItem("interviewDate", dateStr);
+      
+      router.push("/result");
+    } catch (err) {
+      console.error("종료 에러:", err);
+      router.push("/result");
+    }
+  }, [cleanupRealtimeSession, router]);
+
+  const scheduleAutoEndInterview = useCallback(() => {
+    if (isEndingRef.current || autoEndTimerRef.current) return;
+    setStatusText("면접이 종료되었습니다. 리포트를 생성 중입니다...");
+    autoEndTimerRef.current = window.setTimeout(() => {
+      autoEndTimerRef.current = null;
+      endInterview();
+    }, 1500);
+  }, [endInterview]);
 
   // 1. 컴포넌트 마운트 시 WebRTC 직접 연결 시도
   useEffect(() => {
@@ -69,7 +163,7 @@ export default function InterviewPage() {
         if (!res.ok) throw new Error("토큰 발급 API 오류");
         const data = await res.json();
         const EPHEMERAL_KEY = data.ephemeral_token;
-        setSessionId(data.session_id);
+        sessionIdRef.current = data.session_id;
 
         setStatusText("면접관과 통신을 연결 중입니다...");
 
@@ -96,7 +190,8 @@ export default function InterviewPage() {
         dcRef.current = dc;
 
         dc.addEventListener("open", () => {
-          setStartTime(Date.now());
+          const openedAt = Date.now();
+          startTimeRef.current = openedAt;
           
           // 이미지가 업로드된 경우, 초기 컨텍스트로 전달 (올바른 Realtime API 포맷 사용)
           if (profileData.job_image) {
@@ -181,8 +276,12 @@ export default function InterviewPage() {
 
           // 텍스트 변환 기록(Transcript) 가로채기 -> 추후 DB 저장을 위해 배열에 푸시
           if (realtimeEvent.type === "response.audio_transcript.done") {
-            transcriptRef.current.push({ role: "ai", text: realtimeEvent.transcript });
-            console.log("[AI 답변]:", realtimeEvent.transcript);
+            const aiText = realtimeEvent.transcript || "";
+            transcriptRef.current.push({ role: "ai", text: aiText });
+            console.log("[AI 답변]:", aiText);
+            if (isInterviewClosingTranscript(aiText)) {
+              scheduleAutoEndInterview();
+            }
           }
           if (realtimeEvent.type === "conversation.item.input_audio_transcription.completed") {
             transcriptRef.current.push({ role: "user", text: realtimeEvent.transcript });
@@ -196,7 +295,9 @@ export default function InterviewPage() {
           }
           if (realtimeEvent.type === "response.done") {
             setIsSpeaking(false);
-            setStatusText("🟢 스페이스바를 누른 채로 대답하세요.");
+            if (!isEndingRef.current) {
+              setStatusText("🟢 스페이스바를 누른 채로 대답하세요.");
+            }
           }
         });
 
@@ -242,12 +343,9 @@ export default function InterviewPage() {
     initWebRTC();
 
     return () => {
-      pcRef.current?.close();
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(t => t.stop());
-      }
+      cleanupRealtimeSession();
     };
-  }, []);
+  }, [cleanupRealtimeSession, scheduleAutoEndInterview]);
 
   // 2. 마이크 Push-To-Talk 핸들러
   const startRecording = useCallback(() => {
@@ -295,56 +393,6 @@ export default function InterviewPage() {
       window.removeEventListener("keyup", handleKeyUp);
     }
   }, [startRecording, stopRecording]);
-
-  // 3. 면접 종료 시 대화 기록을 백엔드로 넘기고 결과창으로 이동
-  const endInterview = async () => {
-    if (!sessionId) {
-      router.push("/result");
-      return;
-    }
-
-    setIsEnding(true);
-
-    try {
-      setStatusText("대화 내용을 평가하고 있습니다...");
-      
-      // 시간 계산
-      const endTime = Date.now();
-      const diffMs = startTime ? endTime - startTime : 0;
-      const minutes = Math.floor(diffMs / 60000);
-      const seconds = Math.floor((diffMs % 60000) / 1000);
-      const durationStr = `${minutes}분 ${seconds}초`;
-      const dateStr = new Date().toLocaleDateString('ko-KR', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-
-      // 텍스트 변환된 transcriptRef.current 를 백엔드의 평가 노드로 전송합니다.
-      // 더불어 환각 방지를 위해 수집된 실제 채용 공고(savedJobsRef.current)도 함께 보냅니다.
-      const response = await fetch(`http://localhost:8000/api/interview/${sessionId}/end`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          transcripts: transcriptRef.current,
-          saved_jobs: savedJobsRef.current
-        })
-      });
-      const resultData = await response.json();
-      
-      localStorage.setItem("interviewResult", JSON.stringify(resultData));
-      localStorage.setItem("interviewTranscripts", JSON.stringify(transcriptRef.current));
-      localStorage.setItem("interviewDuration", durationStr);
-      localStorage.setItem("interviewDate", dateStr);
-      
-      router.push("/result");
-    } catch (err) {
-      console.error("종료 에러:", err);
-      router.push("/result");
-    }
-  };
 
   const visualizerScale = isSpeaking ? "scale-110 animate-pulse bg-gradient-to-tr from-purple-600 to-indigo-500"
     : isRecording ? "scale-100 animate-pulse bg-gradient-to-tr from-red-500 to-pink-500"
