@@ -85,25 +85,62 @@ ROLE_KEYWORDS = (
     "마케터",
 )
 
-def _build_search_query(query: str) -> str:
+def _normalize_profile_condition(value: str | None) -> str:
+    return " ".join((value or "").split()).strip()
+
+def _build_profile_terms(experience: str | None = "", education: str | None = "") -> str:
+    experience = _normalize_profile_condition(experience)
+    education = _normalize_profile_condition(education)
+    terms = []
+
+    if experience:
+        if "신입" in experience:
+            terms.extend(["신입", "경력무관", "주니어", "인턴"])
+        elif "1~3" in experience or "1-3" in experience:
+            terms.extend(["1년", "2년", "3년", "주니어"])
+        elif "3~5" in experience or "3-5" in experience:
+            terms.extend(["3년", "4년", "5년"])
+        elif "5" in experience:
+            terms.extend(["5년 이상", "시니어"])
+        else:
+            terms.append(experience)
+
+    if education:
+        if "고졸" in education:
+            terms.extend(["고졸", "학력무관"])
+        elif "전문학사" in education:
+            terms.extend(["전문학사", "초대졸", "학력무관"])
+        elif "학사" in education:
+            terms.extend(["대졸", "학사", "4년제", "학력무관"])
+        elif "석사" in education or "박사" in education:
+            terms.append(education)
+        else:
+            terms.append(education)
+
+    return " ".join(terms)
+
+def _build_search_query(query: str, experience: str | None = "", education: str | None = "") -> str:
     cleaned_query = " ".join(query.split()).strip()
     if not cleaned_query:
         cleaned_query = "개발자"
+    profile_terms = _build_profile_terms(experience, education)
 
     return (
-        f"{cleaned_query} 채용공고 상세 모집공고 주요업무 자격요건 "
+        f"{cleaned_query} {profile_terms} 채용공고 상세 모집공고 주요업무 자격요건 "
         "지원자격 회사명 D- 상시채용 채용시마감 "
         "-검색결과 -채용정보 -목록 -접수마감 -모집마감 -마감된공고"
     )
 
-def _build_fallback_queries(query: str) -> List[str]:
+def _build_fallback_queries(query: str, experience: str | None = "", education: str | None = "") -> List[str]:
     cleaned_query = " ".join(query.split()).strip() or "개발자"
+    profile_terms = _build_profile_terms(experience, education)
+    query_with_profile = f"{cleaned_query} {profile_terms}".strip()
     return [
-        f"site:wanted.co.kr/wd {cleaned_query} 채용공고",
-        f"site:jobkorea.co.kr/Recruit/GI_Read {cleaned_query} 채용공고",
-        f"site:saramin.co.kr/zf_user/jobs/relay/view {cleaned_query} 채용공고",
-        f"site:jumpit.co.kr/position {cleaned_query} 채용공고",
-        f"site:incruit.com/jobdb_info/jobpost.asp {cleaned_query} 채용공고",
+        f"site:wanted.co.kr/wd {query_with_profile} 채용공고",
+        f"site:jobkorea.co.kr/Recruit/GI_Read {query_with_profile} 채용공고",
+        f"site:saramin.co.kr/zf_user/jobs/relay/view {query_with_profile} 채용공고",
+        f"site:jumpit.co.kr/position {query_with_profile} 채용공고",
+        f"site:incruit.com/jobdb_info/jobpost.asp {query_with_profile} 채용공고",
     ]
 
 def _domain_from_url(url: str) -> str:
@@ -213,6 +250,40 @@ def _is_relevant_to_role_query(query: str, title: str) -> bool:
 
     return True
 
+def _extract_required_years(text: str) -> int | None:
+    years = []
+    for pattern in (
+        r"경력\s*(\d+)\s*년\s*이상",
+        r"(\d+)\s*년\s*이상",
+        r"경력\s*(\d+)\s*년",
+        r"(\d+)\s*년차",
+    ):
+        years.extend(int(match) for match in re.findall(pattern, text))
+    return max(years) if years else None
+
+def _is_relevant_to_profile(experience: str | None, education: str | None, title: str, content: str) -> bool:
+    del education
+
+    experience = _normalize_profile_condition(experience)
+    text = f"{title} {content}"
+    required_years = _extract_required_years(text)
+
+    if not experience:
+        return True
+
+    if "신입" in experience:
+        if re.search(r"신입|경력\s*무관|경력무관|인턴|주니어|junior", text, re.IGNORECASE):
+            return True
+        return required_years is None
+
+    if "1~3" in experience or "1-3" in experience:
+        return required_years is None or required_years <= 3
+
+    if "3~5" in experience or "3-5" in experience:
+        return required_years is None or required_years <= 5
+
+    return True
+
 def _format_job(title: str, content: str, url: str, raw_content: str = "") -> Dict[str, str] | None:
     title = " ".join((title or "").split()).strip()
     content = " ".join((content or "").split()).strip()
@@ -279,7 +350,7 @@ def _fetch_tavily_results(query: str, role_query: str, max_results: int) -> List
     return jobs
 
 @tool
-def search_korean_job_postings(query: str) -> List[Dict[str, str]]:
+def search_korean_job_postings(query: str, experience: str = "", education: str = "") -> List[Dict[str, str]]:
     """
     한국의 주요 채용 사이트(원티드, 사람인 등)에서 특정 직무(query)에 대한
     최신 채용 공고 및 우대 조건(요구 기술 스택)을 검색합니다.
@@ -287,7 +358,7 @@ def search_korean_job_postings(query: str) -> List[Dict[str, str]]:
     실제 채용 공고 목록을 company, title, url, content 필드로 반환합니다.
     """
     print(f"[Tool: search_korean_job_postings] '{query}' 채용 정보 검색 중...")
-    search_query = _build_search_query(query)
+    search_query = _build_search_query(query, experience=experience, education=education)
     
     if not settings.TAVILY_API_KEY:
         print("⚠️ TAVILY_API_KEY가 없어 Mock 데이터를 반환합니다.")
@@ -302,14 +373,41 @@ def search_korean_job_postings(query: str) -> List[Dict[str, str]]:
 
     try:
         results = _fetch_tavily_results(search_query, role_query=query, max_results=10)
+        results = [
+            job for job in results
+            if _is_relevant_to_profile(experience, education, job.get("title", ""), job.get("content", ""))
+        ]
 
-        for fallback_query in _build_fallback_queries(query):
+        for fallback_query in _build_fallback_queries(query, experience=experience, education=education):
             if len(_dedupe_jobs(results)) >= 3:
                 break
             try:
-                results.extend(_fetch_tavily_results(fallback_query, role_query=query, max_results=5))
+                fallback_results = _fetch_tavily_results(fallback_query, role_query=query, max_results=5)
+                results.extend(
+                    job for job in fallback_results
+                    if _is_relevant_to_profile(experience, education, job.get("title", ""), job.get("content", ""))
+                )
             except Exception as fallback_error:
                 print(f"⚠️ 상세 공고 보강 검색 실패: {fallback_error}")
+
+        if not _dedupe_jobs(results) and (experience or education):
+            broad_results = _fetch_tavily_results(_build_search_query(query), role_query=query, max_results=10)
+            results.extend(
+                job for job in broad_results
+                if _is_relevant_to_profile(experience, education, job.get("title", ""), job.get("content", ""))
+            )
+
+            for fallback_query in _build_fallback_queries(query):
+                if len(_dedupe_jobs(results)) >= 3:
+                    break
+                try:
+                    fallback_results = _fetch_tavily_results(fallback_query, role_query=query, max_results=5)
+                    results.extend(
+                        job for job in fallback_results
+                        if _is_relevant_to_profile(experience, education, job.get("title", ""), job.get("content", ""))
+                    )
+                except Exception as fallback_error:
+                    print(f"⚠️ 상세 공고 보강 검색 실패: {fallback_error}")
             
         return _dedupe_jobs(results)[:3]
         

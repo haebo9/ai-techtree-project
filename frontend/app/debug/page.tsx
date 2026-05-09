@@ -150,7 +150,11 @@ export default function DebugPage() {
               const toolRes = await fetch("http://localhost:8000/api/interview/tools/search_job", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ query: args.query })
+                body: JSON.stringify({
+                  query: args.query,
+                  experience: profileData.experience || "",
+                  education: profileData.education || ""
+                })
               });
               const searchData = await toolRes.json();
               const t2 = Date.now();

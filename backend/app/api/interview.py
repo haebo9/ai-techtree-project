@@ -113,6 +113,8 @@ async def start_interview(request: StartInterviewRequest):
 
 class ToolSearchRequest(BaseModel):
     query: str
+    experience: str = ""
+    education: str = ""
 
 @router.post("/tools/search_job")
 async def execute_search_job(request: ToolSearchRequest):
@@ -123,7 +125,11 @@ async def execute_search_job(request: ToolSearchRequest):
     from app.engine.tools.job_search import search_korean_job_postings
     
     # LangChain @tool 데코레이터가 붙은 함수는 .invoke()로 실행
-    result = search_korean_job_postings.invoke({"query": request.query})
+    result = search_korean_job_postings.invoke({
+        "query": request.query,
+        "experience": request.experience,
+        "education": request.education
+    })
     return {"result": result}
 
 @router.post("/{session_id}/chat", response_model=ChatResponse)

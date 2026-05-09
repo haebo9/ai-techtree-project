@@ -144,7 +144,11 @@ export default function InterviewPage() {
                 const res = await fetch("http://localhost:8000/api/interview/tools/search_job", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ query: args.query })
+                  body: JSON.stringify({
+                    query: args.query,
+                    experience: profileData.experience || "",
+                    education: profileData.education || ""
+                  })
                 });
                 const searchData = await res.json();
                 console.log("[Tool] 검색 결과 수신 완료", searchData.result);

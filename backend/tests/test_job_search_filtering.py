@@ -4,10 +4,12 @@ from app.engine.tools.job_search import (
     _clean_job_title,
     _company_from_result,
     _dedupe_jobs,
+    _extract_required_years,
     _format_job,
-    _looks_expired,
     _is_relevant_to_role_query,
+    _is_relevant_to_profile,
     _is_detail_job_url,
+    _looks_expired,
 )
 
 
@@ -60,20 +62,24 @@ def test_dedupe_jobs_by_url():
 
 
 def test_search_query_biases_toward_detail_pages():
-    query = _build_search_query("QA Engineer")
+    query = _build_search_query("QA Engineer", experience="신입", education="학사(4년제)")
 
     assert "QA Engineer" in query
+    assert "신입" in query
+    assert "경력무관" in query
+    assert "대졸" in query
     assert "상세" in query
     assert "자격요건" in query
     assert "-검색결과" in query
 
 
 def test_fallback_queries_target_detail_url_patterns():
-    queries = _build_fallback_queries("QA Engineer")
+    queries = _build_fallback_queries("QA Engineer", experience="신입")
 
     assert any("site:wanted.co.kr/wd" in query for query in queries)
     assert any("site:jobkorea.co.kr/Recruit/GI_Read" in query for query in queries)
     assert any("site:saramin.co.kr/zf_user/jobs/relay/view" in query for query in queries)
+    assert all("신입" in query for query in queries)
 
 
 def test_jobkorea_company_first_title_is_split_cleanly():
@@ -130,3 +136,29 @@ def test_wanted_bracket_company_is_used():
 def test_qa_query_requires_qa_related_title():
     assert _is_relevant_to_role_query("QA Engineer", "독일 차량 Infotainment Software 검증 엔지니어 채용")
     assert not _is_relevant_to_role_query("QA Engineer", "Senior/Lead software engineer")
+
+
+def test_required_years_are_extracted_from_posting_text():
+    assert _extract_required_years("경력 5년 이상 지원 가능합니다.") == 5
+    assert _extract_required_years("3년차 이상 QA 엔지니어") == 3
+    assert _extract_required_years("신입 및 경력무관") is None
+
+
+def test_entry_level_profile_rejects_senior_jobs():
+    assert not _is_relevant_to_profile(
+        experience="신입",
+        education="학사(4년제)",
+        title="QA 엔지니어",
+        content="경력 5년 이상. 자동화 테스트 경험 필수."
+    )
+    assert _is_relevant_to_profile(
+        experience="신입",
+        education="학사(4년제)",
+        title="QA 엔지니어",
+        content="신입 가능. 경력무관. 테스트 경험 우대."
+    )
+
+
+def test_junior_profile_allows_up_to_three_years():
+    assert _is_relevant_to_profile("1~3년차", "", "QA 엔지니어", "경력 3년 이상")
+    assert not _is_relevant_to_profile("1~3년차", "", "QA 엔지니어", "경력 5년 이상")

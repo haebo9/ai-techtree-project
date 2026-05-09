@@ -86,6 +86,8 @@ def evaluator_node(state: InterviewState):
     user_id = state.get('user_id', '지원자')
     job_title = state.get('job_title', '정보 없음')
     job_description = state.get('job_description', '맞춤형 채용 공고 정보 없음')
+    experience = state.get('experience', '')
+    education = state.get('education', '')
     
     system_prompt = f"""
     당신은 전문 채용 평가관입니다. 지원자({user_id})의 면접 대화 전체를 분석하여 
@@ -113,7 +115,11 @@ def evaluator_node(state: InterviewState):
         try:
             from app.engine.tools.job_search import search_korean_job_postings
             search_query = f"{job_title} 채용"
-            search_result = search_korean_job_postings.invoke({"query": search_query})
+            search_result = search_korean_job_postings.invoke({
+                "query": search_query,
+                "experience": experience,
+                "education": education
+            })
             saved_jobs = _normalize_saved_jobs(search_result)
         except Exception as e:
             print(f"Evaluator fallback search failed: {e}")
