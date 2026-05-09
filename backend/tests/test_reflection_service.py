@@ -1,6 +1,7 @@
 from langchain_core.messages import AIMessage, HumanMessage
 
 from app.services.reflection_service import (
+    PolicyStore,
     ReflectionCandidate,
     ReflectionItem,
     ReflectionService,
@@ -69,13 +70,62 @@ def test_reflection_search_prioritizes_matching_profile(tmp_path):
 def test_format_reflection_guidelines_returns_prompt_section():
     guidelines = format_reflection_guidelines([_reflection()])
 
-    assert "# 이전 면접에서 학습한 운영 지침" in guidelines
+    assert "# 최근 유사 면접에서 학습한 보정 지침" in guidelines
     assert "신입 지원자에게는" in guidelines
+
+
+def test_repeated_reflections_are_promoted_to_policy(tmp_path):
+    reflection_store = ReflectionStore(tmp_path / "reflections.jsonl")
+    policy_store = PolicyStore(tmp_path / "policies.jsonl")
+    base_hint = "신입 QA 지원자에게는 리딩 경험보다 테스트 기초와 결함 재현 과정을 먼저 확인하세요."
+
+    for index in range(3):
+        reflection_store.append(_reflection(
+            id=f"reflection-{index}",
+            prompt_hint=base_hint,
+            confidence=0.86,
+            source_session_id=f"session-{index}",
+        ))
+
+    policies = policy_store.consolidate(reflection_store.read_all())
+
+    promoted = [policy for policy in policies if policy.status == "promoted"]
+    assert len(promoted) == 1
+    assert promoted[0].evidence_count == 3
+    assert promoted[0].policy == base_hint
+
+
+def test_prompt_guidelines_prioritize_promoted_policy(tmp_path):
+    reflection_store = ReflectionStore(tmp_path / "reflections.jsonl")
+    policy_store = PolicyStore(tmp_path / "policies.jsonl")
+    policy_hint = "신입 QA 지원자에게는 테스트 기초와 결함 재현 과정을 우선 확인하세요."
+    recent_hint = "면접 초반에는 공고의 필수 요건을 기준으로 첫 기술 질문을 구성하세요."
+
+    for index in range(3):
+        reflection_store.append(_reflection(
+            id=f"policy-source-{index}",
+            prompt_hint=policy_hint,
+            confidence=0.88,
+            source_session_id=f"session-{index}",
+        ))
+    reflection_store.append(_reflection(id="recent", prompt_hint=recent_hint, confidence=0.81, source_session_id="recent-session"))
+    policy_store.consolidate(reflection_store.read_all())
+
+    guidelines = ReflectionService(reflection_store, policy_store).get_prompt_guidelines(
+        "QA Engineer",
+        experience="신입",
+        education="학사",
+    )
+
+    assert guidelines.index("# 승격된 면접 운영 정책") < guidelines.index("# 최근 유사 면접에서 학습한 보정 지침")
+    assert policy_hint in guidelines
+    assert recent_hint in guidelines
 
 
 def test_service_stores_generated_reflections_without_transcript(monkeypatch, tmp_path):
     store = ReflectionStore(tmp_path / "reflections.jsonl")
-    service = ReflectionService(store)
+    policy_store = PolicyStore(tmp_path / "policies.jsonl")
+    service = ReflectionService(store, policy_store)
 
     monkeypatch.setattr(
         service,

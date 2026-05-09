@@ -19,6 +19,7 @@ class Settings(BaseSettings):
 
     # Reflexion 로컬 학습 저장소
     REFLECTION_STORE_PATH: str = "backend/app/source/interview_reflections.jsonl"
+    POLICY_STORE_PATH: str = "backend/app/source/interview_policies.jsonl"
 
     # 선택적 환경 변수 (기본값 제공)
     PROJECT_NAME: str = "TechTree"

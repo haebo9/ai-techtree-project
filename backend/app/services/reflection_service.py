@@ -15,8 +15,8 @@ from app.core.logger import get_logger
 logger = get_logger(__name__)
 
 
-def _default_store_path() -> Path:
-    configured_path = Path(settings.REFLECTION_STORE_PATH)
+def _resolve_store_path(configured_value: str) -> Path:
+    configured_path = Path(configured_value)
     if configured_path.is_absolute():
         return configured_path
 
@@ -25,6 +25,14 @@ def _default_store_path() -> Path:
         return project_root / configured_path
 
     return Path.cwd() / configured_path
+
+
+def _default_reflection_store_path() -> Path:
+    return _resolve_store_path(settings.REFLECTION_STORE_PATH)
+
+
+def _default_policy_store_path() -> Path:
+    return _resolve_store_path(settings.POLICY_STORE_PATH)
 
 
 def _normalize_key(value: str) -> str:
@@ -67,9 +75,27 @@ class ReflectionGeneration(BaseModel):
     reflections: List[ReflectionCandidate] = Field(default_factory=list)
 
 
+class PolicyItem(BaseModel):
+    id: str
+    created_at: str
+    updated_at: str
+    status: str = "candidate"
+    scope: str = "role_experience"
+    job_title: str = ""
+    experience: str = ""
+    education: str = ""
+    policy: str
+    evidence_count: int = 1
+    confidence: float = 0.0
+    source_reflection_ids: List[str] = Field(default_factory=list)
+    supersedes: List[str] = Field(default_factory=list)
+    replaced_by: Optional[str] = None
+    reason: str = ""
+
+
 class ReflectionStore:
     def __init__(self, path: Optional[Path] = None):
-        self.path = path or _default_store_path()
+        self.path = path or _default_reflection_store_path()
 
     def read_all(self) -> List[ReflectionItem]:
         if not self.path.exists():
@@ -91,8 +117,12 @@ class ReflectionStore:
         if not _normalize_key(item.prompt_hint):
             return False
 
-        existing_hints = {_normalize_key(reflection.prompt_hint) for reflection in self.read_all()}
-        if _normalize_key(item.prompt_hint) in existing_hints:
+        duplicate_key = (_normalize_key(item.source_session_id), _normalize_key(item.prompt_hint))
+        existing_keys = {
+            (_normalize_key(reflection.source_session_id), _normalize_key(reflection.prompt_hint))
+            for reflection in self.read_all()
+        }
+        if duplicate_key in existing_keys:
             return False
 
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -153,9 +183,119 @@ class ReflectionStore:
         return [reflection for _, _, reflection in scored[:limit]]
 
 
+class PolicyStore:
+    promotion_threshold = 3
+    min_promoted_confidence = 0.7
+
+    def __init__(self, path: Optional[Path] = None):
+        self.path = path or _default_policy_store_path()
+
+    def read_all(self) -> List[PolicyItem]:
+        if not self.path.exists():
+            return []
+
+        policies: List[PolicyItem] = []
+        with self.path.open("r", encoding="utf-8") as file:
+            for line_number, line in enumerate(file, start=1):
+                raw = line.strip()
+                if not raw:
+                    continue
+                try:
+                    policies.append(PolicyItem.model_validate_json(raw))
+                except (ValidationError, ValueError) as exc:
+                    logger.warning("Skipping invalid policy line %s: %s", line_number, exc)
+        return policies
+
+    def write_all(self, policies: List[PolicyItem]) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        with self.path.open("w", encoding="utf-8") as file:
+            for policy in policies:
+                file.write(policy.model_dump_json(ensure_ascii=False) + "\n")
+
+    def consolidate(self, reflections: List[ReflectionItem]) -> List[PolicyItem]:
+        policies = self.read_all()
+        existing_reflection_ids = {
+            reflection_id
+            for policy in policies
+            for reflection_id in policy.source_reflection_ids
+        }
+
+        changed = False
+        for reflection in reflections:
+            if reflection.id in existing_reflection_ids:
+                continue
+            if reflection.confidence < 0.55 or not _normalize_key(reflection.prompt_hint):
+                continue
+
+            changed = True
+            matched_policy = self._find_matching_policy(policies, reflection)
+            if matched_policy:
+                _merge_reflection_into_policy(matched_policy, reflection)
+            else:
+                policies.append(_policy_from_reflection(reflection))
+
+        if changed:
+            _promote_and_deprecate_policies(policies, self.promotion_threshold, self.min_promoted_confidence)
+            self.write_all(policies)
+
+        return policies
+
+    def search(
+        self,
+        job_title: str,
+        experience: str = "",
+        education: str = "",
+        limit: int = 5,
+    ) -> List[PolicyItem]:
+        profile_tokens = _profile_tokens(job_title, experience, education)
+        scored: List[tuple[int, str, PolicyItem]] = []
+        for policy in self.read_all():
+            if policy.status != "promoted":
+                continue
+
+            score = 0
+            policy_tokens = _profile_tokens(policy.job_title, policy.experience, policy.education)
+            if _normalize_key(policy.scope) == "global":
+                score += 2
+            if _normalize_key(job_title) and _normalize_key(job_title) == _normalize_key(policy.job_title):
+                score += 8
+            elif profile_tokens & policy_tokens:
+                score += 4
+            if _normalize_key(experience) and _normalize_key(experience) == _normalize_key(policy.experience):
+                score += 3
+            if _normalize_key(education) and _normalize_key(education) == _normalize_key(policy.education):
+                score += 1
+            score += min(policy.evidence_count, 5)
+
+            if score > 0:
+                scored.append((score, policy.updated_at, policy))
+
+        scored.sort(key=lambda item: (item[0], item[1]), reverse=True)
+        return [policy for _, _, policy in scored[:limit]]
+
+    def _find_matching_policy(self, policies: List[PolicyItem], reflection: ReflectionItem) -> Optional[PolicyItem]:
+        candidates = [
+            policy
+            for policy in policies
+            if policy.status != "deprecated"
+            and _same_policy_scope(policy, reflection)
+        ]
+        if not candidates:
+            return None
+
+        best_policy = max(
+            candidates,
+            key=lambda policy: _text_similarity(policy.policy, reflection.prompt_hint),
+        )
+        if _text_similarity(best_policy.policy, reflection.prompt_hint) >= 0.42:
+            return best_policy
+        return None
+
+
 class ReflectionService:
-    def __init__(self, store: Optional[ReflectionStore] = None):
+    def __init__(self, store: Optional[ReflectionStore] = None, policy_store: Optional[PolicyStore] = None):
         self.store = store or ReflectionStore()
+        self.policy_store = policy_store or PolicyStore()
 
     def get_prompt_guidelines(
         self,
@@ -164,13 +304,25 @@ class ReflectionService:
         education: str = "",
         limit: int = 5,
     ) -> str:
+        policies = self.policy_store.search(
+            job_title=job_title,
+            experience=experience,
+            education=education,
+            limit=3,
+        )
         reflections = self.store.search(
             job_title=job_title,
             experience=experience,
             education=education,
-            limit=limit,
+            limit=limit + len(policies),
         )
-        return format_reflection_guidelines(reflections)
+        policy_keys = {_normalize_key(policy.policy) for policy in policies}
+        reflections = [
+            reflection
+            for reflection in reflections
+            if _normalize_key(reflection.prompt_hint) not in policy_keys
+        ][:max(limit - len(policies), 0)]
+        return format_reflection_guidelines(reflections, policies)
 
     def generate_and_store(
         self,
@@ -213,6 +365,7 @@ class ReflectionService:
             if self.store.append(item):
                 stored_count += 1
 
+        self.policy_store.consolidate(self.store.read_all())
         return stored_count
 
     def _generate_candidates(
@@ -268,24 +421,40 @@ class ReflectionService:
         return result.reflections[:3]
 
 
-def format_reflection_guidelines(reflections: List[ReflectionItem]) -> str:
-    if not reflections:
+def format_reflection_guidelines(
+    reflections: List[ReflectionItem],
+    policies: Optional[List[PolicyItem]] = None,
+) -> str:
+    policies = policies or []
+    if not reflections and not policies:
         return ""
 
+    sections = []
+    policy_bullets = _unique_bullets(policy.policy for policy in policies)
+    if policy_bullets:
+        sections.append("# 승격된 면접 운영 정책\n" + "\n".join(policy_bullets))
+
+    reflection_bullets = _unique_bullets(reflection.prompt_hint for reflection in reflections)
+    if reflection_bullets:
+        sections.append("# 최근 유사 면접에서 학습한 보정 지침\n" + "\n".join(reflection_bullets))
+
+    if not sections:
+        return ""
+
+    return "\n" + "\n\n".join(sections)
+
+
+def _unique_bullets(values: Iterable[str]) -> List[str]:
     bullets = []
     seen: set[str] = set()
-    for reflection in reflections:
-        hint = _compact_prompt_hint(reflection.prompt_hint)
+    for value in values:
+        hint = _compact_prompt_hint(value)
         normalized = _normalize_key(hint)
         if not normalized or normalized in seen:
             continue
         seen.add(normalized)
         bullets.append(f"- {hint}")
-
-    if not bullets:
-        return ""
-
-    return "\n# 이전 면접에서 학습한 운영 지침\n" + "\n".join(bullets)
+    return bullets
 
 
 def safe_generate_and_store_reflections(
@@ -336,3 +505,106 @@ def _compact_prompt_hint(value: str) -> str:
 def _redact_sensitive_text(value: str) -> str:
     text = re.sub(r"[\w.+-]+@[\w-]+\.[\w.-]+", "[email]", value or "")
     return re.sub(r"\b\d{2,3}[-.\s]?\d{3,4}[-.\s]?\d{4}\b", "[phone]", text)
+
+
+def _policy_from_reflection(reflection: ReflectionItem) -> PolicyItem:
+    now = datetime.now(timezone.utc).isoformat()
+    return PolicyItem(
+        id=str(uuid.uuid4()),
+        created_at=now,
+        updated_at=now,
+        status="candidate",
+        scope=_policy_scope(reflection),
+        job_title=reflection.job_title,
+        experience=reflection.experience,
+        education=reflection.education,
+        policy=_compact_prompt_hint(reflection.prompt_hint),
+        evidence_count=1,
+        confidence=reflection.confidence,
+        source_reflection_ids=[reflection.id],
+        reason="created_from_reflection",
+    )
+
+
+def _merge_reflection_into_policy(policy: PolicyItem, reflection: ReflectionItem) -> None:
+    if reflection.id not in policy.source_reflection_ids:
+        previous_evidence = max(policy.evidence_count, 1)
+        policy.source_reflection_ids.append(reflection.id)
+        policy.evidence_count = len(policy.source_reflection_ids)
+        policy.confidence = round(
+            ((policy.confidence * previous_evidence) + reflection.confidence)
+            / (previous_evidence + 1),
+            2,
+        )
+
+    if _is_more_specific(reflection.prompt_hint, policy.policy):
+        policy.policy = _compact_prompt_hint(reflection.prompt_hint)
+        policy.reason = "updated_with_more_specific_reflection"
+
+    policy.updated_at = datetime.now(timezone.utc).isoformat()
+
+
+def _promote_and_deprecate_policies(
+    policies: List[PolicyItem],
+    promotion_threshold: int,
+    min_promoted_confidence: float,
+) -> None:
+    for policy in policies:
+        if policy.status == "deprecated":
+            continue
+        if policy.evidence_count >= promotion_threshold and policy.confidence >= min_promoted_confidence:
+            policy.status = "promoted"
+            policy.reason = "promoted_by_repeated_evidence"
+
+    promoted = [policy for policy in policies if policy.status == "promoted"]
+    for older in promoted:
+        for newer in promoted:
+            if older.id == newer.id or older.status == "deprecated":
+                continue
+            if not _same_policy_scope(older, newer):
+                continue
+            if _text_similarity(older.policy, newer.policy) < 0.62:
+                continue
+            if _is_better_policy(newer, older):
+                older.status = "deprecated"
+                older.replaced_by = newer.id
+                older.reason = "superseded_by_better_policy"
+                newer.supersedes = sorted(set(newer.supersedes + [older.id]))
+
+
+def _policy_scope(reflection: ReflectionItem) -> str:
+    if _normalize_key(reflection.job_title) and _normalize_key(reflection.experience):
+        return "role_experience"
+    if _normalize_key(reflection.job_title):
+        return "role"
+    return "global"
+
+
+def _same_policy_scope(policy: PolicyItem, other: ReflectionItem | PolicyItem) -> bool:
+    return (
+        _normalize_key(policy.scope) == _normalize_key(getattr(other, "scope", _policy_scope(other)))
+        and _normalize_key(policy.job_title) == _normalize_key(other.job_title)
+        and _normalize_key(policy.experience) == _normalize_key(other.experience)
+    )
+
+
+def _text_similarity(left: str, right: str) -> float:
+    left_tokens = _profile_tokens(left)
+    right_tokens = _profile_tokens(right)
+    if not left_tokens or not right_tokens:
+        return 0.0
+    return len(left_tokens & right_tokens) / len(left_tokens | right_tokens)
+
+
+def _is_more_specific(candidate: str, current: str) -> bool:
+    candidate_tokens = _profile_tokens(candidate)
+    current_tokens = _profile_tokens(current)
+    return len(candidate_tokens) >= len(current_tokens) + 3
+
+
+def _is_better_policy(candidate: PolicyItem, current: PolicyItem) -> bool:
+    if candidate.evidence_count >= current.evidence_count + 2:
+        return True
+    if candidate.confidence >= current.confidence + 0.1 and _is_more_specific(candidate.policy, current.policy):
+        return True
+    return False
