@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 interface LogEntry {
   id: string;
@@ -17,10 +16,7 @@ interface JobSearchResult {
 }
 
 export default function DebugPage() {
-  const router = useRouter();
-
   const [isRecording, setIsRecording] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
   const [statusText, setStatusText] = useState("대기 중...");
   const [logs, setLogs] = useState<LogEntry[]>([]);
 
@@ -30,7 +26,6 @@ export default function DebugPage() {
   const streamRef = useRef<MediaStream | null>(null);
   const logsEndRef = useRef<HTMLDivElement | null>(null);
 
-  const [sessionId, setSessionId] = useState<string | null>(null);
   const [transcripts, setTranscripts] = useState<{ id: string, role: string, text: string }[]>([]);
 
   const addLog = (source: 'IN' | 'OUT' | 'SYS' | 'TOOL', event: string, data?: unknown) => {
@@ -87,7 +82,6 @@ export default function DebugPage() {
       if (!res.ok) throw new Error("토큰 발급 API 오류");
       const data = await res.json();
       const EPHEMERAL_KEY = data.ephemeral_token;
-      setSessionId(data.session_id);
       addLog('SYS', 'Token Received', { session_id: data.session_id });
 
       setStatusText("WebRTC 연결 중...");
@@ -212,11 +206,9 @@ export default function DebugPage() {
           ));
         }
         if (realtimeEvent.type === "response.audio.delta") {
-          setIsSpeaking(true);
           setStatusText("AI 발화 중...");
         }
         if (realtimeEvent.type === "response.done") {
-          setIsSpeaking(false);
           setStatusText("🟢 스페이스바를 누른 채로 대답하세요.");
         }
       });
@@ -262,7 +254,7 @@ export default function DebugPage() {
     setStatusText("종료됨");
   };
 
-  const startRecording = () => {
+  const startRecording = useCallback(() => {
     if (streamRef.current && !isRecording && dcRef.current?.readyState === "open") {
       const audioTrack = streamRef.current.getAudioTracks()[0];
       audioTrack.enabled = true;
@@ -271,9 +263,9 @@ export default function DebugPage() {
       dcRef.current.send(JSON.stringify({ type: "input_audio_buffer.clear" }));
       addLog('SYS', 'Push-To-Talk: Microphone ON');
     }
-  };
+  }, [isRecording]);
 
-  const stopRecording = () => {
+  const stopRecording = useCallback(() => {
     if (streamRef.current && isRecording && dcRef.current?.readyState === "open") {
       const audioTrack = streamRef.current.getAudioTracks()[0];
       audioTrack.enabled = false;
@@ -284,7 +276,7 @@ export default function DebugPage() {
       dcRef.current.send(JSON.stringify({ type: "response.create" }));
       addLog('SYS', 'Push-To-Talk: Microphone OFF, Buffer Committed');
     }
-  };
+  }, [isRecording]);
 
   // 스페이스바 단축키 (Push-To-Talk)
   useEffect(() => {
@@ -306,7 +298,7 @@ export default function DebugPage() {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     }
-  }, [isRecording]);
+  }, [startRecording, stopRecording]);
 
   const loadDummyData = async () => {
     try {
@@ -447,7 +439,7 @@ export default function DebugPage() {
                   <span className={`font-bold ${colorClass}`}>[{log.source}]</span>
                   <span className="font-semibold text-white">{log.event}</span>
                 </div>
-                {log.data && (
+                {log.data !== undefined && (
                   <pre className="mt-1 pl-4 border-l-2 border-gray-700 text-gray-400 overflow-x-auto whitespace-pre-wrap break-words">
                     {JSON.stringify(log.data, null, 2)}
                   </pre>
