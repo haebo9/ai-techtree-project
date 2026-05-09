@@ -13,10 +13,11 @@ from app.schemas_api.interview import (
 router = APIRouter()
 
 import uuid
+import random
 import requests
 from app.core.config import settings
 from app.core.logger import get_logger
-from app.engine.prompts.api_interviewer import INTERVIEWER_SYSTEM_PROMPT
+from app.engine.prompts.api_interview import INTERVIEWER_SYSTEM_PROMPT
 from app.services.reflection_service import ReflectionService, safe_generate_and_store_reflections
 
 from app.engine.graphs.graph import get_interview_workflow
@@ -27,6 +28,21 @@ logger = get_logger(__name__)
 
 temp_sessions: Dict[str, Any] = {}
 
+VOICE_INTERVIEWER_NAMES: Dict[str, str] = {
+    "alloy": "Alex",
+    "ash": "Noah",
+    "ballad": "Ethan",
+    "coral": "Sophia",
+    "echo": "Daniel",
+    "sage": "Mina",
+    "shimmer": "Yuna",
+    "verse": "Jin",
+}
+
+def _prompt_value(value: str | None, default: str = "정보 없음") -> str:
+    cleaned = (value or "").strip()
+    return cleaned if cleaned else default
+
 @router.post("/start", response_model=StartInterviewResponse)
 async def start_interview(request: StartInterviewRequest):
     """
@@ -34,9 +50,13 @@ async def start_interview(request: StartInterviewRequest):
     OpenAI Realtime API 연동 토큰 발급 및 LangGraph 상태를 초기화합니다.
     """
     session_id = str(uuid.uuid4())
+    job_title = _prompt_value(request.job_title)
+    education = _prompt_value(request.education)
+    experience = _prompt_value(request.experience)
+    resume = _prompt_value(request.resume)
     
-    if request.job_description:
-        job_desc = request.job_description
+    if request.job_description and request.job_description.strip():
+        job_desc = request.job_description.strip()
     elif request.job_image:
         job_desc = "[사용자가 이미지(캡처본) 형태로 채용 공고를 직접 제공했습니다.]"
     else:
@@ -44,28 +64,28 @@ async def start_interview(request: StartInterviewRequest):
 
     try:
         reflection_guidelines = ReflectionService().get_prompt_guidelines(
-            job_title=request.job_title,
-            experience=request.experience,
-            education=request.education,
+            job_title=job_title,
+            experience=experience,
+            education=education,
             limit=5,
         )
     except Exception as e:
         logger.warning("Reflection guideline lookup failed: %s", e)
         reflection_guidelines = ""
+
+    selected_voice = random.choice(list(VOICE_INTERVIEWER_NAMES.keys()))
+    interviewer_name = VOICE_INTERVIEWER_NAMES[selected_voice]
     
     # 1. 면접관 지침 준비
     instructions = INTERVIEWER_SYSTEM_PROMPT.format(
-        job_title=request.job_title if request.job_title else "정보 없음",
-        education=request.education if request.education else "정보 없음",
-        experience=request.experience if request.experience else "정보 없음",
-        resume=request.resume if request.resume else "정보 없음",
+        interviewer_name=interviewer_name,
+        job_title=job_title,
+        education=education,
+        experience=experience,
+        resume=resume,
         job_description=job_desc,
         reflection_guidelines=reflection_guidelines
     )
-
-    import random
-    available_voices = ["alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse"]
-    selected_voice = random.choice(available_voices)
 
     # 2. OpenAI Realtime 세션 생성
     headers = {
@@ -105,13 +125,14 @@ async def start_interview(request: StartInterviewRequest):
     # 3. LangGraph 초기 상태 설정
     initial_state = {
         "user_id": request.user_id,
-        "job_title": request.job_title,
+        "job_title": job_title,
         "field": "",  # request에 없음
-        "experience": request.experience,
-        "education": request.education,
-        "resume": request.resume,
+        "experience": experience,
+        "education": education,
+        "resume": resume,
         "job_description": job_desc,
         "reflection_guidelines": reflection_guidelines,
+        "interviewer_name": interviewer_name,
         "major": "",  # request에 없음
         "messages": [],
         "saved_jobs": [],
@@ -119,7 +140,12 @@ async def start_interview(request: StartInterviewRequest):
     }
     interview_workflow.update_state({"configurable": {"thread_id": session_id}}, initial_state)
     
-    temp_sessions[session_id] = {"user_id": request.user_id, "status": "IN_PROGRESS"}
+    temp_sessions[session_id] = {
+        "user_id": request.user_id,
+        "status": "IN_PROGRESS",
+        "voice": selected_voice,
+        "interviewer_name": interviewer_name,
+    }
     
     return StartInterviewResponse(
         session_id=session_id,

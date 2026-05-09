@@ -8,6 +8,7 @@ class InterviewState(TypedDict):
     """
     # 1. 지원자 프로필 정보 (면접 초기화 시 주입)
     user_id: str
+    interviewer_name: str # 선택된 음성에 매칭된 면접관 이름
     job_title: str       # 상세 직무 (예: React 프론트엔드 개발자)
     field: str           # 분야 (예: frontend, backend 등)
     experience: str      # 경력 (신입, 1~3년차 등)
