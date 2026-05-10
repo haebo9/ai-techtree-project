@@ -3,27 +3,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { isInterviewClosingTranscript } from "@/lib/interviewClosing";
 
 interface JobSearchResult {
   company?: string;
   title?: string;
   url?: string;
   content?: string;
-}
-
-const INTERVIEW_CLOSING_PATTERNS = [
-  /오늘은\s*여기까지/,
-  /오늘\s*(면접|인터뷰).*(여기까지|마치)/,
-  /(면접|인터뷰).*(여기까지|마치겠습니다|마무리하겠습니다|종료하겠습니다)/,
-  /이상으로\s*(면접|인터뷰).*(마치겠습니다|마무리하겠습니다)/,
-  /오늘\s*수고\s*많으셨습니다/,
-  /고생\s*많으셨습니다.*(면접|인터뷰)/,
-  /좋은\s*결과.*(있기를|바라겠습니다)/,
-];
-
-function isInterviewClosingTranscript(text: string) {
-  const normalized = text.replace(/\s+/g, " ").trim();
-  return INTERVIEW_CLOSING_PATTERNS.some((pattern) => pattern.test(normalized));
 }
 
 export default function InterviewPage() {
