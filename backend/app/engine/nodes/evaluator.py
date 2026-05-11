@@ -1,36 +1,33 @@
 import json
 import re
 from typing import Any, Dict, List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from app.engine.graphs.state import InterviewState
 from app.core.llm import get_llm
 from langchain_core.messages import SystemMessage
 
 class JobRecommendation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     company: str = Field(description="추천 회사명")
     title: str = Field(description="추천 직무명")
     url: str = Field(description="해당 채용 공고의 실제 URL (있을 경우에만 작성)", default="")
 
-    class Config:
-        extra = "forbid"
-
 class QnAReview(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     question: str = Field(description="면접관의 질문")
     answer: str = Field(description="지원자의 답변 요약")
     feedback: str = Field(description="해당 답변에 대한 AI의 상세 피드백 (긍정적 요소 및 개선점)")
 
-    class Config:
-        extra = "forbid"
-
 class EvaluationSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     score: int = Field(description="면접 종합 점수 (0-100)")
     strengths: List[str] = Field(description="지원자의 주요 강점 목록")
     weaknesses: List[str] = Field(description="보완이 필요한 점 목록")
     qa_review: List[QnAReview] = Field(description="주요 질의응답 내역 및 피드백 (최대 3개)")
     job_recommendations: List[JobRecommendation] = Field(description="추천 채용 공고 목록")
-
-    class Config:
-        extra = "forbid"
 
 def _normalize_saved_jobs(raw_jobs: Any) -> List[Dict[str, str]]:
     """
