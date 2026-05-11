@@ -57,8 +57,9 @@ export default function DebugPage() {
       setStatusText("토큰 발급 중...");
       addLog('SYS', 'Fetching Ephemeral Token from /api/interview/start');
 
-      const savedProfile = localStorage.getItem("interviewProfile");
+      const savedProfile = sessionStorage.getItem("interviewProfile") || localStorage.getItem("interviewProfile");
       const profileData = savedProfile ? JSON.parse(savedProfile) : {
+        report_email: "debug@example.com",
         job_title: "직무 미상",
         education: "학사(4년제)",
         experience: "신입",
@@ -70,6 +71,7 @@ export default function DebugPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           user_id: "debug@example.com",
+          report_email: profileData.report_email || "debug@example.com",
           job_title: profileData.job_title || "직무 미상",
           education: profileData.education || "학사(4년제)",
           experience: profileData.experience || "신입",
@@ -346,7 +348,8 @@ export default function DebugPage() {
             ctx.drawImage(img, 0, 0, width, height);
             const compressedBase64 = canvas.toDataURL("image/jpeg", 0.6);
 
-            localStorage.setItem("interviewProfile", JSON.stringify({
+            sessionStorage.setItem("interviewProfile", JSON.stringify({
+              report_email: "debug@example.com",
               job_title: "AI Engineer",
               experience: "신입",
               education: "학사(4년제)",
@@ -354,6 +357,7 @@ export default function DebugPage() {
               job_description: "",
               job_image: compressedBase64
             }));
+            localStorage.removeItem("interviewProfile");
             setStatusText("더미 데이터 설정 완료!");
             addLog('SYS', 'Dummy data loaded into localStorage');
           }

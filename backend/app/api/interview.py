@@ -1,6 +1,7 @@
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Path
 from pydantic import BaseModel
 from typing import Dict, Any, List
+from app.schemas_api.email import SendEmailRequest
 from app.schemas_api.interview import (
     StartInterviewRequest, 
     StartInterviewResponse, 
@@ -15,6 +16,8 @@ router = APIRouter()
 import uuid
 import random
 import requests
+import resend
+from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from app.core.config import settings
 from app.core.logger import get_logger
@@ -264,9 +267,16 @@ async def start_interview(request: StartInterviewRequest):
     
     temp_sessions[session_id] = {
         "user_id": request.user_id,
+        "report_email": str(request.report_email),
         "status": "IN_PROGRESS",
         "voice": selected_voice,
         "interviewer_name": interviewer_name,
+        "job_title": job_title,
+        "experience": experience,
+        "education": education,
+        "resume": resume,
+        "job_description": interview_job_context,
+        "interview_mode": request.interview_mode,
         "prepared_jobs": recommended_jobs,
         "context_jobs": context_jobs,
     }
@@ -326,68 +336,109 @@ async def end_interview(
     session_id: str = Path(..., description="면접 세션 ID")
 ):
     """
-    면접을 종료하고 프론트엔드에서 전달받은 대화 내역(transcripts)을 바탕으로 Evaluator 노드를 실행합니다.
+    면접을 종료하고 리포트 생성/이메일 발송은 백그라운드에서 처리합니다.
     """
-    config = {"configurable": {"thread_id": session_id}}
-    
-    # 1. 프론트엔드에서 받은 transcripts를 LangChain Message 객체로 변환
     lc_messages = []
     for t in request.transcripts:
         if t.role == "user":
             lc_messages.append(HumanMessage(content=t.text))
         elif t.role == "ai":
             lc_messages.append(AIMessage(content=t.text))
-            
+
     prepared_jobs = temp_sessions.get(session_id, {}).get("prepared_jobs")
     report_jobs = _normalize_job_list(prepared_jobs if isinstance(prepared_jobs, list) else request.saved_jobs)
 
-    # 2. 상태를 EVALUATING으로 변경하고 메시지 내역 덮어쓰기 및 시작 전에 선별된 일자리 저장
-    interview_workflow.update_state(config, {
-        "status": "EVALUATING", 
-        "messages": lc_messages,
-        "saved_jobs": report_jobs
-    })
-    
-    # 그래프 실행 (Evaluator 노드까지 진행됨)
-    final_state = interview_workflow.invoke(None, config=config)
-    
-    evaluation = final_state.get("evaluation_result", {})
+    temp_sessions.setdefault(session_id, {})["status"] = "REPORT_QUEUED"
     background_tasks.add_task(
-        safe_generate_and_store_reflections,
+        generate_report_and_send_email,
         session_id=session_id,
-        job_title=final_state.get("job_title", ""),
-        experience=final_state.get("experience", ""),
-        education=final_state.get("education", ""),
-        messages=final_state.get("messages", lc_messages),
-        evaluation=evaluation,
-        saved_jobs=report_jobs,
+        lc_messages=lc_messages,
+        report_jobs=report_jobs,
+        transcripts=[item.model_dump() for item in request.transcripts],
+        interview_date=request.interview_date,
+        interview_duration=request.interview_duration,
     )
-    
+
     return EndInterviewResponse(
         session_id=session_id,
-        score=evaluation.get("score", 0),
-        strengths=evaluation.get("strengths", []),
-        weaknesses=evaluation.get("weaknesses", []),
-        qa_review=evaluation.get("qa_review", []),
-        job_recommendations=evaluation.get("job_recommendations", [])
+        status="queued",
+        message="면접이 종료되었습니다. 리포트는 입력하신 이메일로 전송됩니다.",
     )
 
-from app.schemas_api.email import SendEmailRequest
-import resend
+def generate_report_and_send_email(
+    *,
+    session_id: str,
+    lc_messages: List[Any],
+    report_jobs: List[Dict[str, Any]],
+    transcripts: List[Dict[str, str]],
+    interview_date: str | None,
+    interview_duration: str | None,
+) -> None:
+    session = temp_sessions.get(session_id, {})
+    config = {"configurable": {"thread_id": session_id}}
 
-@router.post("/{session_id}/email")
-async def send_interview_email(session_id: str, request: SendEmailRequest):
-    """
-    면접 결과 리포트와 전체 대화 내역을 이메일로 전송합니다. (Resend API 사용)
-    """
-    if not settings.RESEND_API_KEY:
-        print(f"⚠️ RESEND_API_KEY 설정이 없습니다. 이메일 발송을 시뮬레이션합니다.\nTarget Email: {request.email}")
-        return {"status": "success", "message": "Resend API 키가 없어 이메일 발송을 콘솔에 시뮬레이션했습니다."}
+    try:
+        temp_sessions.setdefault(session_id, {})["status"] = "REPORT_GENERATING"
+        interview_workflow.update_state(config, {
+            "status": "EVALUATING",
+            "messages": lc_messages,
+            "saved_jobs": report_jobs,
+        })
 
-    resend.api_key = settings.RESEND_API_KEY
+        final_state = interview_workflow.invoke(None, config=config)
+        evaluation = final_state.get("evaluation_result", {})
 
-    # 이메일 내용 구성 (HTML)
-    html_content = f"""
+        email_request = SendEmailRequest(
+            email=session.get("report_email", ""),
+            score=evaluation.get("score", 0),
+            strengths=evaluation.get("strengths", []),
+            weaknesses=evaluation.get("weaknesses", []),
+            qa_review=evaluation.get("qa_review", []),
+            job_recommendations=evaluation.get("job_recommendations", []),
+            transcripts=transcripts,
+            interview_date=interview_date,
+            interview_duration=interview_duration,
+        )
+        _send_report_email(email_request)
+
+        safe_generate_and_store_reflections(
+            session_id=session_id,
+            job_title=final_state.get("job_title", session.get("job_title", "")),
+            experience=final_state.get("experience", session.get("experience", "")),
+            education=final_state.get("education", session.get("education", "")),
+            messages=final_state.get("messages", lc_messages),
+            evaluation=evaluation,
+            saved_jobs=report_jobs,
+        )
+
+        temp_sessions.setdefault(session_id, {})["status"] = "REPORT_SENT"
+        temp_sessions[session_id]["email_sent_at"] = datetime.now(timezone.utc).isoformat()
+    except Exception as exc:
+        logger.warning("Async report generation failed for session %s: %s", session_id, exc)
+        temp_sessions.setdefault(session_id, {})["status"] = "REPORT_FAILED"
+        temp_sessions[session_id]["error"] = str(exc)
+    finally:
+        _cleanup_completed_session(session_id)
+
+
+def _cleanup_completed_session(session_id: str) -> None:
+    session = temp_sessions.get(session_id)
+    if not session:
+        return
+
+    for key in (
+        "resume",
+        "job_description",
+        "context_jobs",
+        "prepared_jobs",
+        "report_email",
+    ):
+        session.pop(key, None)
+    session["completed_at"] = datetime.now(timezone.utc).isoformat()
+
+
+def _build_report_email_html(request: SendEmailRequest) -> str:
+    return f"""
     <html>
         <head>
             <style>
@@ -472,6 +523,14 @@ async def send_interview_email(session_id: str, request: SendEmailRequest):
     </html>
     """
 
+
+def _send_report_email(request: SendEmailRequest):
+    if not settings.RESEND_API_KEY:
+        print(f"⚠️ RESEND_API_KEY 설정이 없습니다. 이메일 발송을 시뮬레이션합니다.\nTarget Email: {request.email}")
+        return {"status": "success", "message": "Resend API 키가 없어 이메일 발송을 콘솔에 시뮬레이션했습니다."}
+
+    resend.api_key = settings.RESEND_API_KEY
+    html_content = _build_report_email_html(request)
     params = {
         "from": "TechTree <no-reply@haebo.pro>",
         "to": [request.email],
@@ -485,3 +544,11 @@ async def send_interview_email(session_id: str, request: SendEmailRequest):
     except Exception as e:
         print(f"❌ Resend 이메일 전송 실패: {e}")
         raise HTTPException(status_code=500, detail="이메일 전송에 실패했습니다.")
+
+
+@router.post("/{session_id}/email")
+async def send_interview_email(session_id: str, request: SendEmailRequest):
+    """
+    면접 결과 리포트와 전체 대화 내역을 이메일로 전송합니다. (Resend API 사용)
+    """
+    return _send_report_email(request)

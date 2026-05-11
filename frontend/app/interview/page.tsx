@@ -64,7 +64,7 @@ export default function InterviewPage() {
 
     const currentSessionId = sessionIdRef.current;
     if (!currentSessionId) {
-      router.push("/result");
+      router.push("/complete");
       return;
     }
 
@@ -93,21 +93,21 @@ export default function InterviewPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           transcripts: transcriptRef.current,
-          saved_jobs: savedJobsRef.current
+          saved_jobs: savedJobsRef.current,
+          interview_date: dateStr,
+          interview_duration: durationStr
         })
       });
-      const resultData = await response.json();
+      if (!response.ok) throw new Error("면접 종료 API 오류");
       
-      localStorage.setItem("interviewResult", JSON.stringify(resultData));
       localStorage.removeItem("interviewTranscripts");
-      sessionStorage.setItem("interviewTranscriptsForEmail", JSON.stringify(transcriptRef.current));
-      localStorage.setItem("interviewDuration", durationStr);
-      localStorage.setItem("interviewDate", dateStr);
+      sessionStorage.removeItem("interviewTranscriptsForEmail");
+      sessionStorage.setItem("lastInterviewEndedAt", dateStr);
       
-      router.push("/result");
+      router.push("/complete");
     } catch (err) {
       console.error("종료 에러:", err);
-      router.push("/result");
+      router.push("/complete");
     }
   }, [cleanupRealtimeSession, router]);
 
@@ -151,8 +151,9 @@ export default function InterviewPage() {
         setStatusText("지원 정보와 모집중인 채용 공고를 분석해 면접을 준비 중입니다...");
 
         // 1) 로컬 스토리지에서 사용자가 입력한 프로필 가져오기
-        const savedProfile = localStorage.getItem("interviewProfile");
+        const savedProfile = sessionStorage.getItem("interviewProfile") || localStorage.getItem("interviewProfile");
         const profileData = savedProfile ? JSON.parse(savedProfile) : {
+          report_email: "test@example.com",
           job_title: "직무 미상",
           education: "학사(4년제)",
           experience: "신입",
@@ -165,6 +166,7 @@ export default function InterviewPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             user_id: "test@example.com",
+            report_email: profileData.report_email || "test@example.com",
             job_title: profileData.job_title || "직무 미상",
             education: profileData.education || "학사(4년제)",
             experience: profileData.experience || "신입",

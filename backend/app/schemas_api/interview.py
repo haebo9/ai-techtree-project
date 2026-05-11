@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 from typing import List, Dict, Any, Optional
 
 # ==========================================
@@ -6,6 +6,7 @@ from typing import List, Dict, Any, Optional
 # ==========================================
 class StartInterviewRequest(BaseModel):
     user_id: str = Field(..., description="사용자 ID (예: 이메일 또는 UUID)")
+    report_email: EmailStr = Field(..., description="비동기 리포트를 받을 이메일 주소")
     job_title: str = Field(..., description="지원 직무 (예: 서비스 기획자, 마케터, 프론트엔드 개발자 등)")
     experience: str = Field(..., description="경력 (예: 신입, 1-3년차 등)")
     education: str = Field(..., description="학력 (예: 고졸, 전문학사, 학사, 석사, 박사 등)")
@@ -40,11 +41,10 @@ class TranscriptItem(BaseModel):
 class EndInterviewRequest(BaseModel):
     transcripts: List[TranscriptItem] = Field(default=[], description="전체 대화 내역")
     saved_jobs: List[Dict[str, Any]] = Field(default=[], description="면접 시작 전에 선별된 모집중 추천 채용 공고 정보")
+    interview_date: Optional[str] = Field(default=None, description="면접 종료 시각 표시 문자열")
+    interview_duration: Optional[str] = Field(default=None, description="면접 소요 시간 표시 문자열")
 
 class EndInterviewResponse(BaseModel):
     session_id: str
-    score: int
-    strengths: List[str]
-    weaknesses: List[str]
-    qa_review: List[Dict[str, str]]
-    job_recommendations: List[Dict[str, str]]
+    status: str = Field(default="queued", description="리포트 생성 큐잉 상태")
+    message: str = Field(default="면접이 종료되었습니다. 리포트는 이메일로 전송됩니다.")
