@@ -12,6 +12,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from app.core.config import settings
 from app.core.llm import get_llm
 from app.core.logger import get_logger
+from app.engine.prompts.reflection_analyzer import REFLECTION_ANALYZER_SYSTEM_PROMPT
 from app.services.reflection_mongo_store import MongoReflectionUnavailable, ReflectionMongoClient
 
 logger = get_logger(__name__)
@@ -500,20 +501,6 @@ class ReflectionService:
         evaluation_summary = json.dumps(evaluation, ensure_ascii=False, default=str)[:3500]
         jobs_summary = json.dumps(saved_jobs[:3], ensure_ascii=False, default=str)[:2000]
 
-        system_prompt = """
-당신은 AI 면접관의 운영 품질을 개선하는 Reflexion 분석가입니다.
-전체 면접 대화와 평가 결과를 보고, 다음 면접의 시스템 프롬프트에 넣을 수 있는 짧은 운영 지침만 추출하세요.
-
-규칙:
-- 전체 면접 대화 원문은 저장 대상이 아니라 분석 재료일 뿐입니다.
-- 지원자의 개인정보, 전체 답변 원문, 발화 인용, 이메일, 이름, 회사명, 프로젝트명처럼 식별 가능한 정보는 저장하지 마세요.
-- 지원자 답변을 요약해 저장하지 말고, 면접관 운영 방식에 대한 비식별 지침만 저장하세요.
-- issue, lesson, prompt_hint 어디에도 "지원자:", "면접관:" 같은 transcript 형식이나 직접 인용문을 넣지 마세요.
-- 모델 가중치를 바꾸는 것이 아니라 다음 면접에 재사용할 프롬프트 지침을 만드세요.
-- 면접관의 질문 방식, 난이도 조절, 공고 요건 반영, 후속 질문 품질을 개선하는 내용만 작성하세요.
-- 이미 잘 작동한 일반 원칙이 아니라, 이번 면접에서 실제로 드러난 개선점을 최대 3개만 작성하세요.
-- prompt_hint는 면접관에게 직접 명령하는 한 문장으로 작성하세요.
-"""
         user_prompt = f"""
 [지원자 조건]
 - 지원 직무: {job_title or "정보 없음"}
@@ -533,7 +520,7 @@ class ReflectionService:
         llm = get_llm(temperature=0.1)
         structured_llm = llm.with_structured_output(ReflectionGeneration)
         result = structured_llm.invoke([
-            SystemMessage(content=system_prompt),
+            SystemMessage(content=REFLECTION_ANALYZER_SYSTEM_PROMPT),
             HumanMessage(content=user_prompt),
         ])
         return result.reflections[:3]

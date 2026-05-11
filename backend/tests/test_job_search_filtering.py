@@ -110,7 +110,7 @@ def test_active_deadline_hint_is_not_treated_as_expired():
     ) is not None
 
 
-def test_recommendations_require_active_deadline_hint():
+def test_recommendations_allow_unclear_deadline_but_reject_expired():
     active_job = {
         "title": "QA 엔지니어 채용",
         "content": "접수기간/방법. 남은시간 D-11. 신입 가능.",
@@ -125,7 +125,7 @@ def test_recommendations_require_active_deadline_hint():
     }
 
     assert is_recommendable_active_job(active_job)
-    assert not is_recommendable_active_job(unclear_job)
+    assert is_recommendable_active_job(unclear_job)
     assert not is_recommendable_active_job(expired_job)
 
 

@@ -88,8 +88,8 @@ def test_interview_mode_guidance_supports_short_and_long_modes():
 
     assert "면접 모드: 짧은 면접" in short_prompt
     assert "목표 시간은 약 7분입니다." in short_prompt
-    assert "핵심 직무 질문 3-4개" in short_prompt
-    assert "꼬리 질문 2-3회" in short_prompt
+    assert "핵심 직무 질문은 최대 3개" in short_prompt
+    assert "꼬리 질문은 전체 면접에서 최대 1회" in short_prompt
     assert "면접 모드: 긴 면접" in long_prompt
     assert "목표 시간은 약 20분입니다." in long_prompt
     assert "이력서 기반 대표 프로젝트 1-2개" in long_prompt

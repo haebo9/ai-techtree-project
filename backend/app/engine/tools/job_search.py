@@ -180,9 +180,16 @@ def _looks_expired(title: str, content: str) -> bool:
         return False
     return any(re.search(pattern, text, re.IGNORECASE) for pattern in EXPIRED_POSTING_PATTERNS)
 
-def is_recommendable_active_job(job: Dict[str, str]) -> bool:
+def classify_job_deadline_status(job: Dict[str, str]) -> str:
     text = f"{job.get('title', '')} {job.get('content', '')}"
-    return _has_active_deadline_hint(text) and not _looks_expired(job.get("title", ""), job.get("content", ""))
+    if _looks_expired(job.get("title", ""), job.get("content", "")):
+        return "expired"
+    if _has_active_deadline_hint(text):
+        return "active"
+    return "unknown"
+
+def is_recommendable_active_job(job: Dict[str, str]) -> bool:
+    return classify_job_deadline_status(job) != "expired"
 
 def _company_from_result(title: str, url: str) -> str:
     host = urlparse(url).netloc.lower().replace("www.", "")
@@ -191,7 +198,7 @@ def _company_from_result(title: str, url: str) -> str:
         host.split(".")[0] if host else "",
     )
     bracket_match = re.match(r"^\[([^\]]+)\]", title)
-    if bracket_match and "wanted.co.kr" in host:
+    if bracket_match:
         bracket_text = bracket_match.group(1).strip()
         if bracket_text:
             return bracket_text
@@ -226,6 +233,8 @@ def _clean_job_title(title: str) -> str:
 
     if " | " in title:
         title = title.split(" | ", 1)[0].strip()
+
+    title = re.sub(r"^\[[^\]]+\]\s*", "", title).strip()
 
     if " - " not in title:
         return title

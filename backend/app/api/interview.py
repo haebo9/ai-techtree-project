@@ -49,8 +49,9 @@ INTERVIEW_MODE_GUIDANCE: Dict[str, Dict[str, str]] = {
         "label": "짧은 면접",
         "guidance": (
             "목표 시간은 약 7분입니다. 너무 길게 끌지 말고, "
-            "아이스브레이킹 후 자기소개/지원동기를 확인한 다음 대표 경험 1개를 중심으로 핵심 직무 질문 3-4개와 필요한 꼬리 질문 2-3회를 진행하세요. "
-            "평가 근거가 확보되면 명확한 종료 멘트로 마무리하세요."
+            "아이스브레이킹 후 자기소개/지원동기를 확인한 다음 대표 경험 1개만 다루세요. "
+            "핵심 직무 질문은 최대 3개, 꼬리 질문은 전체 면접에서 최대 1회만 사용하세요. "
+            "평가 근거가 어느 정도 확보되면 추가 탐색보다 마지막 발언 기회를 주고 명확한 종료 멘트로 마무리하세요."
         ),
     },
     "long": {
@@ -72,13 +73,13 @@ def _interview_mode_settings(mode: str | None) -> Dict[str, str]:
     return INTERVIEW_MODE_GUIDANCE.get(normalized, INTERVIEW_MODE_GUIDANCE["long"])
 
 def _normalize_job_list(raw_jobs: Any, *, require_active: bool = False) -> List[Dict[str, str]]:
-    from app.engine.tools.job_search import is_recommendable_active_job
+    from app.engine.tools.job_search import classify_job_deadline_status, is_recommendable_active_job
 
     if not isinstance(raw_jobs, list):
         return []
 
     jobs = []
-    seen_urls = set()
+    seen_keys = set()
     for job in raw_jobs:
         if not isinstance(job, dict):
             continue
@@ -89,12 +90,20 @@ def _normalize_job_list(raw_jobs: Any, *, require_active: bool = False) -> List[
             "content": str(job.get("content") or ""),
         }
         url = normalized["url"]
-        if url and url in seen_urls:
+        dedupe_key = (
+            url.strip().lower() if url else "",
+            normalized["company"].strip().lower(),
+            normalized["title"].strip().lower(),
+        )
+        fallback_key = ("", normalized["company"].strip().lower(), normalized["title"].strip().lower())
+        if dedupe_key in seen_keys or fallback_key in seen_keys:
             continue
         if require_active and not is_recommendable_active_job(normalized):
             continue
-        if url:
-            seen_urls.add(url)
+        if require_active:
+            normalized["deadline_status"] = classify_job_deadline_status(normalized)
+        seen_keys.add(dedupe_key)
+        seen_keys.add(fallback_key)
         jobs.append(normalized)
     return jobs[:3]
 
@@ -346,7 +355,8 @@ async def end_interview(
             lc_messages.append(AIMessage(content=t.text))
 
     prepared_jobs = temp_sessions.get(session_id, {}).get("prepared_jobs")
-    report_jobs = _normalize_job_list(prepared_jobs if isinstance(prepared_jobs, list) else request.saved_jobs)
+    source_jobs = prepared_jobs if isinstance(prepared_jobs, list) and prepared_jobs else request.saved_jobs
+    report_jobs = _normalize_job_list(source_jobs)
 
     temp_sessions.setdefault(session_id, {})["status"] = "REPORT_QUEUED"
     background_tasks.add_task(
@@ -501,8 +511,14 @@ def _build_report_email_html(request: SendEmailRequest) -> str:
                             <p style="margin: 0; font-weight: bold;">
                                 <a href="{job.get('url', '#')}" style="color: #333; text-decoration: none;">{job.get('title', '')}</a>
                             </p>
+                            {f'<p style="margin: 6px 0 0 0; color: #64748b; font-size: 12px;">마감 여부 확인 필요</p>' if job.get('deadline_status') == 'unknown' else ''}
                         </div>
                         ''' for job in request.job_recommendations])}
+                        {'''
+                        <p style="color: #64748b; font-size: 14px; margin: 0;">
+                            현재 맞춤 채용 공고를 찾지 못했습니다. 검색 결과가 없거나 마감된 것으로 확인된 공고만 있어 추천에 표시할 항목이 없습니다.
+                        </p>
+                        ''' if not request.job_recommendations else ''}
                     </div>
 
                     <div class="section">

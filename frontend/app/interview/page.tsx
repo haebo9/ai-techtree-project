@@ -10,9 +10,52 @@ interface JobSearchResult {
   title?: string;
   url?: string;
   content?: string;
+  deadline_status?: string;
+}
+
+interface TranscriptEntry {
+  role: "user" | "ai";
+  text: string;
+  pending?: boolean;
 }
 
 let globalInterviewConnectionId = 0;
+
+const USER_ENDING_PATTERNS = [
+  /\bbye\b/i,
+  /그만\s*(하겠습니다|할게요|하죠)?/,
+  /(면접|인터뷰)(을|를)?\s*(끝내|마치|종료)/,
+  /(끝|종료|마무리)\s*(하겠습니다|할게요|해주세요|해\s*주세요)/,
+];
+
+function isUserEndingTranscript(text: string) {
+  const normalized = String(text || "").replace(/\s+/g, " ").trim();
+  return USER_ENDING_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
+function mergeJobResults(current: JobSearchResult[], next: unknown): JobSearchResult[] {
+  if (!Array.isArray(next)) return current;
+
+  const merged = [...current];
+  const seen = new Set(merged.map((job) => job.url).filter(Boolean));
+
+  next.forEach((item) => {
+    if (!item || typeof item !== "object") return;
+    const job = item as JobSearchResult;
+    const normalized = {
+      company: job.company || "회사명 미상",
+      title: job.title || "공고명 미상",
+      url: job.url || "",
+      content: job.content || "",
+      deadline_status: job.deadline_status,
+    };
+    if (normalized.url && seen.has(normalized.url)) return;
+    if (normalized.url) seen.add(normalized.url);
+    merged.push(normalized);
+  });
+
+  return merged.slice(0, 6);
+}
 
 export default function InterviewPage() {
   const router = useRouter();
@@ -29,7 +72,8 @@ export default function InterviewPage() {
   const streamRef = useRef<MediaStream | null>(null);
 
   // 세션 정보 및 대화 기록(Transcript) 임시 저장소
-  const transcriptRef = useRef<{ role: string, text: string }[]>([]);
+  const transcriptRef = useRef<TranscriptEntry[]>([]);
+  const pendingUserTranscriptIndexesRef = useRef<number[]>([]);
   const savedJobsRef = useRef<JobSearchResult[]>([]);
   const sessionIdRef = useRef<string | null>(null);
   const startTimeRef = useRef<number | null>(null);
@@ -46,6 +90,7 @@ export default function InterviewPage() {
       autoEndTimerRef.current = null;
     }
     pendingAutoEndRef.current = false;
+    pendingUserTranscriptIndexesRef.current = [];
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(t => t.stop());
       streamRef.current = null;
@@ -88,11 +133,14 @@ export default function InterviewPage() {
       // 텍스트 변환된 transcriptRef.current 는 평가와 reflection 생성에 사용합니다.
       // 이메일 리포트 발송을 위해 브라우저 세션에만 임시 보관하고 DB에는 저장하지 않습니다.
       // 더불어 환각 방지를 위해 수집된 실제 채용 공고(savedJobsRef.current)도 함께 보냅니다.
+      const orderedTranscripts = transcriptRef.current
+        .filter((item) => item.text.trim())
+        .map(({ role, text }) => ({ role, text }));
       const response = await fetch(`http://localhost:8000/api/interview/${currentSessionId}/end`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
-          transcripts: transcriptRef.current,
+          transcripts: orderedTranscripts,
           saved_jobs: savedJobsRef.current,
           interview_date: dateStr,
           interview_duration: durationStr
@@ -278,6 +326,7 @@ export default function InterviewPage() {
                 });
                 const searchData = await res.json();
                 console.log("[Tool] 검색 결과 수신 완료", searchData.result);
+                savedJobsRef.current = mergeJobResults(savedJobsRef.current, searchData.result);
                 
                 // 검색 결과를 OpenAI Realtime API 컨텍스트에 추가
                 dc.send(JSON.stringify({
@@ -310,8 +359,21 @@ export default function InterviewPage() {
             }
           }
           if (realtimeEvent.type === "conversation.item.input_audio_transcription.completed") {
-            transcriptRef.current.push({ role: "user", text: realtimeEvent.transcript });
-            console.log("[내 답변]:", realtimeEvent.transcript);
+            const userText = realtimeEvent.transcript || "";
+            const pendingIndex = pendingUserTranscriptIndexesRef.current.shift();
+            if (
+              pendingIndex !== undefined &&
+              transcriptRef.current[pendingIndex]?.role === "user" &&
+              transcriptRef.current[pendingIndex]?.pending
+            ) {
+              transcriptRef.current[pendingIndex] = { role: "user", text: userText };
+            } else {
+              transcriptRef.current.push({ role: "user", text: userText });
+            }
+            console.log("[내 답변]:", userText);
+            if (isUserEndingTranscript(userText)) {
+              markInterviewClosingDetected();
+            }
           }
 
           // 파형 애니메이션을 위한 상태 업데이트
@@ -404,6 +466,9 @@ export default function InterviewPage() {
       setStatusText("답변을 분석 중입니다...");
 
       // 수동으로 오디오 버퍼 커밋 및 AI 응답 요청
+      const pendingIndex = transcriptRef.current.length;
+      transcriptRef.current.push({ role: "user", text: "", pending: true });
+      pendingUserTranscriptIndexesRef.current.push(pendingIndex);
       dcRef.current.send(JSON.stringify({ type: "input_audio_buffer.commit" }));
       dcRef.current.send(JSON.stringify({ type: "response.create" }));
     }
