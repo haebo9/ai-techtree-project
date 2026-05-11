@@ -133,7 +133,7 @@ export default function InterviewPage() {
 
     const initWebRTC = async () => {
       try {
-        setStatusText("서버에서 보안 토큰을 발급받고 있습니다...");
+        setStatusText("지원 정보와 모집중인 채용 공고를 분석해 면접을 준비 중입니다...");
 
         // 1) 로컬 스토리지에서 사용자가 입력한 프로필 가져오기
         const savedProfile = localStorage.getItem("interviewProfile");
@@ -164,6 +164,7 @@ export default function InterviewPage() {
         const data = await res.json();
         const EPHEMERAL_KEY = data.ephemeral_token;
         sessionIdRef.current = data.session_id;
+        savedJobsRef.current = Array.isArray(data.prepared_jobs) ? data.prepared_jobs : [];
 
         setStatusText("면접관과 통신을 연결 중입니다...");
 
@@ -248,11 +249,6 @@ export default function InterviewPage() {
                 const searchData = await res.json();
                 console.log("[Tool] 검색 결과 수신 완료", searchData.result);
                 
-                // 실제 검색 결과를 LLM 환각 방지를 위해 별도로 저장
-                if (Array.isArray(searchData.result)) {
-                  savedJobsRef.current = [...savedJobsRef.current, ...searchData.result];
-                }
-
                 // 검색 결과를 OpenAI Realtime API 컨텍스트에 추가
                 dc.send(JSON.stringify({
                   type: "conversation.item.create",

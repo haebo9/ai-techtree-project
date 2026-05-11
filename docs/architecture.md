@@ -19,4 +19,3 @@
 - 내부 서비스의 expose 설정을 통해 외부 노출을 차단한 격리된 네트워크 환경 구축 (보안 강화)
 
 ![alt text](images/Techtree-Arch-v1.1.drawio.svg)
-

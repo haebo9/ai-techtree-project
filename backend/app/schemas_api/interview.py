@@ -18,6 +18,7 @@ class StartInterviewResponse(BaseModel):
     session_id: str = Field(..., description="생성된 면접 고유 세션 ID")
     ephemeral_token: str = Field(..., description="OpenAI Realtime WebRTC 접속을 위한 일회용 토큰")
     message: str = Field(..., description="UI 상태 표시용 메시지")
+    prepared_jobs: List[Dict[str, Any]] = Field(default=[], description="면접 시작 전에 선별한 모집중 추천 채용 공고")
 
 # ==========================================
 # 2. 면접 대화 (Chat)
