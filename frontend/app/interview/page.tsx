@@ -12,6 +12,8 @@ interface JobSearchResult {
   content?: string;
 }
 
+let globalInterviewConnectionId = 0;
+
 export default function InterviewPage() {
   const router = useRouter();
 
@@ -35,6 +37,8 @@ export default function InterviewPage() {
   const autoEndTimerRef = useRef<number | null>(null);
   const pendingAutoEndRef = useRef(false);
   const isSpeakingRef = useRef(false);
+  const activeConnectionIdRef = useRef(0);
+  const initialResponseRequestedRef = useRef(false);
 
   const cleanupRealtimeSession = useCallback(() => {
     if (autoEndTimerRef.current) {
@@ -126,6 +130,15 @@ export default function InterviewPage() {
 
   // 1. 컴포넌트 마운트 시 WebRTC 직접 연결 시도
   useEffect(() => {
+    let isEffectCancelled = false;
+    const connectionId = ++globalInterviewConnectionId;
+    activeConnectionIdRef.current = connectionId;
+    initialResponseRequestedRef.current = false;
+
+    const isActiveConnection = () => (
+      !isEffectCancelled && activeConnectionIdRef.current === connectionId
+    );
+
     // 상대방(AI)의 음성을 재생할 숨겨진 오디오 엘리먼트 생성
     const audioEl = document.createElement("audio");
     audioEl.autoplay = true;
@@ -162,6 +175,8 @@ export default function InterviewPage() {
 
         if (!res.ok) throw new Error("토큰 발급 API 오류");
         const data = await res.json();
+        if (!isActiveConnection()) return;
+
         const EPHEMERAL_KEY = data.ephemeral_token;
         sessionIdRef.current = data.session_id;
         savedJobsRef.current = Array.isArray(data.prepared_jobs) ? data.prepared_jobs : [];
@@ -181,6 +196,10 @@ export default function InterviewPage() {
 
         // 3) 내 마이크 스트림 가져오기 및 WebRTC에 추가
         const ms = await navigator.mediaDevices.getUserMedia({ audio: true });
+        if (!isActiveConnection()) {
+          ms.getTracks().forEach(t => t.stop());
+          return;
+        }
         streamRef.current = ms;
         pc.addTrack(ms.getTracks()[0]);
         // Push-To-Talk를 위해 기본 마이크 송출 차단
@@ -191,6 +210,8 @@ export default function InterviewPage() {
         dcRef.current = dc;
 
         dc.addEventListener("open", () => {
+          if (!isActiveConnection()) return;
+
           const openedAt = Date.now();
           startTimeRef.current = openedAt;
           
@@ -219,10 +240,15 @@ export default function InterviewPage() {
           }
 
           // VAD가 꺼져 있으므로 연결 직후 첫 인사 생성을 수동 요청
-          dc.send(JSON.stringify({ type: "response.create" }));
+          if (!initialResponseRequestedRef.current) {
+            initialResponseRequestedRef.current = true;
+            dc.send(JSON.stringify({ type: "response.create" }));
+          }
         });
 
         dc.addEventListener("message", async (e) => {
+          if (!isActiveConnection()) return;
+
           const realtimeEvent = JSON.parse(e.data);
 
           // --- 에이전틱 툴(Function Calling) 처리 ---
@@ -334,6 +360,7 @@ export default function InterviewPage() {
         await pc.setRemoteDescription(answer);
 
         // 연결 성공!
+        if (!isActiveConnection()) return;
         setIsRecording(false);
         setStatusText("🟢 스페이스바를 누른 채로 대답하세요.");
 
@@ -346,6 +373,9 @@ export default function InterviewPage() {
     initWebRTC();
 
     return () => {
+      isEffectCancelled = true;
+      activeConnectionIdRef.current = 0;
+      initialResponseRequestedRef.current = false;
       cleanupRealtimeSession();
     };
   }, [cleanupRealtimeSession, markInterviewClosingDetected, scheduleAutoEndInterview]);

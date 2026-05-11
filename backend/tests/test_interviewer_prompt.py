@@ -44,6 +44,23 @@ def test_prompt_starts_with_icebreaking_before_interview_questions():
     assert "가벼운 아이스브레이킹" in prompt
     assert "오늘 컨디션은 어떠세요?" in prompt
     assert "실제 날씨를 모르면 날씨를 단정하지 말고" in prompt
+    assert "첫 발화에서는 자기소개, 지원 동기, 프로젝트 질문을 함께 묻지 마세요." in prompt
+    assert "지원자가 컨디션 질문에 답한 다음 턴에서만" in prompt
+
+
+def test_prompt_recovers_when_answer_misses_question_intent():
+    prompt = _prompt()
+
+    assert "답변이 방금 질문의 의도와 다르거나 일부 질문에만 답했다면" in prompt
+    assert "누락된 질문을 부드럽게 다시 요청하세요" in prompt
+    assert "자기소개와 지원 동기 답변이 확보되기 전에는" in prompt
+
+
+def test_prompt_avoids_in_interview_evaluation_feedback():
+    prompt = _prompt()
+
+    assert '"부족합니다", "더 고민해 보세요", "개선이 필요합니다"' in prompt
+    assert "평가는 최종 리포트에서만 제공됩니다." in prompt
 
 
 def test_every_realtime_voice_has_interviewer_name():
