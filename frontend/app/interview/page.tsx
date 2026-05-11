@@ -85,7 +85,8 @@ export default function InterviewPage() {
         minute: '2-digit'
       });
 
-      // 텍스트 변환된 transcriptRef.current 는 평가와 reflection 생성에만 사용하고 영구 저장하지 않습니다.
+      // 텍스트 변환된 transcriptRef.current 는 평가와 reflection 생성에 사용합니다.
+      // 이메일 리포트 발송을 위해 브라우저 세션에만 임시 보관하고 DB에는 저장하지 않습니다.
       // 더불어 환각 방지를 위해 수집된 실제 채용 공고(savedJobsRef.current)도 함께 보냅니다.
       const response = await fetch(`http://localhost:8000/api/interview/${currentSessionId}/end`, {
         method: "POST",
@@ -99,6 +100,7 @@ export default function InterviewPage() {
       
       localStorage.setItem("interviewResult", JSON.stringify(resultData));
       localStorage.removeItem("interviewTranscripts");
+      sessionStorage.setItem("interviewTranscriptsForEmail", JSON.stringify(transcriptRef.current));
       localStorage.setItem("interviewDuration", durationStr);
       localStorage.setItem("interviewDate", dateStr);
       
@@ -115,7 +117,7 @@ export default function InterviewPage() {
     autoEndTimerRef.current = window.setTimeout(() => {
       autoEndTimerRef.current = null;
       endInterview();
-    }, 3500);
+    }, 6500);
   }, [endInterview]);
 
   const markInterviewClosingDetected = useCallback(() => {

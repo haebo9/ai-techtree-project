@@ -25,8 +25,14 @@ interface EvaluationResult {
   job_recommendations: JobRecommendation[];
 }
 
+interface TranscriptItem {
+  role: string;
+  text: string;
+}
+
 export default function ResultPage() {
   const [result, setResult] = useState<EvaluationResult | null>(null);
+  const [transcripts, setTranscripts] = useState<TranscriptItem[]>([]);
   const [duration, setDuration] = useState("");
   const [date, setDate] = useState("");
   const [email, setEmail] = useState("");
@@ -36,6 +42,7 @@ export default function ResultPage() {
 
   useEffect(() => {
     const savedResult = localStorage.getItem("interviewResult");
+    const savedTranscriptsForEmail = sessionStorage.getItem("interviewTranscriptsForEmail");
     const savedDuration = localStorage.getItem("interviewDuration");
     const savedDate = localStorage.getItem("interviewDate");
 
@@ -52,6 +59,14 @@ export default function ResultPage() {
     }
 
     localStorage.removeItem("interviewTranscripts");
+    if (savedTranscriptsForEmail) {
+      try {
+        setTranscripts(JSON.parse(savedTranscriptsForEmail));
+      } catch (e) {
+        console.error("Failed to parse email transcripts", e);
+        sessionStorage.removeItem("interviewTranscriptsForEmail");
+      }
+    }
 
     if (savedDuration) setDuration(savedDuration);
     if (savedDate) setDate(savedDate);
@@ -74,12 +89,14 @@ export default function ResultPage() {
           weaknesses: result.weaknesses,
           qa_review: result.qa_review || [],
           job_recommendations: result.job_recommendations || [],
+          transcripts: transcripts,
           interview_date: date,
           interview_duration: duration
         })
       });
 
       if (response.ok) {
+        sessionStorage.removeItem("interviewTranscriptsForEmail");
         setEmailStatus("success");
       } else {
         setEmailStatus("error");
@@ -340,7 +357,7 @@ export default function ResultPage() {
               <h2 className="text-xl font-black mb-2 relative z-10">리포트 소장하기</h2>
               <p className="text-neutral-400 text-sm mb-8 leading-relaxed font-medium relative z-10">
                 입력하신 이메일로 상세 리포트와 채용 정보를 보내드립니다.
-                <span className="block mt-1 text-xs text-blue-400 font-black tracking-tight">면접 대화 원문은 포함하지 않습니다.</span>
+                <span className="block mt-1 text-xs text-blue-400 font-black tracking-tight">전체 대화 내용 포함</span>
               </p>
 
               <div className="space-y-4 relative z-10">

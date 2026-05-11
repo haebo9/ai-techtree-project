@@ -453,6 +453,18 @@ async def send_interview_email(session_id: str, request: SendEmailRequest):
                         </div>
                         ''' for job in request.job_recommendations])}
                     </div>
+
+                    <div class="section">
+                        <h3 class="section-title">🗣️ 전체 대화 내역</h3>
+                        <div style="background-color: #f1f5f9; padding: 15px; border-radius: 8px; font-size: 14px;">
+                            {"".join([f'''
+                            <p style="margin-bottom: 12px;">
+                                <strong>{'면접관' if t.get('role') == 'ai' else '지원자'}:</strong><br/>
+                                {t.get('text', '')}
+                            </p>
+                            ''' for t in request.transcripts])}
+                        </div>
+                    </div>
                     
                 </div>
             </div>

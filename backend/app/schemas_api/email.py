@@ -8,5 +8,6 @@ class SendEmailRequest(BaseModel):
     weaknesses: List[str]
     qa_review: List[Dict[str, str]]
     job_recommendations: List[Dict[str, str]]
+    transcripts: List[Dict[str, str]] = []
     interview_date: Optional[str] = None
     interview_duration: Optional[str] = None

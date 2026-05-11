@@ -43,9 +43,12 @@ def test_prompt_starts_with_icebreaking_before_interview_questions():
     assert "바로 기술 질문으로 들어가지 말고" in prompt
     assert "가벼운 아이스브레이킹" in prompt
     assert "오늘 컨디션은 어떠세요?" in prompt
+    assert "준비는 괜찮으셨나요?" in prompt
+    assert "지금 바로 시작해도 괜찮으실까요?" in prompt
+    assert "표현 중 하나를 자연스럽게 바꿔 사용하세요" in prompt
     assert "실제 날씨를 모르면 날씨를 단정하지 말고" in prompt
     assert "첫 발화에서는 자기소개, 지원 동기, 프로젝트 질문을 함께 묻지 마세요." in prompt
-    assert "지원자가 컨디션 질문에 답한 다음 턴에서만" in prompt
+    assert "지원자가 아이스브레이킹 질문에 답한 다음 턴에서만" in prompt
 
 
 def test_prompt_recovers_when_answer_misses_question_intent():
