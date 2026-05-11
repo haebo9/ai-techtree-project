@@ -39,9 +39,32 @@ VOICE_INTERVIEWER_NAMES: Dict[str, str] = {
     "verse": "Jin",
 }
 
+INTERVIEW_MODE_GUIDANCE: Dict[str, Dict[str, str]] = {
+    "short": {
+        "label": "짧은 면접",
+        "guidance": (
+            "목표 시간은 약 5분입니다. 10분처럼 길게 끌지 말고, "
+            "아이스브레이킹 후 자기소개/지원동기를 짧게 확인한 다음 핵심 직무 질문 2-3개와 필요한 꼬리 질문만 진행하세요. "
+            "평가 근거가 확보되면 명확한 종료 멘트로 마무리하세요."
+        ),
+    },
+    "long": {
+        "label": "긴 면접",
+        "guidance": (
+            "목표 시간은 약 15분입니다. 아이스브레이킹과 자기소개/지원동기 이후, "
+            "직무 역량 질문 4-6개, 프로젝트/경험 심층 검증, 협업/문제 해결/태도 질문까지 균형 있게 진행하세요. "
+            "충분한 평가 근거가 확보되면 명확한 종료 멘트로 마무리하세요."
+        ),
+    },
+}
+
 def _prompt_value(value: str | None, default: str = "정보 없음") -> str:
     cleaned = (value or "").strip()
     return cleaned if cleaned else default
+
+def _interview_mode_settings(mode: str | None) -> Dict[str, str]:
+    normalized = (mode or "long").strip().lower()
+    return INTERVIEW_MODE_GUIDANCE.get(normalized, INTERVIEW_MODE_GUIDANCE["long"])
 
 @router.post("/start", response_model=StartInterviewResponse)
 async def start_interview(request: StartInterviewRequest):
@@ -54,6 +77,7 @@ async def start_interview(request: StartInterviewRequest):
     education = _prompt_value(request.education)
     experience = _prompt_value(request.experience)
     resume = _prompt_value(request.resume)
+    mode_settings = _interview_mode_settings(request.interview_mode)
     
     if request.job_description and request.job_description.strip():
         job_desc = request.job_description.strip()
@@ -79,6 +103,8 @@ async def start_interview(request: StartInterviewRequest):
     # 1. 면접관 지침 준비
     instructions = INTERVIEWER_SYSTEM_PROMPT.format(
         interviewer_name=interviewer_name,
+        interview_mode_label=mode_settings["label"],
+        interview_mode_guidance=mode_settings["guidance"],
         job_title=job_title,
         education=education,
         experience=experience,
@@ -133,6 +159,9 @@ async def start_interview(request: StartInterviewRequest):
         "job_description": job_desc,
         "reflection_guidelines": reflection_guidelines,
         "interviewer_name": interviewer_name,
+        "interview_mode": request.interview_mode,
+        "interview_mode_label": mode_settings["label"],
+        "interview_mode_guidance": mode_settings["guidance"],
         "major": "",  # request에 없음
         "messages": [],
         "saved_jobs": [],

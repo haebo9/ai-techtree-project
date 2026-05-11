@@ -10,6 +10,7 @@ export default function Home() {
   const [jobTitle, setJobTitle] = useState("");
   const [experience, setExperience] = useState("");
   const [education, setEducation] = useState("");
+  const [interviewMode, setInterviewMode] = useState<"short" | "long">("long");
 
   // 이력서 관련 상태
   const [resumeMode, setResumeMode] = useState<"none" | "text" | "file">("none");
@@ -194,9 +195,7 @@ export default function Home() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
+  const startInterview = (mode: "short" | "long") => {
     if (!jobTitle || !experience || !education) {
       alert("지원 직무, 경력, 최종 학력을 모두 입력 및 선택해 주세요.");
       return;
@@ -214,11 +213,17 @@ export default function Home() {
       education: education,
       resume: resumeMode === "none" ? "이력서 없음" : (resumeText || "특별한 이력 없음"),
       job_description: jdMode === "text" ? jdText : "",
-      job_image: jdMode === "image" ? jdImageBase64 : null
+      job_image: jdMode === "image" ? jdImageBase64 : null,
+      interview_mode: mode
     }));
 
     // 면접 페이지로 이동
     router.push("/interview");
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    startInterview(interviewMode);
   };
 
   const loadDummyData = async () => {
@@ -505,30 +510,56 @@ export default function Home() {
 
           {/* Action Footer */}
           <div className="pt-8 border-t border-neutral-100 flex flex-col items-center gap-6">
-            <button
-              type="submit"
-              disabled={isParsingResume || isAnalyzingJd}
-              className="group relative w-full sm:w-auto sm:min-w-[320px] flex justify-center items-center py-5 px-10 rounded-[2rem] shadow-2xl text-xl font-black text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 transition-all active:scale-95 overflow-hidden"
-            >
-              <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-              <span className="relative flex items-center gap-3">
-                {isParsingResume || isAnalyzingJd ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    분석 중...
-                  </>
-                ) : (
-                  <>
-                    AI 면접 시작하기
-                    <svg className="w-6 h-6 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                    </svg>
-                  </>
-                )}
-              </span>
-            </button>
-
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-3xl">
+              <button
+                type="button"
+                disabled={isParsingResume || isAnalyzingJd}
+                onClick={() => {
+                  setInterviewMode("short");
+                  startInterview("short");
+                }}
+                className="group relative min-h-[112px] overflow-hidden rounded-[2rem] bg-gradient-to-r from-violet-600 to-fuchsia-600 px-6 py-5 text-left text-white shadow-2xl shadow-violet-200 transition-all hover:from-violet-700 hover:to-fuchsia-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <div className="absolute inset-0 bg-white/15 translate-y-full transition-transform duration-300 group-hover:translate-y-0" />
+                <div className="relative flex h-full flex-col justify-between gap-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-2xl font-black">빠른 연습 시작하기</span>
+                    <span className="shrink-0 rounded-xl border border-white/25 bg-white/15 px-3 py-1 text-sm font-black text-white">
+                      5분 내외
+                    </span>
+                  </div>
+                  <p className="text-sm font-bold leading-relaxed text-white/85">
+                    자기소개와 핵심 직무 질문 위주로 짧게 점검합니다.
+                  </p>
+                </div>
+              </button>
+              <button
+                type="button"
+                disabled={isParsingResume || isAnalyzingJd}
+                onClick={() => {
+                  setInterviewMode("long");
+                  startInterview("long");
+                }}
+                className="group relative min-h-[112px] overflow-hidden rounded-[2rem] bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-5 text-left text-white shadow-2xl shadow-blue-200 transition-all hover:from-blue-700 hover:to-indigo-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <div className="absolute inset-0 bg-white/15 translate-y-full transition-transform duration-300 group-hover:translate-y-0" />
+                <div className="relative flex h-full flex-col justify-between gap-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-2xl font-black">실전 연습 시작하기</span>
+                    <span className="shrink-0 rounded-xl border border-white/25 bg-white/15 px-3 py-1 text-sm font-black text-white">
+                      15분 내외
+                    </span>
+                  </div>
+                  <p className="text-sm font-bold leading-relaxed text-white/85">
+                    직무 역량, 경험 검증, 협업 질문까지 깊게 진행합니다.
+                  </p>
+                </div>
+              </button>
+            </div>
             <div className="text-center space-y-2">
+              <p className="text-[12px] text-neutral-700 font-black">
+                원하는 연습 방식을 누르면 바로 AI 면접이 시작됩니다.
+              </p>
               <p className="text-[12px] text-neutral-700 font-bold">
                 🛡️ 입력하신 데이터(이력서, 공고 등)는 분석 직후 즉시 파기되며 절대 저장되지 않습니다.
               </p>

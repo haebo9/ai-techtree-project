@@ -33,12 +33,15 @@ export default function InterviewPage() {
   const startTimeRef = useRef<number | null>(null);
   const isEndingRef = useRef(false);
   const autoEndTimerRef = useRef<number | null>(null);
+  const pendingAutoEndRef = useRef(false);
+  const isSpeakingRef = useRef(false);
 
   const cleanupRealtimeSession = useCallback(() => {
     if (autoEndTimerRef.current) {
       window.clearTimeout(autoEndTimerRef.current);
       autoEndTimerRef.current = null;
     }
+    pendingAutoEndRef.current = false;
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(t => t.stop());
       streamRef.current = null;
@@ -104,12 +107,22 @@ export default function InterviewPage() {
 
   const scheduleAutoEndInterview = useCallback(() => {
     if (isEndingRef.current || autoEndTimerRef.current) return;
-    setStatusText("면접이 종료되었습니다. 리포트를 생성 중입니다...");
+    setStatusText("면접관의 마무리 멘트가 끝나면 리포트를 생성합니다...");
     autoEndTimerRef.current = window.setTimeout(() => {
       autoEndTimerRef.current = null;
       endInterview();
-    }, 1500);
+    }, 3500);
   }, [endInterview]);
+
+  const markInterviewClosingDetected = useCallback(() => {
+    if (isEndingRef.current) return;
+    pendingAutoEndRef.current = true;
+    setStatusText("면접관이 마무리 중입니다. 잠시만 기다려 주세요...");
+    if (!isSpeakingRef.current) {
+      pendingAutoEndRef.current = false;
+      scheduleAutoEndInterview();
+    }
+  }, [scheduleAutoEndInterview]);
 
   // 1. 컴포넌트 마운트 시 WebRTC 직접 연결 시도
   useEffect(() => {
@@ -142,7 +155,8 @@ export default function InterviewPage() {
             experience: profileData.experience || "신입",
             resume: profileData.resume || "정보 없음",
             job_description: profileData.job_description || "",
-            job_image: profileData.job_image || null
+            job_image: profileData.job_image || null,
+            interview_mode: profileData.interview_mode || "long"
           })
         });
 
@@ -266,7 +280,7 @@ export default function InterviewPage() {
             transcriptRef.current.push({ role: "ai", text: aiText });
             console.log("[AI 답변]:", aiText);
             if (isInterviewClosingTranscript(aiText)) {
-              scheduleAutoEndInterview();
+              markInterviewClosingDetected();
             }
           }
           if (realtimeEvent.type === "conversation.item.input_audio_transcription.completed") {
@@ -276,11 +290,18 @@ export default function InterviewPage() {
 
           // 파형 애니메이션을 위한 상태 업데이트
           if (realtimeEvent.type === "response.audio.delta") {
+            isSpeakingRef.current = true;
             setIsSpeaking(true);
             setStatusText("AI가 말하는 중...");
           }
           if (realtimeEvent.type === "response.done") {
+            isSpeakingRef.current = false;
             setIsSpeaking(false);
+            if (pendingAutoEndRef.current) {
+              pendingAutoEndRef.current = false;
+              scheduleAutoEndInterview();
+              return;
+            }
             if (!isEndingRef.current) {
               setStatusText("🟢 스페이스바를 누른 채로 대답하세요.");
             }
@@ -331,7 +352,7 @@ export default function InterviewPage() {
     return () => {
       cleanupRealtimeSession();
     };
-  }, [cleanupRealtimeSession, scheduleAutoEndInterview]);
+  }, [cleanupRealtimeSession, markInterviewClosingDetected, scheduleAutoEndInterview]);
 
   // 2. 마이크 Push-To-Talk 핸들러
   const startRecording = useCallback(() => {

@@ -1,17 +1,25 @@
 from app.engine.prompts.api_interview import INTERVIEWER_SYSTEM_PROMPT
-from app.api.interview import VOICE_INTERVIEWER_NAMES
+from app.api.interview import INTERVIEW_MODE_GUIDANCE, VOICE_INTERVIEWER_NAMES
+
+
+def _prompt(**overrides):
+    data = {
+        "interviewer_name": "Mina",
+        "interview_mode_label": "긴 면접",
+        "interview_mode_guidance": INTERVIEW_MODE_GUIDANCE["long"]["guidance"],
+        "job_title": "QA Engineer",
+        "education": "학사",
+        "experience": "신입",
+        "resume": "테스트 자동화 프로젝트 경험",
+        "job_description": "맞춤형 채용 공고 정보 없음",
+        "reflection_guidelines": "",
+    }
+    data.update(overrides)
+    return INTERVIEWER_SYSTEM_PROMPT.format(**data)
 
 
 def test_prompt_treats_entered_job_title_as_authoritative():
-    prompt = INTERVIEWER_SYSTEM_PROMPT.format(
-        interviewer_name="Mina",
-        job_title="QA Engineer",
-        education="학사",
-        experience="신입",
-        resume="테스트 자동화 프로젝트 경험",
-        job_description="맞춤형 채용 공고 정보 없음",
-        reflection_guidelines="",
-    )
+    prompt = _prompt()
 
     assert "시니어 면접관 Mina" in prompt
     assert "지원 직무가 '정보 없음'이 아니라면 이미 확정된 정보입니다." in prompt
@@ -21,32 +29,16 @@ def test_prompt_treats_entered_job_title_as_authoritative():
 
 
 def test_prompt_sets_ten_minute_interview_target():
-    prompt = INTERVIEWER_SYSTEM_PROMPT.format(
-        interviewer_name="Mina",
-        job_title="QA Engineer",
-        education="학사",
-        experience="신입",
-        resume="테스트 자동화 프로젝트 경험",
-        job_description="맞춤형 채용 공고 정보 없음",
-        reflection_guidelines="",
-    )
+    prompt = _prompt()
 
-    assert "10분은 강제 종료 조건이 아니라 운영 목표입니다." in prompt
-    assert "6-8개의 핵심 질문" in prompt
+    assert "선택된 목표 시간은 강제 종료 조건이 아니라" in prompt
+    assert "목표 시간은 약 15분입니다." in prompt
     assert "오늘 면접은 여기까지 진행하겠습니다" in prompt
     assert "명확한 종료 멘트 전에는 면접이 자동 종료되지 않습니다." in prompt
 
 
 def test_prompt_starts_with_icebreaking_before_interview_questions():
-    prompt = INTERVIEWER_SYSTEM_PROMPT.format(
-        interviewer_name="Mina",
-        job_title="QA Engineer",
-        education="학사",
-        experience="신입",
-        resume="테스트 자동화 프로젝트 경험",
-        job_description="맞춤형 채용 공고 정보 없음",
-        reflection_guidelines="",
-    )
+    prompt = _prompt()
 
     assert "바로 기술 질문으로 들어가지 말고" in prompt
     assert "가벼운 아이스브레이킹" in prompt
@@ -65,3 +57,18 @@ def test_every_realtime_voice_has_interviewer_name():
         "shimmer": "Yuna",
         "verse": "Jin",
     }
+
+
+def test_interview_mode_guidance_supports_short_and_long_modes():
+    short_prompt = _prompt(
+        interview_mode_label=INTERVIEW_MODE_GUIDANCE["short"]["label"],
+        interview_mode_guidance=INTERVIEW_MODE_GUIDANCE["short"]["guidance"],
+    )
+    long_prompt = _prompt()
+
+    assert "면접 모드: 짧은 면접" in short_prompt
+    assert "목표 시간은 약 5분입니다." in short_prompt
+    assert "핵심 직무 질문 2-3개" in short_prompt
+    assert "면접 모드: 긴 면접" in long_prompt
+    assert "목표 시간은 약 15분입니다." in long_prompt
+    assert "직무 역량 질문 4-6개" in long_prompt
