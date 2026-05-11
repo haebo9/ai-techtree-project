@@ -42,7 +42,7 @@ export default function ResultPage() {
 
   useEffect(() => {
     const savedResult = localStorage.getItem("interviewResult");
-    const savedTranscripts = localStorage.getItem("interviewTranscripts");
+    const savedTranscriptsForEmail = sessionStorage.getItem("interviewTranscriptsForEmail");
     const savedDuration = localStorage.getItem("interviewDuration");
     const savedDate = localStorage.getItem("interviewDate");
 
@@ -58,11 +58,13 @@ export default function ResultPage() {
       return () => clearTimeout(timer);
     }
 
-    if (savedTranscripts) {
+    localStorage.removeItem("interviewTranscripts");
+    if (savedTranscriptsForEmail) {
       try {
-        setTranscripts(JSON.parse(savedTranscripts));
+        setTranscripts(JSON.parse(savedTranscriptsForEmail));
       } catch (e) {
-        console.error("Failed to parse transcripts", e);
+        console.error("Failed to parse email transcripts", e);
+        sessionStorage.removeItem("interviewTranscriptsForEmail");
       }
     }
 
@@ -94,6 +96,7 @@ export default function ResultPage() {
       });
 
       if (response.ok) {
+        sessionStorage.removeItem("interviewTranscriptsForEmail");
         setEmailStatus("success");
       } else {
         setEmailStatus("error");
@@ -354,7 +357,7 @@ export default function ResultPage() {
               <h2 className="text-xl font-black mb-2 relative z-10">리포트 소장하기</h2>
               <p className="text-neutral-400 text-sm mb-8 leading-relaxed font-medium relative z-10">
                 입력하신 이메일로 상세 리포트와 채용 정보를 보내드립니다.
-                <span className="block mt-1 text-xs text-blue-400 font-black tracking-tight">전체 대화 내용 포함 📦</span>
+                <span className="block mt-1 text-xs text-blue-400 font-black tracking-tight">전체 대화 내용 포함</span>
               </p>
 
               <div className="space-y-4 relative z-10">

@@ -1,36 +1,33 @@
 import json
 import re
 from typing import Any, Dict, List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from app.engine.graphs.state import InterviewState
 from app.core.llm import get_llm
 from langchain_core.messages import SystemMessage
 
 class JobRecommendation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     company: str = Field(description="추천 회사명")
     title: str = Field(description="추천 직무명")
     url: str = Field(description="해당 채용 공고의 실제 URL (있을 경우에만 작성)", default="")
 
-    class Config:
-        extra = "forbid"
-
 class QnAReview(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     question: str = Field(description="면접관의 질문")
     answer: str = Field(description="지원자의 답변 요약")
     feedback: str = Field(description="해당 답변에 대한 AI의 상세 피드백 (긍정적 요소 및 개선점)")
 
-    class Config:
-        extra = "forbid"
-
 class EvaluationSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     score: int = Field(description="면접 종합 점수 (0-100)")
     strengths: List[str] = Field(description="지원자의 주요 강점 목록")
     weaknesses: List[str] = Field(description="보완이 필요한 점 목록")
     qa_review: List[QnAReview] = Field(description="주요 질의응답 내역 및 피드백 (최대 3개)")
     job_recommendations: List[JobRecommendation] = Field(description="추천 채용 공고 목록")
-
-    class Config:
-        extra = "forbid"
 
 def _normalize_saved_jobs(raw_jobs: Any) -> List[Dict[str, str]]:
     """
@@ -55,6 +52,7 @@ def _normalize_saved_jobs(raw_jobs: Any) -> List[Dict[str, str]]:
                         "company": "회사명 미상",
                         "title": title,
                         "url": (match.group("url") or "").strip(),
+                        "content": "",
                     })
             return jobs
 
@@ -72,6 +70,7 @@ def _normalize_saved_jobs(raw_jobs: Any) -> List[Dict[str, str]]:
             "company": str(job.get("company") or "회사명 미상"),
             "title": str(job.get("title") or "공고명 미상"),
             "url": str(job.get("url") or ""),
+            "content": str(job.get("content") or ""),
         })
     return normalized
 
@@ -86,8 +85,6 @@ def evaluator_node(state: InterviewState):
     user_id = state.get('user_id', '지원자')
     job_title = state.get('job_title', '정보 없음')
     job_description = state.get('job_description', '맞춤형 채용 공고 정보 없음')
-    experience = state.get('experience', '')
-    education = state.get('education', '')
     
     system_prompt = f"""
     당신은 전문 채용 평가관입니다. 지원자({user_id})의 면접 대화 전체를 분석하여 
@@ -105,25 +102,11 @@ def evaluator_node(state: InterviewState):
     messages = [SystemMessage(content=system_prompt)] + state["messages"]
     result = structured_llm.invoke(messages)
     
-    result_dict = result.dict()
+    result_dict = result.model_dump()
     
     # LLM 환각 방지를 위해, 프론트엔드에서 수집한 실제 검색 결과(saved_jobs)를 강제로 주입
     saved_jobs = _normalize_saved_jobs(state.get("saved_jobs", []))
     
-    # 만약 면접 중에 검색이 이뤄지지 않아 saved_jobs가 비어있다면, 평가 단계에서 백그라운드로 검색 실행
-    if not saved_jobs:
-        try:
-            from app.engine.tools.job_search import search_korean_job_postings
-            search_query = f"{job_title} 채용"
-            search_result = search_korean_job_postings.invoke({
-                "query": search_query,
-                "experience": experience,
-                "education": education
-            })
-            saved_jobs = _normalize_saved_jobs(search_result)
-        except Exception as e:
-            print(f"Evaluator fallback search failed: {e}")
-
     filtered_jobs = saved_jobs[:3]
                 
     result_dict["job_recommendations"] = filtered_jobs

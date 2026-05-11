@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException, Path
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Path
 from pydantic import BaseModel
-from typing import Dict, Any
+from typing import Dict, Any, List
+from app.schemas_api.email import SendEmailRequest
 from app.schemas_api.interview import (
     StartInterviewRequest, 
     StartInterviewResponse, 
@@ -13,16 +14,152 @@ from app.schemas_api.interview import (
 router = APIRouter()
 
 import uuid
+import random
 import requests
+import resend
+from datetime import datetime, timezone
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from app.core.config import settings
-from app.engine.prompts.api_interviewer import INTERVIEWER_SYSTEM_PROMPT
+from app.core.logger import get_logger
+from app.engine.prompts.api_interview import INTERVIEWER_SYSTEM_PROMPT
+from app.services.reflection_service import ReflectionService, safe_generate_and_store_reflections
 
 from app.engine.graphs.graph import get_interview_workflow
 from langchain_core.messages import HumanMessage, AIMessage
 
 interview_workflow = get_interview_workflow()
+logger = get_logger(__name__)
 
 temp_sessions: Dict[str, Any] = {}
+JOB_SEARCH_TIMEOUT_SECONDS = 10
+
+VOICE_INTERVIEWER_NAMES: Dict[str, str] = {
+    "alloy": "Alex",
+    "ash": "Noah",
+    "ballad": "Ethan",
+    "coral": "Sophia",
+    "echo": "Daniel",
+    "sage": "Mina",
+    "shimmer": "Yuna",
+    "verse": "Jin",
+}
+
+INTERVIEW_MODE_GUIDANCE: Dict[str, Dict[str, str]] = {
+    "short": {
+        "label": "짧은 면접",
+        "guidance": (
+            "목표 시간은 약 7분입니다. 너무 길게 끌지 말고, "
+            "아이스브레이킹 후 자기소개/지원동기를 확인한 다음 대표 경험 1개만 다루세요. "
+            "핵심 직무 질문은 최대 3개, 꼬리 질문은 전체 면접에서 최대 1회만 사용하세요. "
+            "평가 근거가 어느 정도 확보되면 추가 탐색보다 마지막 발언 기회를 주고 명확한 종료 멘트로 마무리하세요."
+        ),
+    },
+    "long": {
+        "label": "긴 면접",
+        "guidance": (
+            "목표 시간은 약 20분입니다. 아이스브레이킹과 자기소개/지원동기 이후, "
+            "이력서 기반 대표 프로젝트 1-2개, 채용 공고 요건 기반 직무 질문, 협업/문제 해결, 실패·개선 경험까지 균형 있게 진행하세요. "
+            "충분한 평가 근거가 확보되면 명확한 종료 멘트로 마무리하세요."
+        ),
+    },
+}
+
+def _prompt_value(value: str | None, default: str = "정보 없음") -> str:
+    cleaned = (value or "").strip()
+    return cleaned if cleaned else default
+
+def _interview_mode_settings(mode: str | None) -> Dict[str, str]:
+    normalized = (mode or "long").strip().lower()
+    return INTERVIEW_MODE_GUIDANCE.get(normalized, INTERVIEW_MODE_GUIDANCE["long"])
+
+def _normalize_job_list(raw_jobs: Any, *, require_active: bool = False) -> List[Dict[str, str]]:
+    from app.engine.tools.job_search import classify_job_deadline_status, is_recommendable_active_job
+
+    if not isinstance(raw_jobs, list):
+        return []
+
+    jobs = []
+    seen_keys = set()
+    for job in raw_jobs:
+        if not isinstance(job, dict):
+            continue
+        normalized = {
+            "company": str(job.get("company") or "회사명 미상"),
+            "title": str(job.get("title") or "공고명 미상"),
+            "url": str(job.get("url") or ""),
+            "content": str(job.get("content") or ""),
+        }
+        url = normalized["url"]
+        dedupe_key = (
+            url.strip().lower() if url else "",
+            normalized["company"].strip().lower(),
+            normalized["title"].strip().lower(),
+        )
+        fallback_key = ("", normalized["company"].strip().lower(), normalized["title"].strip().lower())
+        if dedupe_key in seen_keys or fallback_key in seen_keys:
+            continue
+        if require_active and not is_recommendable_active_job(normalized):
+            continue
+        if require_active:
+            normalized["deadline_status"] = classify_job_deadline_status(normalized)
+        seen_keys.add(dedupe_key)
+        seen_keys.add(fallback_key)
+        jobs.append(normalized)
+    return jobs[:3]
+
+def _prepare_job_materials(job_title: str, experience: str, education: str) -> tuple[List[Dict[str, str]], List[Dict[str, str]]]:
+    from app.engine.tools.job_search import search_korean_job_postings
+
+    if not settings.TAVILY_API_KEY:
+        logger.warning("Skipping prepared job search because TAVILY_API_KEY is not configured.")
+        return [], []
+
+    executor = ThreadPoolExecutor(max_workers=1)
+    future = executor.submit(
+        search_korean_job_postings.invoke,
+        {
+            "query": f"{job_title} 채용",
+            "experience": experience,
+            "education": education,
+        },
+    )
+    try:
+        result = future.result(timeout=JOB_SEARCH_TIMEOUT_SECONDS)
+    except FutureTimeoutError:
+        future.cancel()
+        logger.warning("Prepared job search timed out after %s seconds for %s", JOB_SEARCH_TIMEOUT_SECONDS, job_title)
+        return [], []
+    except Exception as exc:
+        logger.warning("Prepared job search failed for %s: %s", job_title, exc)
+        return [], []
+    finally:
+        executor.shutdown(wait=False, cancel_futures=True)
+
+    context_jobs = _normalize_job_list(result)
+    recommended_jobs = _normalize_job_list(result, require_active=True)
+    return context_jobs, recommended_jobs
+
+def _format_prepared_job_context(job_desc: str, prepared_jobs: List[Dict[str, str]]) -> str:
+    sections = []
+    if job_desc and job_desc != "맞춤형 채용 공고 정보 없음":
+        sections.append(f"[사용자가 제공한 지원 공고]\n{job_desc}")
+    elif job_desc:
+        sections.append(job_desc)
+
+    if prepared_jobs:
+        job_lines = []
+        for index, job in enumerate(prepared_jobs, start=1):
+            content = str(job.get("content") or "").strip()
+            if len(content) > 500:
+                content = content[:500].rstrip() + "..."
+            job_lines.append(
+                f"{index}. {job.get('company', '회사명 미상')} - {job.get('title', '공고명 미상')}\n"
+                f"   URL: {job.get('url', '')}\n"
+                f"   요약: {content or '상세 요약 없음'}"
+            )
+        sections.append("[면접 시작 전 선별한 모집중 추천 공고]\n" + "\n".join(job_lines))
+
+    return "\n\n".join(section for section in sections if section).strip() or "맞춤형 채용 공고 정보 없음"
 
 @router.post("/start", response_model=StartInterviewResponse)
 async def start_interview(request: StartInterviewRequest):
@@ -31,26 +168,55 @@ async def start_interview(request: StartInterviewRequest):
     OpenAI Realtime API 연동 토큰 발급 및 LangGraph 상태를 초기화합니다.
     """
     session_id = str(uuid.uuid4())
+    job_title = _prompt_value(request.job_title)
+    education = _prompt_value(request.education)
+    experience = _prompt_value(request.experience)
+    resume = _prompt_value(request.resume)
+    mode_settings = _interview_mode_settings(request.interview_mode)
     
-    if request.job_description:
-        job_desc = request.job_description
+    if request.job_description and request.job_description.strip():
+        job_desc = request.job_description.strip()
     elif request.job_image:
         job_desc = "[사용자가 이미지(캡처본) 형태로 채용 공고를 직접 제공했습니다.]"
     else:
         job_desc = "맞춤형 채용 공고 정보 없음"
+
+    context_jobs, recommended_jobs = _prepare_job_materials(
+        job_title=job_title,
+        experience=experience,
+        education=education,
+    )
+    interview_job_context = _format_prepared_job_context(job_desc, context_jobs)
+
+    try:
+        reflection_guidelines = ReflectionService().get_prompt_guidelines(
+            job_title=job_title,
+            experience=experience,
+            education=education,
+            resume=resume,
+            job_context=interview_job_context,
+            interview_mode=request.interview_mode,
+            limit=5,
+        )
+    except Exception as e:
+        logger.warning("Reflection guideline lookup failed: %s", e)
+        reflection_guidelines = ""
+
+    selected_voice = random.choice(list(VOICE_INTERVIEWER_NAMES.keys()))
+    interviewer_name = VOICE_INTERVIEWER_NAMES[selected_voice]
     
     # 1. 면접관 지침 준비
     instructions = INTERVIEWER_SYSTEM_PROMPT.format(
-        job_title=request.job_title if request.job_title else "정보 없음",
-        education=request.education if request.education else "정보 없음",
-        experience=request.experience if request.experience else "정보 없음",
-        resume=request.resume if request.resume else "정보 없음",
-        job_description=job_desc
+        interviewer_name=interviewer_name,
+        interview_mode_label=mode_settings["label"],
+        interview_mode_guidance=mode_settings["guidance"],
+        job_title=job_title,
+        education=education,
+        experience=experience,
+        resume=resume,
+        job_description=interview_job_context,
+        reflection_guidelines=reflection_guidelines
     )
-
-    import random
-    available_voices = ["alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse"]
-    selected_voice = random.choice(available_voices)
 
     # 2. OpenAI Realtime 세션 생성
     headers = {
@@ -90,25 +256,45 @@ async def start_interview(request: StartInterviewRequest):
     # 3. LangGraph 초기 상태 설정
     initial_state = {
         "user_id": request.user_id,
-        "job_title": request.job_title,
+        "job_title": job_title,
         "field": "",  # request에 없음
-        "experience": request.experience,
-        "education": request.education,
-        "resume": request.resume,
-        "job_description": job_desc,
+        "experience": experience,
+        "education": education,
+        "resume": resume,
+        "job_description": interview_job_context,
+        "reflection_guidelines": reflection_guidelines,
+        "interviewer_name": interviewer_name,
+        "interview_mode": request.interview_mode,
+        "interview_mode_label": mode_settings["label"],
+        "interview_mode_guidance": mode_settings["guidance"],
         "major": "",  # request에 없음
         "messages": [],
-        "saved_jobs": [],
+        "saved_jobs": recommended_jobs,
         "status": "IN_PROGRESS"
     }
     interview_workflow.update_state({"configurable": {"thread_id": session_id}}, initial_state)
     
-    temp_sessions[session_id] = {"user_id": request.user_id, "status": "IN_PROGRESS"}
+    temp_sessions[session_id] = {
+        "user_id": request.user_id,
+        "report_email": str(request.report_email),
+        "status": "IN_PROGRESS",
+        "voice": selected_voice,
+        "interviewer_name": interviewer_name,
+        "job_title": job_title,
+        "experience": experience,
+        "education": education,
+        "resume": resume,
+        "job_description": interview_job_context,
+        "interview_mode": request.interview_mode,
+        "prepared_jobs": recommended_jobs,
+        "context_jobs": context_jobs,
+    }
     
     return StartInterviewResponse(
         session_id=session_id,
         ephemeral_token=ephemeral_token,
-        message="면접 세션이 준비되었습니다."
+        message="면접 세션이 준비되었습니다.",
+        prepared_jobs=recommended_jobs,
     )
 
 class ToolSearchRequest(BaseModel):
@@ -151,63 +337,118 @@ async def chat(
     
     return ChatResponse(reply=ai_reply)
 
-from langchain_core.messages import HumanMessage, AIMessage
 
 @router.post("/{session_id}/end", response_model=EndInterviewResponse)
 async def end_interview(
+    background_tasks: BackgroundTasks,
     request: EndInterviewRequest,
     session_id: str = Path(..., description="면접 세션 ID")
 ):
     """
-    면접을 종료하고 프론트엔드에서 전달받은 대화 내역(transcripts)을 바탕으로 Evaluator 노드를 실행합니다.
+    면접을 종료하고 리포트 생성/이메일 발송은 백그라운드에서 처리합니다.
     """
-    config = {"configurable": {"thread_id": session_id}}
-    
-    # 1. 프론트엔드에서 받은 transcripts를 LangChain Message 객체로 변환
     lc_messages = []
     for t in request.transcripts:
         if t.role == "user":
             lc_messages.append(HumanMessage(content=t.text))
         elif t.role == "ai":
             lc_messages.append(AIMessage(content=t.text))
-            
-    # 2. 상태를 EVALUATING으로 변경하고 메시지 내역 덮어쓰기 및 검색된 일자리 저장
-    interview_workflow.update_state(config, {
-        "status": "EVALUATING", 
-        "messages": lc_messages,
-        "saved_jobs": request.saved_jobs
-    })
-    
-    # 그래프 실행 (Evaluator 노드까지 진행됨)
-    final_state = interview_workflow.invoke(None, config=config)
-    
-    evaluation = final_state.get("evaluation_result", {})
-    
-    return EndInterviewResponse(
+
+    prepared_jobs = temp_sessions.get(session_id, {}).get("prepared_jobs")
+    source_jobs = prepared_jobs if isinstance(prepared_jobs, list) and prepared_jobs else request.saved_jobs
+    report_jobs = _normalize_job_list(source_jobs)
+
+    temp_sessions.setdefault(session_id, {})["status"] = "REPORT_QUEUED"
+    background_tasks.add_task(
+        generate_report_and_send_email,
         session_id=session_id,
-        score=evaluation.get("score", 0),
-        strengths=evaluation.get("strengths", []),
-        weaknesses=evaluation.get("weaknesses", []),
-        qa_review=evaluation.get("qa_review", []),
-        job_recommendations=evaluation.get("job_recommendations", [])
+        lc_messages=lc_messages,
+        report_jobs=report_jobs,
+        transcripts=[item.model_dump() for item in request.transcripts],
+        interview_date=request.interview_date,
+        interview_duration=request.interview_duration,
     )
 
-from app.schemas_api.email import SendEmailRequest
-import resend
+    return EndInterviewResponse(
+        session_id=session_id,
+        status="queued",
+        message="면접이 종료되었습니다. 리포트는 입력하신 이메일로 전송됩니다.",
+    )
 
-@router.post("/{session_id}/email")
-async def send_interview_email(session_id: str, request: SendEmailRequest):
-    """
-    면접 결과 리포트와 전체 대화 내역을 이메일로 전송합니다. (Resend API 사용)
-    """
-    if not settings.RESEND_API_KEY:
-        print(f"⚠️ RESEND_API_KEY 설정이 없습니다. 이메일 발송을 시뮬레이션합니다.\nTarget Email: {request.email}")
-        return {"status": "success", "message": "Resend API 키가 없어 이메일 발송을 콘솔에 시뮬레이션했습니다."}
+def generate_report_and_send_email(
+    *,
+    session_id: str,
+    lc_messages: List[Any],
+    report_jobs: List[Dict[str, Any]],
+    transcripts: List[Dict[str, str]],
+    interview_date: str | None,
+    interview_duration: str | None,
+) -> None:
+    session = temp_sessions.get(session_id, {})
+    config = {"configurable": {"thread_id": session_id}}
 
-    resend.api_key = settings.RESEND_API_KEY
+    try:
+        temp_sessions.setdefault(session_id, {})["status"] = "REPORT_GENERATING"
+        interview_workflow.update_state(config, {
+            "status": "EVALUATING",
+            "messages": lc_messages,
+            "saved_jobs": report_jobs,
+        })
 
-    # 이메일 내용 구성 (HTML)
-    html_content = f"""
+        final_state = interview_workflow.invoke(None, config=config)
+        evaluation = final_state.get("evaluation_result", {})
+
+        email_request = SendEmailRequest(
+            email=session.get("report_email", ""),
+            score=evaluation.get("score", 0),
+            strengths=evaluation.get("strengths", []),
+            weaknesses=evaluation.get("weaknesses", []),
+            qa_review=evaluation.get("qa_review", []),
+            job_recommendations=evaluation.get("job_recommendations", []),
+            transcripts=transcripts,
+            interview_date=interview_date,
+            interview_duration=interview_duration,
+        )
+        _send_report_email(email_request)
+
+        safe_generate_and_store_reflections(
+            session_id=session_id,
+            job_title=final_state.get("job_title", session.get("job_title", "")),
+            experience=final_state.get("experience", session.get("experience", "")),
+            education=final_state.get("education", session.get("education", "")),
+            messages=final_state.get("messages", lc_messages),
+            evaluation=evaluation,
+            saved_jobs=report_jobs,
+        )
+
+        temp_sessions.setdefault(session_id, {})["status"] = "REPORT_SENT"
+        temp_sessions[session_id]["email_sent_at"] = datetime.now(timezone.utc).isoformat()
+    except Exception as exc:
+        logger.warning("Async report generation failed for session %s: %s", session_id, exc)
+        temp_sessions.setdefault(session_id, {})["status"] = "REPORT_FAILED"
+        temp_sessions[session_id]["error"] = str(exc)
+    finally:
+        _cleanup_completed_session(session_id)
+
+
+def _cleanup_completed_session(session_id: str) -> None:
+    session = temp_sessions.get(session_id)
+    if not session:
+        return
+
+    for key in (
+        "resume",
+        "job_description",
+        "context_jobs",
+        "prepared_jobs",
+        "report_email",
+    ):
+        session.pop(key, None)
+    session["completed_at"] = datetime.now(timezone.utc).isoformat()
+
+
+def _build_report_email_html(request: SendEmailRequest) -> str:
+    return f"""
     <html>
         <head>
             <style>
@@ -270,10 +511,16 @@ async def send_interview_email(session_id: str, request: SendEmailRequest):
                             <p style="margin: 0; font-weight: bold;">
                                 <a href="{job.get('url', '#')}" style="color: #333; text-decoration: none;">{job.get('title', '')}</a>
                             </p>
+                            {f'<p style="margin: 6px 0 0 0; color: #64748b; font-size: 12px;">마감 여부 확인 필요</p>' if job.get('deadline_status') == 'unknown' else ''}
                         </div>
                         ''' for job in request.job_recommendations])}
+                        {'''
+                        <p style="color: #64748b; font-size: 14px; margin: 0;">
+                            현재 맞춤 채용 공고를 찾지 못했습니다. 검색 결과가 없거나 마감된 것으로 확인된 공고만 있어 추천에 표시할 항목이 없습니다.
+                        </p>
+                        ''' if not request.job_recommendations else ''}
                     </div>
-                    
+
                     <div class="section">
                         <h3 class="section-title">🗣️ 전체 대화 내역</h3>
                         <div style="background-color: #f1f5f9; padding: 15px; border-radius: 8px; font-size: 14px;">
@@ -292,6 +539,14 @@ async def send_interview_email(session_id: str, request: SendEmailRequest):
     </html>
     """
 
+
+def _send_report_email(request: SendEmailRequest):
+    if not settings.RESEND_API_KEY:
+        print(f"⚠️ RESEND_API_KEY 설정이 없습니다. 이메일 발송을 시뮬레이션합니다.\nTarget Email: {request.email}")
+        return {"status": "success", "message": "Resend API 키가 없어 이메일 발송을 콘솔에 시뮬레이션했습니다."}
+
+    resend.api_key = settings.RESEND_API_KEY
+    html_content = _build_report_email_html(request)
     params = {
         "from": "TechTree <no-reply@haebo.pro>",
         "to": [request.email],
@@ -305,3 +560,11 @@ async def send_interview_email(session_id: str, request: SendEmailRequest):
     except Exception as e:
         print(f"❌ Resend 이메일 전송 실패: {e}")
         raise HTTPException(status_code=500, detail="이메일 전송에 실패했습니다.")
+
+
+@router.post("/{session_id}/email")
+async def send_interview_email(session_id: str, request: SendEmailRequest):
+    """
+    면접 결과 리포트와 전체 대화 내역을 이메일로 전송합니다. (Resend API 사용)
+    """
+    return _send_report_email(request)

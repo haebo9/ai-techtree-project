@@ -13,9 +13,23 @@ else:
     print("⚠️ MONGODB_URL is not set. Database features will fail.")
     client = None
     db = None
+    reflection_db = None
 
 def get_db():
     """
     Returns the database instance.
     """
     return db
+
+
+def get_reflection_db():
+    """
+    Returns the database used for interview reflection memory.
+
+    MongoDB has databases and collections, not nested databases. In Atlas this
+    appears as a separate database named by REFLECTION_DB_NAME under the same
+    cluster, with collections such as interview_reflections and interview_policies.
+    """
+    if client is None:
+        return None
+    return client[settings.REFLECTION_DB_NAME]

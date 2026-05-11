@@ -3,12 +3,58 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { isInterviewClosingTranscript } from "@/lib/interviewClosing";
 
 interface JobSearchResult {
   company?: string;
   title?: string;
   url?: string;
   content?: string;
+  deadline_status?: string;
+}
+
+interface TranscriptEntry {
+  role: "user" | "ai";
+  text: string;
+  pending?: boolean;
+}
+
+let globalInterviewConnectionId = 0;
+
+const USER_ENDING_PATTERNS = [
+  /\bbye\b/i,
+  /그만\s*(하겠습니다|할게요|하죠)?/,
+  /(면접|인터뷰)(을|를)?\s*(끝내|마치|종료)/,
+  /(끝|종료|마무리)\s*(하겠습니다|할게요|해주세요|해\s*주세요)/,
+];
+
+function isUserEndingTranscript(text: string) {
+  const normalized = String(text || "").replace(/\s+/g, " ").trim();
+  return USER_ENDING_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
+function mergeJobResults(current: JobSearchResult[], next: unknown): JobSearchResult[] {
+  if (!Array.isArray(next)) return current;
+
+  const merged = [...current];
+  const seen = new Set(merged.map((job) => job.url).filter(Boolean));
+
+  next.forEach((item) => {
+    if (!item || typeof item !== "object") return;
+    const job = item as JobSearchResult;
+    const normalized = {
+      company: job.company || "회사명 미상",
+      title: job.title || "공고명 미상",
+      url: job.url || "",
+      content: job.content || "",
+      deadline_status: job.deadline_status,
+    };
+    if (normalized.url && seen.has(normalized.url)) return;
+    if (normalized.url) seen.add(normalized.url);
+    merged.push(normalized);
+  });
+
+  return merged.slice(0, 6);
 }
 
 export default function InterviewPage() {
@@ -26,13 +72,123 @@ export default function InterviewPage() {
   const streamRef = useRef<MediaStream | null>(null);
 
   // 세션 정보 및 대화 기록(Transcript) 임시 저장소
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [startTime, setStartTime] = useState<number | null>(null);
-  const transcriptRef = useRef<{ role: string, text: string }[]>([]);
+  const transcriptRef = useRef<TranscriptEntry[]>([]);
+  const pendingUserTranscriptIndexesRef = useRef<number[]>([]);
   const savedJobsRef = useRef<JobSearchResult[]>([]);
+  const sessionIdRef = useRef<string | null>(null);
+  const startTimeRef = useRef<number | null>(null);
+  const isEndingRef = useRef(false);
+  const autoEndTimerRef = useRef<number | null>(null);
+  const pendingAutoEndRef = useRef(false);
+  const isSpeakingRef = useRef(false);
+  const activeConnectionIdRef = useRef(0);
+  const initialResponseRequestedRef = useRef(false);
+
+  const cleanupRealtimeSession = useCallback(() => {
+    if (autoEndTimerRef.current) {
+      window.clearTimeout(autoEndTimerRef.current);
+      autoEndTimerRef.current = null;
+    }
+    pendingAutoEndRef.current = false;
+    pendingUserTranscriptIndexesRef.current = [];
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+    dcRef.current?.close();
+    dcRef.current = null;
+    pcRef.current?.close();
+    pcRef.current = null;
+  }, []);
+
+  const endInterview = useCallback(async () => {
+    if (isEndingRef.current) return;
+    isEndingRef.current = true;
+    setIsEnding(true);
+    cleanupRealtimeSession();
+
+    const currentSessionId = sessionIdRef.current;
+    if (!currentSessionId) {
+      router.push("/complete");
+      return;
+    }
+
+    try {
+      setStatusText("대화 내용을 평가하고 있습니다...");
+      
+      // 시간 계산
+      const endTime = Date.now();
+      const diffMs = startTimeRef.current ? endTime - startTimeRef.current : 0;
+      const minutes = Math.floor(diffMs / 60000);
+      const seconds = Math.floor((diffMs % 60000) / 1000);
+      const durationStr = `${minutes}분 ${seconds}초`;
+      const dateStr = new Date().toLocaleDateString('ko-KR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      // 텍스트 변환된 transcriptRef.current 는 평가와 reflection 생성에 사용합니다.
+      // 이메일 리포트 발송을 위해 브라우저 세션에만 임시 보관하고 DB에는 저장하지 않습니다.
+      // 더불어 환각 방지를 위해 수집된 실제 채용 공고(savedJobsRef.current)도 함께 보냅니다.
+      const orderedTranscripts = transcriptRef.current
+        .filter((item) => item.text.trim())
+        .map(({ role, text }) => ({ role, text }));
+      const response = await fetch(`http://localhost:8000/api/interview/${currentSessionId}/end`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          transcripts: orderedTranscripts,
+          saved_jobs: savedJobsRef.current,
+          interview_date: dateStr,
+          interview_duration: durationStr
+        })
+      });
+      if (!response.ok) throw new Error("면접 종료 API 오류");
+      
+      localStorage.removeItem("interviewTranscripts");
+      sessionStorage.removeItem("interviewTranscriptsForEmail");
+      sessionStorage.setItem("lastInterviewEndedAt", dateStr);
+      
+      router.push("/complete");
+    } catch (err) {
+      console.error("종료 에러:", err);
+      router.push("/complete");
+    }
+  }, [cleanupRealtimeSession, router]);
+
+  const scheduleAutoEndInterview = useCallback(() => {
+    if (isEndingRef.current || autoEndTimerRef.current) return;
+    setStatusText("면접관의 마무리 멘트가 끝나면 리포트를 생성합니다...");
+    autoEndTimerRef.current = window.setTimeout(() => {
+      autoEndTimerRef.current = null;
+      endInterview();
+    }, 6500);
+  }, [endInterview]);
+
+  const markInterviewClosingDetected = useCallback(() => {
+    if (isEndingRef.current) return;
+    pendingAutoEndRef.current = true;
+    setStatusText("면접관이 마무리 중입니다. 잠시만 기다려 주세요...");
+    if (!isSpeakingRef.current) {
+      pendingAutoEndRef.current = false;
+      scheduleAutoEndInterview();
+    }
+  }, [scheduleAutoEndInterview]);
 
   // 1. 컴포넌트 마운트 시 WebRTC 직접 연결 시도
   useEffect(() => {
+    let isEffectCancelled = false;
+    const connectionId = ++globalInterviewConnectionId;
+    activeConnectionIdRef.current = connectionId;
+    initialResponseRequestedRef.current = false;
+
+    const isActiveConnection = () => (
+      !isEffectCancelled && activeConnectionIdRef.current === connectionId
+    );
+
     // 상대방(AI)의 음성을 재생할 숨겨진 오디오 엘리먼트 생성
     const audioEl = document.createElement("audio");
     audioEl.autoplay = true;
@@ -40,11 +196,12 @@ export default function InterviewPage() {
 
     const initWebRTC = async () => {
       try {
-        setStatusText("서버에서 보안 토큰을 발급받고 있습니다...");
+        setStatusText("지원 정보와 모집중인 채용 공고를 분석해 면접을 준비 중입니다...");
 
         // 1) 로컬 스토리지에서 사용자가 입력한 프로필 가져오기
-        const savedProfile = localStorage.getItem("interviewProfile");
+        const savedProfile = sessionStorage.getItem("interviewProfile") || localStorage.getItem("interviewProfile");
         const profileData = savedProfile ? JSON.parse(savedProfile) : {
+          report_email: "test@example.com",
           job_title: "직무 미상",
           education: "학사(4년제)",
           experience: "신입",
@@ -57,19 +214,24 @@ export default function InterviewPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             user_id: "test@example.com",
+            report_email: profileData.report_email || "test@example.com",
             job_title: profileData.job_title || "직무 미상",
             education: profileData.education || "학사(4년제)",
             experience: profileData.experience || "신입",
             resume: profileData.resume || "정보 없음",
             job_description: profileData.job_description || "",
-            job_image: profileData.job_image || null
+            job_image: profileData.job_image || null,
+            interview_mode: profileData.interview_mode || "long"
           })
         });
 
         if (!res.ok) throw new Error("토큰 발급 API 오류");
         const data = await res.json();
+        if (!isActiveConnection()) return;
+
         const EPHEMERAL_KEY = data.ephemeral_token;
-        setSessionId(data.session_id);
+        sessionIdRef.current = data.session_id;
+        savedJobsRef.current = Array.isArray(data.prepared_jobs) ? data.prepared_jobs : [];
 
         setStatusText("면접관과 통신을 연결 중입니다...");
 
@@ -86,6 +248,10 @@ export default function InterviewPage() {
 
         // 3) 내 마이크 스트림 가져오기 및 WebRTC에 추가
         const ms = await navigator.mediaDevices.getUserMedia({ audio: true });
+        if (!isActiveConnection()) {
+          ms.getTracks().forEach(t => t.stop());
+          return;
+        }
         streamRef.current = ms;
         pc.addTrack(ms.getTracks()[0]);
         // Push-To-Talk를 위해 기본 마이크 송출 차단
@@ -96,7 +262,10 @@ export default function InterviewPage() {
         dcRef.current = dc;
 
         dc.addEventListener("open", () => {
-          setStartTime(Date.now());
+          if (!isActiveConnection()) return;
+
+          const openedAt = Date.now();
+          startTimeRef.current = openedAt;
           
           // 이미지가 업로드된 경우, 초기 컨텍스트로 전달 (올바른 Realtime API 포맷 사용)
           if (profileData.job_image) {
@@ -123,10 +292,15 @@ export default function InterviewPage() {
           }
 
           // VAD가 꺼져 있으므로 연결 직후 첫 인사 생성을 수동 요청
-          dc.send(JSON.stringify({ type: "response.create" }));
+          if (!initialResponseRequestedRef.current) {
+            initialResponseRequestedRef.current = true;
+            dc.send(JSON.stringify({ type: "response.create" }));
+          }
         });
 
         dc.addEventListener("message", async (e) => {
+          if (!isActiveConnection()) return;
+
           const realtimeEvent = JSON.parse(e.data);
 
           // --- 에이전틱 툴(Function Calling) 처리 ---
@@ -152,12 +326,8 @@ export default function InterviewPage() {
                 });
                 const searchData = await res.json();
                 console.log("[Tool] 검색 결과 수신 완료", searchData.result);
+                savedJobsRef.current = mergeJobResults(savedJobsRef.current, searchData.result);
                 
-                // 실제 검색 결과를 LLM 환각 방지를 위해 별도로 저장
-                if (Array.isArray(searchData.result)) {
-                  savedJobsRef.current = [...savedJobsRef.current, ...searchData.result];
-                }
-
                 // 검색 결과를 OpenAI Realtime API 컨텍스트에 추가
                 dc.send(JSON.stringify({
                   type: "conversation.item.create",
@@ -181,22 +351,48 @@ export default function InterviewPage() {
 
           // 텍스트 변환 기록(Transcript) 가로채기 -> 추후 DB 저장을 위해 배열에 푸시
           if (realtimeEvent.type === "response.audio_transcript.done") {
-            transcriptRef.current.push({ role: "ai", text: realtimeEvent.transcript });
-            console.log("[AI 답변]:", realtimeEvent.transcript);
+            const aiText = realtimeEvent.transcript || "";
+            transcriptRef.current.push({ role: "ai", text: aiText });
+            console.log("[AI 답변]:", aiText);
+            if (isInterviewClosingTranscript(aiText)) {
+              markInterviewClosingDetected();
+            }
           }
           if (realtimeEvent.type === "conversation.item.input_audio_transcription.completed") {
-            transcriptRef.current.push({ role: "user", text: realtimeEvent.transcript });
-            console.log("[내 답변]:", realtimeEvent.transcript);
+            const userText = realtimeEvent.transcript || "";
+            const pendingIndex = pendingUserTranscriptIndexesRef.current.shift();
+            if (
+              pendingIndex !== undefined &&
+              transcriptRef.current[pendingIndex]?.role === "user" &&
+              transcriptRef.current[pendingIndex]?.pending
+            ) {
+              transcriptRef.current[pendingIndex] = { role: "user", text: userText };
+            } else {
+              transcriptRef.current.push({ role: "user", text: userText });
+            }
+            console.log("[내 답변]:", userText);
+            if (isUserEndingTranscript(userText)) {
+              markInterviewClosingDetected();
+            }
           }
 
           // 파형 애니메이션을 위한 상태 업데이트
           if (realtimeEvent.type === "response.audio.delta") {
+            isSpeakingRef.current = true;
             setIsSpeaking(true);
             setStatusText("AI가 말하는 중...");
           }
           if (realtimeEvent.type === "response.done") {
+            isSpeakingRef.current = false;
             setIsSpeaking(false);
-            setStatusText("🟢 스페이스바를 누른 채로 대답하세요.");
+            if (pendingAutoEndRef.current) {
+              pendingAutoEndRef.current = false;
+              scheduleAutoEndInterview();
+              return;
+            }
+            if (!isEndingRef.current) {
+              setStatusText("🟢 스페이스바를 누른 채로 대답하세요.");
+            }
           }
         });
 
@@ -230,6 +426,7 @@ export default function InterviewPage() {
         await pc.setRemoteDescription(answer);
 
         // 연결 성공!
+        if (!isActiveConnection()) return;
         setIsRecording(false);
         setStatusText("🟢 스페이스바를 누른 채로 대답하세요.");
 
@@ -242,12 +439,12 @@ export default function InterviewPage() {
     initWebRTC();
 
     return () => {
-      pcRef.current?.close();
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(t => t.stop());
-      }
+      isEffectCancelled = true;
+      activeConnectionIdRef.current = 0;
+      initialResponseRequestedRef.current = false;
+      cleanupRealtimeSession();
     };
-  }, []);
+  }, [cleanupRealtimeSession, markInterviewClosingDetected, scheduleAutoEndInterview]);
 
   // 2. 마이크 Push-To-Talk 핸들러
   const startRecording = useCallback(() => {
@@ -269,6 +466,9 @@ export default function InterviewPage() {
       setStatusText("답변을 분석 중입니다...");
 
       // 수동으로 오디오 버퍼 커밋 및 AI 응답 요청
+      const pendingIndex = transcriptRef.current.length;
+      transcriptRef.current.push({ role: "user", text: "", pending: true });
+      pendingUserTranscriptIndexesRef.current.push(pendingIndex);
       dcRef.current.send(JSON.stringify({ type: "input_audio_buffer.commit" }));
       dcRef.current.send(JSON.stringify({ type: "response.create" }));
     }
@@ -295,56 +495,6 @@ export default function InterviewPage() {
       window.removeEventListener("keyup", handleKeyUp);
     }
   }, [startRecording, stopRecording]);
-
-  // 3. 면접 종료 시 대화 기록을 백엔드로 넘기고 결과창으로 이동
-  const endInterview = async () => {
-    if (!sessionId) {
-      router.push("/result");
-      return;
-    }
-
-    setIsEnding(true);
-
-    try {
-      setStatusText("대화 내용을 평가하고 있습니다...");
-      
-      // 시간 계산
-      const endTime = Date.now();
-      const diffMs = startTime ? endTime - startTime : 0;
-      const minutes = Math.floor(diffMs / 60000);
-      const seconds = Math.floor((diffMs % 60000) / 1000);
-      const durationStr = `${minutes}분 ${seconds}초`;
-      const dateStr = new Date().toLocaleDateString('ko-KR', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-
-      // 텍스트 변환된 transcriptRef.current 를 백엔드의 평가 노드로 전송합니다.
-      // 더불어 환각 방지를 위해 수집된 실제 채용 공고(savedJobsRef.current)도 함께 보냅니다.
-      const response = await fetch(`http://localhost:8000/api/interview/${sessionId}/end`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          transcripts: transcriptRef.current,
-          saved_jobs: savedJobsRef.current
-        })
-      });
-      const resultData = await response.json();
-      
-      localStorage.setItem("interviewResult", JSON.stringify(resultData));
-      localStorage.setItem("interviewTranscripts", JSON.stringify(transcriptRef.current));
-      localStorage.setItem("interviewDuration", durationStr);
-      localStorage.setItem("interviewDate", dateStr);
-      
-      router.push("/result");
-    } catch (err) {
-      console.error("종료 에러:", err);
-      router.push("/result");
-    }
-  };
 
   const visualizerScale = isSpeaking ? "scale-110 animate-pulse bg-gradient-to-tr from-purple-600 to-indigo-500"
     : isRecording ? "scale-100 animate-pulse bg-gradient-to-tr from-red-500 to-pink-500"
