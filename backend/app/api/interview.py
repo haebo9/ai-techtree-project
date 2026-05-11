@@ -45,16 +45,16 @@ INTERVIEW_MODE_GUIDANCE: Dict[str, Dict[str, str]] = {
     "short": {
         "label": "짧은 면접",
         "guidance": (
-            "목표 시간은 약 5분입니다. 10분처럼 길게 끌지 말고, "
-            "아이스브레이킹 후 자기소개/지원동기를 짧게 확인한 다음 핵심 직무 질문 2-3개와 필요한 꼬리 질문만 진행하세요. "
+            "목표 시간은 약 7분입니다. 너무 길게 끌지 말고, "
+            "아이스브레이킹 후 자기소개/지원동기를 확인한 다음 대표 경험 1개를 중심으로 핵심 직무 질문 3-4개와 필요한 꼬리 질문 2-3회를 진행하세요. "
             "평가 근거가 확보되면 명확한 종료 멘트로 마무리하세요."
         ),
     },
     "long": {
         "label": "긴 면접",
         "guidance": (
-            "목표 시간은 약 15분입니다. 아이스브레이킹과 자기소개/지원동기 이후, "
-            "직무 역량 질문 4-6개, 프로젝트/경험 심층 검증, 협업/문제 해결/태도 질문까지 균형 있게 진행하세요. "
+            "목표 시간은 약 20분입니다. 아이스브레이킹과 자기소개/지원동기 이후, "
+            "이력서 기반 대표 프로젝트 1-2개, 채용 공고 요건 기반 직무 질문, 협업/문제 해결, 실패·개선 경험까지 균형 있게 진행하세요. "
             "충분한 평가 근거가 확보되면 명확한 종료 멘트로 마무리하세요."
         ),
     },
@@ -68,12 +68,39 @@ def _interview_mode_settings(mode: str | None) -> Dict[str, str]:
     normalized = (mode or "long").strip().lower()
     return INTERVIEW_MODE_GUIDANCE.get(normalized, INTERVIEW_MODE_GUIDANCE["long"])
 
-def _prepare_job_recommendations(job_title: str, experience: str, education: str) -> List[Dict[str, str]]:
+def _normalize_job_list(raw_jobs: Any, *, require_active: bool = False) -> List[Dict[str, str]]:
+    from app.engine.tools.job_search import is_recommendable_active_job
+
+    if not isinstance(raw_jobs, list):
+        return []
+
+    jobs = []
+    seen_urls = set()
+    for job in raw_jobs:
+        if not isinstance(job, dict):
+            continue
+        normalized = {
+            "company": str(job.get("company") or "회사명 미상"),
+            "title": str(job.get("title") or "공고명 미상"),
+            "url": str(job.get("url") or ""),
+            "content": str(job.get("content") or ""),
+        }
+        url = normalized["url"]
+        if url and url in seen_urls:
+            continue
+        if require_active and not is_recommendable_active_job(normalized):
+            continue
+        if url:
+            seen_urls.add(url)
+        jobs.append(normalized)
+    return jobs[:3]
+
+def _prepare_job_materials(job_title: str, experience: str, education: str) -> tuple[List[Dict[str, str]], List[Dict[str, str]]]:
     from app.engine.tools.job_search import search_korean_job_postings
 
     if not settings.TAVILY_API_KEY:
         logger.warning("Skipping prepared job search because TAVILY_API_KEY is not configured.")
-        return []
+        return [], []
 
     executor = ThreadPoolExecutor(max_workers=1)
     future = executor.submit(
@@ -89,27 +116,16 @@ def _prepare_job_recommendations(job_title: str, experience: str, education: str
     except FutureTimeoutError:
         future.cancel()
         logger.warning("Prepared job search timed out after %s seconds for %s", JOB_SEARCH_TIMEOUT_SECONDS, job_title)
-        return []
+        return [], []
     except Exception as exc:
         logger.warning("Prepared job search failed for %s: %s", job_title, exc)
-        return []
+        return [], []
     finally:
         executor.shutdown(wait=False, cancel_futures=True)
 
-    if not isinstance(result, list):
-        return []
-
-    prepared_jobs = []
-    for job in result[:3]:
-        if not isinstance(job, dict):
-            continue
-        prepared_jobs.append({
-            "company": str(job.get("company") or "회사명 미상"),
-            "title": str(job.get("title") or "공고명 미상"),
-            "url": str(job.get("url") or ""),
-            "content": str(job.get("content") or ""),
-        })
-    return prepared_jobs
+    context_jobs = _normalize_job_list(result)
+    recommended_jobs = _normalize_job_list(result, require_active=True)
+    return context_jobs, recommended_jobs
 
 def _format_prepared_job_context(job_desc: str, prepared_jobs: List[Dict[str, str]]) -> str:
     sections = []
@@ -153,12 +169,12 @@ async def start_interview(request: StartInterviewRequest):
     else:
         job_desc = "맞춤형 채용 공고 정보 없음"
 
-    prepared_jobs = _prepare_job_recommendations(
+    context_jobs, recommended_jobs = _prepare_job_materials(
         job_title=job_title,
         experience=experience,
         education=education,
     )
-    interview_job_context = _format_prepared_job_context(job_desc, prepared_jobs)
+    interview_job_context = _format_prepared_job_context(job_desc, context_jobs)
 
     try:
         reflection_guidelines = ReflectionService().get_prompt_guidelines(
@@ -238,7 +254,7 @@ async def start_interview(request: StartInterviewRequest):
         "interview_mode_guidance": mode_settings["guidance"],
         "major": "",  # request에 없음
         "messages": [],
-        "saved_jobs": prepared_jobs,
+        "saved_jobs": recommended_jobs,
         "status": "IN_PROGRESS"
     }
     interview_workflow.update_state({"configurable": {"thread_id": session_id}}, initial_state)
@@ -248,14 +264,15 @@ async def start_interview(request: StartInterviewRequest):
         "status": "IN_PROGRESS",
         "voice": selected_voice,
         "interviewer_name": interviewer_name,
-        "prepared_jobs": prepared_jobs,
+        "prepared_jobs": recommended_jobs,
+        "context_jobs": context_jobs,
     }
     
     return StartInterviewResponse(
         session_id=session_id,
         ephemeral_token=ephemeral_token,
         message="면접 세션이 준비되었습니다.",
-        prepared_jobs=prepared_jobs,
+        prepared_jobs=recommended_jobs,
     )
 
 class ToolSearchRequest(BaseModel):
@@ -319,8 +336,8 @@ async def end_interview(
         elif t.role == "ai":
             lc_messages.append(AIMessage(content=t.text))
             
-    prepared_jobs = temp_sessions.get(session_id, {}).get("prepared_jobs", [])
-    report_jobs = prepared_jobs if isinstance(prepared_jobs, list) else []
+    prepared_jobs = temp_sessions.get(session_id, {}).get("prepared_jobs")
+    report_jobs = _normalize_job_list(prepared_jobs if isinstance(prepared_jobs, list) else request.saved_jobs)
 
     # 2. 상태를 EVALUATING으로 변경하고 메시지 내역 덮어쓰기 및 시작 전에 선별된 일자리 저장
     interview_workflow.update_state(config, {

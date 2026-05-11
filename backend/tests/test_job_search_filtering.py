@@ -10,6 +10,7 @@ from app.engine.tools.job_search import (
     _is_relevant_to_profile,
     _is_detail_job_url,
     _looks_expired,
+    is_recommendable_active_job,
 )
 
 
@@ -107,6 +108,25 @@ def test_active_deadline_hint_is_not_treated_as_expired():
         content=text,
         url="https://www.jobkorea.co.kr/Recruit/GI_Read/123456",
     ) is not None
+
+
+def test_recommendations_require_active_deadline_hint():
+    active_job = {
+        "title": "QA 엔지니어 채용",
+        "content": "접수기간/방법. 남은시간 D-11. 신입 가능.",
+    }
+    unclear_job = {
+        "title": "QA 엔지니어 채용",
+        "content": "주요업무: 테스트 자동화. 자격요건: Python.",
+    }
+    expired_job = {
+        "title": "QA 엔지니어 채용",
+        "content": "접수마감된 공고입니다.",
+    }
+
+    assert is_recommendable_active_job(active_job)
+    assert not is_recommendable_active_job(unclear_job)
+    assert not is_recommendable_active_job(expired_job)
 
 
 def test_search_query_excludes_expired_jobs():

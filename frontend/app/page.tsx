@@ -525,11 +525,11 @@ export default function Home() {
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-2xl font-black">빠른 연습 시작하기</span>
                     <span className="shrink-0 rounded-xl border border-white/25 bg-white/15 px-3 py-1 text-sm font-black text-white">
-                      5분 내외
+                      7분 내외
                     </span>
                   </div>
                   <p className="text-sm font-bold leading-relaxed text-white/85">
-                    자기소개와 핵심 직무 질문 위주로 짧게 점검합니다.
+                    대표 경험과 핵심 직무 질문을 짧고 밀도 있게 점검합니다.
                   </p>
                 </div>
               </button>
@@ -547,11 +547,11 @@ export default function Home() {
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-2xl font-black">실전 연습 시작하기</span>
                     <span className="shrink-0 rounded-xl border border-white/25 bg-white/15 px-3 py-1 text-sm font-black text-white">
-                      15분 내외
+                      20분 내외
                     </span>
                   </div>
                   <p className="text-sm font-bold leading-relaxed text-white/85">
-                    직무 역량, 경험 검증, 협업 질문까지 깊게 진행합니다.
+                    직무 역량, 프로젝트, 협업/문제 해결까지 깊게 진행합니다.
                   </p>
                 </div>
               </button>

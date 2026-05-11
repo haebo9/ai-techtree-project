@@ -12,7 +12,7 @@ class StartInterviewRequest(BaseModel):
     resume: str = Field(..., description="간단한 이력 또는 자기소개 요약")
     job_description: Optional[str] = Field(default="", description="사용자가 직접 입력한 채용 공고 텍스트")
     job_image: Optional[str] = Field(default=None, description="채용 공고 이미지의 Base64 인코딩 문자열")
-    interview_mode: str = Field(default="long", description="면접 길이 모드 (short: 5분 내외, long: 15분 내외)")
+    interview_mode: str = Field(default="long", description="면접 길이 모드 (short: 7분 내외, long: 20분 내외)")
 
 class StartInterviewResponse(BaseModel):
     session_id: str = Field(..., description="생성된 면접 고유 세션 ID")
@@ -39,7 +39,7 @@ class TranscriptItem(BaseModel):
 
 class EndInterviewRequest(BaseModel):
     transcripts: List[TranscriptItem] = Field(default=[], description="전체 대화 내역")
-    saved_jobs: List[Dict[str, Any]] = Field(default=[], description="면접 중 검색된 실제 채용 공고 정보")
+    saved_jobs: List[Dict[str, Any]] = Field(default=[], description="면접 시작 전에 선별된 모집중 추천 채용 공고 정보")
 
 class EndInterviewResponse(BaseModel):
     session_id: str

@@ -32,7 +32,7 @@ def test_prompt_sets_ten_minute_interview_target():
     prompt = _prompt()
 
     assert "선택된 목표 시간은 강제 종료 조건이 아니라" in prompt
-    assert "목표 시간은 약 15분입니다." in prompt
+    assert "목표 시간은 약 20분입니다." in prompt
     assert "오늘 면접은 여기까지 진행하겠습니다" in prompt
     assert "명확한 종료 멘트 전에는 면접이 자동 종료되지 않습니다." in prompt
 
@@ -84,8 +84,10 @@ def test_interview_mode_guidance_supports_short_and_long_modes():
     long_prompt = _prompt()
 
     assert "면접 모드: 짧은 면접" in short_prompt
-    assert "목표 시간은 약 5분입니다." in short_prompt
-    assert "핵심 직무 질문 2-3개" in short_prompt
+    assert "목표 시간은 약 7분입니다." in short_prompt
+    assert "핵심 직무 질문 3-4개" in short_prompt
+    assert "꼬리 질문 2-3회" in short_prompt
     assert "면접 모드: 긴 면접" in long_prompt
-    assert "목표 시간은 약 15분입니다." in long_prompt
-    assert "직무 역량 질문 4-6개" in long_prompt
+    assert "목표 시간은 약 20분입니다." in long_prompt
+    assert "이력서 기반 대표 프로젝트 1-2개" in long_prompt
+    assert "실패·개선 경험" in long_prompt

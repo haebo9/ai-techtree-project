@@ -180,6 +180,10 @@ def _looks_expired(title: str, content: str) -> bool:
         return False
     return any(re.search(pattern, text, re.IGNORECASE) for pattern in EXPIRED_POSTING_PATTERNS)
 
+def is_recommendable_active_job(job: Dict[str, str]) -> bool:
+    text = f"{job.get('title', '')} {job.get('content', '')}"
+    return _has_active_deadline_hint(text) and not _looks_expired(job.get("title", ""), job.get("content", ""))
+
 def _company_from_result(title: str, url: str) -> str:
     host = urlparse(url).netloc.lower().replace("www.", "")
     domain_company = next(

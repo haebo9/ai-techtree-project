@@ -24,7 +24,7 @@ def interviewer_node(state: InterviewState):
         interview_mode_guidance=_state_text(
             state,
             "interview_mode_guidance",
-            "목표 시간은 약 15분입니다. 충분한 평가 근거가 확보되면 명확한 종료 멘트로 마무리하세요."
+            "목표 시간은 약 20분입니다. 충분한 평가 근거가 확보되면 명확한 종료 멘트로 마무리하세요."
         ),
         job_title=_state_text(state, "job_title"),
         education=_state_text(state, "education"),
