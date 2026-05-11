@@ -6,8 +6,15 @@ from app.services.reflection_service import (
     ReflectionItem,
     ReflectionService,
     ReflectionStore,
+    consolidate_policy_items,
     format_reflection_guidelines,
     safe_generate_and_store_reflections,
+    _guideline_query_text,
+)
+from app.services.reflection_mongo_store import (
+    ReflectionMongoClient,
+    _policy_document,
+    _reflection_document,
 )
 
 
@@ -95,6 +102,22 @@ def test_repeated_reflections_are_promoted_to_policy(tmp_path):
     assert promoted[0].policy == base_hint
 
 
+def test_policy_consolidation_can_be_persisted_outside_jsonl():
+    policy_store = PolicyStore()
+    base_hint = "신입 QA 지원자에게는 테스트 기초와 결함 재현 과정을 우선 확인하세요."
+    reflections = [
+        _reflection(id=f"reflection-{index}", prompt_hint=base_hint, source_session_id=f"session-{index}", confidence=0.86)
+        for index in range(3)
+    ]
+
+    policies, changed = consolidate_policy_items([], reflections, policy_store)
+
+    promoted = [policy for policy in policies if policy.status == "promoted"]
+    assert changed
+    assert len(promoted) == 1
+    assert promoted[0].evidence_count == 3
+
+
 def test_prompt_guidelines_prioritize_promoted_policy(tmp_path):
     reflection_store = ReflectionStore(tmp_path / "reflections.jsonl")
     policy_store = PolicyStore(tmp_path / "policies.jsonl")
@@ -160,6 +183,163 @@ def test_service_stores_generated_reflections_without_transcript(monkeypatch, tm
     assert "Playwright" not in saved[0].model_dump_json(ensure_ascii=False)
     assert "test@example.com" not in saved[0].model_dump_json(ensure_ascii=False)
     assert "010-1234-5678" not in saved[0].model_dump_json(ensure_ascii=False)
+
+
+def test_service_dual_writes_reflections_to_mongo_and_jsonl(monkeypatch, tmp_path):
+    class FakeMongoClient:
+        def __init__(self):
+            self.reflections = []
+            self.policies = []
+
+        def upsert_reflection(self, item):
+            self.reflections.append(item)
+            return True
+
+        def read_reflections(self, item_model):
+            return self.reflections
+
+        def read_policies(self, item_model):
+            return self.policies
+
+        def write_policies(self, policies):
+            self.policies = policies
+
+    store = ReflectionStore(tmp_path / "reflections.jsonl")
+    policy_store = PolicyStore(tmp_path / "policies.jsonl")
+    service = ReflectionService(store, policy_store)
+    service.mongo_client = FakeMongoClient()
+
+    monkeypatch.setattr(
+        service,
+        "_generate_candidates",
+        lambda **_: [
+            ReflectionCandidate(
+                tags=["qa"],
+                issue="질문이 공고 요건과 약하게 연결됨",
+                lesson="공고의 필수 요건을 초반 질문에 반영한다.",
+                prompt_hint="공고의 필수 요건을 기준으로 첫 기술 질문을 구성하세요.",
+                confidence=0.9,
+            )
+        ],
+    )
+
+    stored_count = service.generate_and_store(
+        session_id="session-1",
+        job_title="QA Engineer",
+        experience="신입",
+        education="학사",
+        messages=[AIMessage(content="질문"), HumanMessage(content="답변")],
+        evaluation={"score": 75},
+        saved_jobs=[],
+    )
+
+    assert stored_count == 1
+    assert len(service.mongo_client.reflections) == 1
+    assert len(store.read_all()) == 1
+
+
+def test_service_dual_writes_policies_to_mongo_and_jsonl(monkeypatch, tmp_path):
+    class FakeMongoClient:
+        def __init__(self):
+            self.reflections = []
+            self.policies = []
+
+        def upsert_reflection(self, item):
+            self.reflections.append(item)
+            return True
+
+        def read_reflections(self, item_model):
+            return self.reflections
+
+        def read_policies(self, item_model):
+            return self.policies
+
+        def write_policies(self, policies):
+            self.policies = policies
+
+    store = ReflectionStore(tmp_path / "reflections.jsonl")
+    policy_store = PolicyStore(tmp_path / "policies.jsonl")
+    service = ReflectionService(store, policy_store)
+    service.mongo_client = FakeMongoClient()
+    base_hint = "신입 QA 지원자에게는 테스트 기초와 결함 재현 과정을 우선 확인하세요."
+
+    for index in range(3):
+        item = _reflection(
+            id=f"reflection-{index}",
+            prompt_hint=base_hint,
+            source_session_id=f"session-{index}",
+            confidence=0.9,
+        )
+        assert service._append_reflection(item)
+
+    service._consolidate_policies(store.read_all())
+
+    local_promoted = [policy for policy in policy_store.read_all() if policy.status == "promoted"]
+    mongo_promoted = [policy for policy in service.mongo_client.policies if policy.status == "promoted"]
+    assert len(local_promoted) == 1
+    assert len(mongo_promoted) == 1
+
+
+def test_reflection_store_rejects_raw_transcript_artifacts(tmp_path):
+    store = ReflectionStore(tmp_path / "reflections.jsonl")
+
+    assert not store.append(_reflection(
+        id="raw-transcript",
+        issue="지원자: 저는 Playwright를 사용했습니다.",
+        lesson="지원자가 '저는 Playwright를 사용했습니다'라고 답했습니다.",
+        prompt_hint="지원자: 저는 Playwright를 사용했습니다.",
+    ))
+    assert store.read_all() == []
+
+
+def test_mongo_reflection_document_is_vector_ready_without_raw_transcript():
+    document = _reflection_document(_reflection(
+        issue="후속 질문이 직무 요건과 느슨하게 연결됨",
+        lesson="공고 요건을 질문 축으로 사용한다.",
+        prompt_hint="공고의 필수 요건을 기준으로 답변 검증 질문을 구성하세요.",
+    ))
+
+    assert document["kind"] == "reflection"
+    assert document["job_title_key"] == "qa engineer"
+    assert document["prompt_hint_key"]
+    assert "embedding_text" in document
+    assert "지원자:" not in document["embedding_text"]
+    assert "면접관:" not in document["embedding_text"]
+
+
+def test_guideline_query_text_uses_context_without_persisting_it():
+    query = _guideline_query_text(
+        job_title="AI Engineer",
+        experience="신입",
+        education="학사",
+        resume="LangGraph 기반 실시간 면접 서비스 개발",
+        job_context="AI Agent 및 LLM 서비스 운영 경험 우대",
+        interview_mode="long",
+    )
+
+    assert "AI Engineer" in query
+    assert "LangGraph" in query
+    assert "LLM 서비스" in query
+    assert "long" in query
+
+
+def test_mongo_policy_document_excludes_deprecated_from_vector_filter_definition():
+    policies, _ = consolidate_policy_items(
+        [],
+        [
+            _reflection(id="a", source_session_id="a", confidence=0.9),
+            _reflection(id="b", source_session_id="b", confidence=0.9),
+            _reflection(id="c", source_session_id="c", confidence=0.9),
+        ],
+        PolicyStore(),
+    )
+    document = _policy_document(policies[0])
+    definition = ReflectionMongoClient.__new__(ReflectionMongoClient).build_vector_index_definition()
+
+    assert document["kind"] == "policy"
+    assert document["embedding_text"]
+    assert definition["name"]
+    assert any(field["path"] == "status" for field in definition["definition"]["fields"])
 
 
 def test_safe_generate_and_store_reflections_does_not_raise(monkeypatch):

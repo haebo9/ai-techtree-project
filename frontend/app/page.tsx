@@ -564,7 +564,7 @@ export default function Home() {
                 🛡️ 입력하신 데이터(이력서, 공고 등)는 분석 직후 즉시 파기되며 절대 저장되지 않습니다.
               </p>
               <p className="text-[11px] text-neutral-600 font-medium">
-                단, 면접 대화 내용은 AI 모델의 품질 향상을 위한 학습 데이터로 활용될 수 있습니다.
+                면접 대화 원문은 저장하지 않으며, 종료 후 AI 면접관 개선을 위한 익명화된 운영 지침만 생성될 수 있습니다.
               </p>
             </div>
           </div>

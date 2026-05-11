@@ -85,7 +85,7 @@ export default function InterviewPage() {
         minute: '2-digit'
       });
 
-      // 텍스트 변환된 transcriptRef.current 를 백엔드의 평가 노드로 전송합니다.
+      // 텍스트 변환된 transcriptRef.current 는 평가와 reflection 생성에만 사용하고 영구 저장하지 않습니다.
       // 더불어 환각 방지를 위해 수집된 실제 채용 공고(savedJobsRef.current)도 함께 보냅니다.
       const response = await fetch(`http://localhost:8000/api/interview/${currentSessionId}/end`, {
         method: "POST",
@@ -98,7 +98,7 @@ export default function InterviewPage() {
       const resultData = await response.json();
       
       localStorage.setItem("interviewResult", JSON.stringify(resultData));
-      localStorage.setItem("interviewTranscripts", JSON.stringify(transcriptRef.current));
+      localStorage.removeItem("interviewTranscripts");
       localStorage.setItem("interviewDuration", durationStr);
       localStorage.setItem("interviewDate", dateStr);
       

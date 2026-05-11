@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import uuid
 from datetime import datetime, timezone
@@ -11,8 +12,10 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from app.core.config import settings
 from app.core.llm import get_llm
 from app.core.logger import get_logger
+from app.services.reflection_mongo_store import MongoReflectionUnavailable, ReflectionMongoClient
 
 logger = get_logger(__name__)
+_LOCAL_MEMORY_SYNCED_TO_MONGO = False
 
 
 def _resolve_store_path(configured_value: str) -> Path:
@@ -116,6 +119,9 @@ class ReflectionStore:
     def append(self, item: ReflectionItem) -> bool:
         if not _normalize_key(item.prompt_hint):
             return False
+        if _contains_transcript_artifact(item.prompt_hint, item.issue, item.lesson):
+            logger.warning("Skipping reflection that appears to contain raw transcript text")
+            return False
 
         duplicate_key = (_normalize_key(item.source_session_id), _normalize_key(item.prompt_hint))
         existing_keys = {
@@ -214,28 +220,9 @@ class PolicyStore:
 
     def consolidate(self, reflections: List[ReflectionItem]) -> List[PolicyItem]:
         policies = self.read_all()
-        existing_reflection_ids = {
-            reflection_id
-            for policy in policies
-            for reflection_id in policy.source_reflection_ids
-        }
-
-        changed = False
-        for reflection in reflections:
-            if reflection.id in existing_reflection_ids:
-                continue
-            if reflection.confidence < 0.55 or not _normalize_key(reflection.prompt_hint):
-                continue
-
-            changed = True
-            matched_policy = self._find_matching_policy(policies, reflection)
-            if matched_policy:
-                _merge_reflection_into_policy(matched_policy, reflection)
-            else:
-                policies.append(_policy_from_reflection(reflection))
+        policies, changed = consolidate_policy_items(policies, reflections, self)
 
         if changed:
-            _promote_and_deprecate_policies(policies, self.promotion_threshold, self.min_promoted_confidence)
             self.write_all(policies)
 
         return policies
@@ -292,18 +279,94 @@ class PolicyStore:
         return None
 
 
+def consolidate_policy_items(
+    policies: List[PolicyItem],
+    reflections: List[ReflectionItem],
+    policy_store: PolicyStore,
+) -> tuple[List[PolicyItem], bool]:
+    existing_reflection_ids = {
+        reflection_id
+        for policy in policies
+        for reflection_id in policy.source_reflection_ids
+    }
+
+    changed = False
+    for reflection in reflections:
+        if reflection.id in existing_reflection_ids:
+            continue
+        if reflection.confidence < 0.55 or not _normalize_key(reflection.prompt_hint):
+            continue
+
+        changed = True
+        matched_policy = policy_store._find_matching_policy(policies, reflection)
+        if matched_policy:
+            _merge_reflection_into_policy(matched_policy, reflection)
+        else:
+            policies.append(_policy_from_reflection(reflection))
+
+    if changed:
+        _promote_and_deprecate_policies(
+            policies,
+            policy_store.promotion_threshold,
+            policy_store.min_promoted_confidence,
+        )
+
+    return policies, changed
+
+
 class ReflectionService:
     def __init__(self, store: Optional[ReflectionStore] = None, policy_store: Optional[PolicyStore] = None):
         self.store = store or ReflectionStore()
         self.policy_store = policy_store or PolicyStore()
+        self.mongo_client = _create_mongo_client_if_enabled() if store is None and policy_store is None else None
+        self._sync_local_memory_to_mongo()
 
     def get_prompt_guidelines(
         self,
         job_title: str,
         experience: str = "",
         education: str = "",
+        resume: str = "",
+        job_context: str = "",
+        interview_mode: str = "",
         limit: int = 5,
     ) -> str:
+        if self.mongo_client:
+            try:
+                query_text = _guideline_query_text(
+                    job_title=job_title,
+                    experience=experience,
+                    education=education,
+                    resume=resume,
+                    job_context=job_context,
+                    interview_mode=interview_mode,
+                )
+                policies = self.mongo_client.search_policies(
+                    PolicyItem,
+                    query_text=query_text,
+                    job_title=job_title,
+                    experience=experience,
+                    education=education,
+                    limit=3,
+                )
+                reflections = self.mongo_client.search_reflections(
+                    ReflectionItem,
+                    query_text=query_text,
+                    job_title=job_title,
+                    experience=experience,
+                    education=education,
+                    limit=limit + len(policies),
+                )
+                policy_keys = {_normalize_key(policy.policy) for policy in policies}
+                reflections = [
+                    reflection
+                    for reflection in reflections
+                    if _normalize_key(reflection.prompt_hint) not in policy_keys
+                ][:max(limit - len(policies), 0)]
+                return format_reflection_guidelines(reflections, policies)
+            except MongoReflectionUnavailable:
+                logger.info("Falling back to local reflection guidelines")
+
         policies = self.policy_store.search(
             job_title=job_title,
             experience=experience,
@@ -345,6 +408,7 @@ class ReflectionService:
         )
 
         stored_count = 0
+        stored_items: List[ReflectionItem] = []
         for candidate in candidates:
             if candidate.confidence < 0.55 or not _normalize_key(candidate.prompt_hint):
                 continue
@@ -362,11 +426,62 @@ class ReflectionService:
                 confidence=round(float(candidate.confidence), 2),
                 source_session_id=session_id,
             )
-            if self.store.append(item):
+            if self._append_reflection(item):
                 stored_count += 1
+                stored_items.append(item)
+
+        self._consolidate_policies(stored_items)
+        return stored_count
+
+    def ensure_vector_search_indexes(self) -> bool:
+        if not self.mongo_client:
+            return False
+        return self.mongo_client.ensure_vector_search_indexes()
+
+    def _sync_local_memory_to_mongo(self) -> None:
+        global _LOCAL_MEMORY_SYNCED_TO_MONGO
+        if not self.mongo_client:
+            return
+        if _LOCAL_MEMORY_SYNCED_TO_MONGO:
+            return
+
+        try:
+            for reflection in self.store.read_all():
+                self.mongo_client.upsert_reflection(reflection)
+            policies = self.policy_store.read_all()
+            if policies:
+                self.mongo_client.write_policies(policies)
+            _LOCAL_MEMORY_SYNCED_TO_MONGO = True
+        except MongoReflectionUnavailable:
+            logger.info("Skipping local reflection memory sync because Mongo is unavailable")
+
+    def _append_reflection(self, item: ReflectionItem) -> bool:
+        stored_in_mongo = False
+        if self.mongo_client:
+            try:
+                stored_in_mongo = self.mongo_client.upsert_reflection(item)
+            except MongoReflectionUnavailable:
+                logger.info("Falling back to local reflection store")
+
+        stored_in_local = self.store.append(item)
+        return stored_in_mongo or stored_in_local
+
+    def _consolidate_policies(self, stored_items: List[ReflectionItem]) -> None:
+        if not stored_items:
+            return
 
         self.policy_store.consolidate(self.store.read_all())
-        return stored_count
+
+        if self.mongo_client:
+            try:
+                reflections = self.mongo_client.read_reflections(ReflectionItem)
+                policies = self.mongo_client.read_policies(PolicyItem)
+                consolidated, changed = consolidate_policy_items(policies, reflections, self.policy_store)
+                if changed:
+                    self.mongo_client.write_policies(consolidated)
+                return
+            except MongoReflectionUnavailable:
+                logger.info("Falling back to local policy store")
 
     def _generate_candidates(
         self,
@@ -390,7 +505,10 @@ class ReflectionService:
 전체 면접 대화와 평가 결과를 보고, 다음 면접의 시스템 프롬프트에 넣을 수 있는 짧은 운영 지침만 추출하세요.
 
 규칙:
-- 지원자의 개인정보, 전체 답변 원문, 이메일, 이름처럼 식별 가능한 정보는 저장하지 마세요.
+- 전체 면접 대화 원문은 저장 대상이 아니라 분석 재료일 뿐입니다.
+- 지원자의 개인정보, 전체 답변 원문, 발화 인용, 이메일, 이름, 회사명, 프로젝트명처럼 식별 가능한 정보는 저장하지 마세요.
+- 지원자 답변을 요약해 저장하지 말고, 면접관 운영 방식에 대한 비식별 지침만 저장하세요.
+- issue, lesson, prompt_hint 어디에도 "지원자:", "면접관:" 같은 transcript 형식이나 직접 인용문을 넣지 마세요.
 - 모델 가중치를 바꾸는 것이 아니라 다음 면접에 재사용할 프롬프트 지침을 만드세요.
 - 면접관의 질문 방식, 난이도 조절, 공고 요건 반영, 후속 질문 품질을 개선하는 내용만 작성하세요.
 - 이미 잘 작동한 일반 원칙이 아니라, 이번 면접에서 실제로 드러난 개선점을 최대 3개만 작성하세요.
@@ -482,6 +600,55 @@ def safe_generate_and_store_reflections(
         return 0
 
 
+def _create_mongo_client_if_enabled() -> Optional[ReflectionMongoClient]:
+    if os.environ.get("PYTEST_CURRENT_TEST"):
+        return None
+
+    backend = _normalize_key(settings.REFLECTION_STORAGE_BACKEND)
+    if backend == "jsonl":
+        return None
+    if not settings.MONGODB_URL:
+        if backend == "mongo":
+            logger.warning("REFLECTION_STORAGE_BACKEND=mongo but MONGODB_URL is not configured")
+        return None
+
+    try:
+        return ReflectionMongoClient()
+    except Exception as exc:
+        if backend == "mongo":
+            logger.warning("Mongo reflection storage unavailable: %s", exc)
+        else:
+            logger.info("Mongo reflection storage unavailable; using JSONL fallback: %s", exc)
+        return None
+
+
+def _guideline_query_text(
+    *,
+    job_title: str,
+    experience: str,
+    education: str,
+    resume: str = "",
+    job_context: str = "",
+    interview_mode: str = "",
+) -> str:
+    return "\n".join([
+        f"지원 직무: {job_title or '정보 없음'}",
+        f"경력 조건: {experience or '정보 없음'}",
+        f"학력 조건: {education or '정보 없음'}",
+        f"면접 모드: {interview_mode or '정보 없음'}",
+        f"이력 요약 힌트: {_short_context(resume)}",
+        f"채용 공고 힌트: {_short_context(job_context)}",
+        "다음 면접에서 재사용할 면접관 운영 지침을 찾는다.",
+    ])
+
+
+def _short_context(value: str, limit: int = 800) -> str:
+    text = re.sub(r"\s+", " ", (value or "").strip())
+    if not text:
+        return "정보 없음"
+    return text[:limit]
+
+
 def _format_messages(messages: Iterable[Any], max_chars: int) -> str:
     rows = []
     for message in messages:
@@ -505,6 +672,17 @@ def _compact_prompt_hint(value: str) -> str:
 def _redact_sensitive_text(value: str) -> str:
     text = re.sub(r"[\w.+-]+@[\w-]+\.[\w.-]+", "[email]", value or "")
     return re.sub(r"\b\d{2,3}[-.\s]?\d{3,4}[-.\s]?\d{4}\b", "[phone]", text)
+
+
+def _contains_transcript_artifact(*values: str) -> bool:
+    text = "\n".join(value or "" for value in values)
+    if re.search(r"(지원자|면접관)\s*:", text):
+        return True
+    if re.search(r"(?i)\b(user|assistant|ai|human)\s*:", text):
+        return True
+    if "라고 말" in text or "라고 답" in text:
+        return True
+    return False
 
 
 def _policy_from_reflection(reflection: ReflectionItem) -> PolicyItem:

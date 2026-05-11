@@ -46,17 +46,17 @@ TechTree는 지원자의 기본 정보, 이력서, 채용 공고, 면접 대화�
 3. 지원자 조건 반영
    - 경력/학력 정보를 검색 쿼리에 반영
    - 신입 지원자에게 5년차 이상 공고가 노출되는 문제 완화
-   - 평가 단계에서 검색 실패 시 fallback 검색 수행
+   - 면접 시작 전 선별한 공고를 면접 컨텍스트와 최종 리포트에 재사용
 
 4. 면접 UX 안정화
-   - 10분 내외 면접 흐름 가이드
+   - 빠른 연습 7분, 실전 연습 20분 내외 면접 흐름 가이드
    - 자기소개와 지원 동기 질문을 초반에 자연스럽게 배치
    - 직접 입력한 지원 직무를 다시 묻지 않도록 프롬프트 개선
    - 종료 멘트 감지 후 리포트 자동 생성
    - Realtime voice별 면접관 이름 매칭
 
 5. 에이전트 자기 개선
-   - 면접 종료 후 raw reflection 저장
+   - 면접 종료 후 비식별 reflection 저장
    - 유사 조건 면접에 보정 지침 주입
    - 반복 인사이트를 candidate policy로 집계
    - 검증된 지침을 promoted policy로 승격
@@ -78,7 +78,7 @@ TechTree는 지원자의 기본 정보, 이력서, 채용 공고, 면접 대화�
 
 - `/api/interview/start`: Realtime 세션 생성, 시스템 프롬프트 구성, LangGraph 상태 초기화
 - `/api/interview/tools/search_job`: Realtime tool call에서 Tavily 채용 검색 실행
-- `/api/interview/{session_id}/end`: transcript 평가, 리포트 생성, reflection 저장
+- `/api/interview/{session_id}/end`: transcript 평가, 리포트 생성, 비식별 reflection 저장
 - `/api/interview/{session_id}/email`: 리포트 이메일 전송
 - `/api/upload/*`: 이력서/채용 공고 텍스트 추출 및 직무명 추출
 
@@ -87,7 +87,7 @@ TechTree는 지원자의 기본 정보, 이력서, 채용 공고, 면접 대화�
 - 기본 시스템 프롬프트는 면접 흐름과 방법만 담당
 - 지원 직무가 입력되어 있으면 확정 정보로 사용
 - 공고가 없을 때도 입력 직무 기준으로 질문과 채용 검색 수행
-- 10분 내외 면접 흐름을 목표로 질문 수와 마무리 시점 조정
+- 빠른 연습 7분, 실전 연습 20분 내외를 목표로 질문 수와 마무리 시점 조정
 - 목소리별 면접관 이름을 시스템 프롬프트에 주입
 
 ### 3.4 Job Search
@@ -104,7 +104,7 @@ TechTree는 지원자의 기본 정보, 이력서, 채용 공고, 면접 대화�
 - LangGraph evaluator가 transcript를 분석
 - 점수, 강점, 개선점, 주요 Q&A 피드백 생성
 - 면접 중 수집된 `saved_jobs`를 최종 리포트 추천 공고로 사용
-- `saved_jobs`가 없으면 평가 단계에서 fallback 검색 수행
+- 추천 공고는 면접 시작 전 선별된 모집중 공고만 사용
 - Resend API로 이메일 리포트 발송
 
 ---
@@ -135,21 +135,30 @@ TechTree는 지원자의 기본 정보, 이력서, 채용 공고, 면접 대화�
 
 ## 5. 에이전트 자기 개선 로직
 
-현재 자기 개선은 모델 파라미터를 학습시키는 방식이 아닙니다. 면접 경험에서 얻은 운영 지침을 로컬 저장소에 누적하고, 다음 면접 프롬프트에 동적으로 주입하는 비모수 메모리 방식입니다.
+현재 자기 개선은 모델 파라미터를 학습시키는 방식이 아닙니다. 면접 경험에서 얻은 운영 지침을 MongoDB/로컬 저장소에 누적하고, 다음 면접 프롬프트에 동적으로 주입하는 비모수 메모리 방식입니다.
 
 ### 5.1 저장소
 
+- MongoDB `reflection` database
+  - `interview_reflections`: 개별 면접에서 생성된 비식별 운영 지침 저장
+  - `interview_policies`: 반복 근거가 쌓인 운영 정책과 상태 관리
+  - `embedding_text`, `embedding`, `embedding_model` 필드로 Atlas Vector Search 준비
+  - 읽기는 MongoDB/vector search를 우선 사용
+  - 저장은 MongoDB와 JSONL에 모두 수행하고, DB 연결 실패 시 JSONL만 유지
+  - `backend/scripts/setup_reflection_db.py`로 컬렉션/인덱스 생성을 점검
+
 - `backend/app/source/interview_reflections.jsonl`
-  - 개별 면접에서 나온 raw insight 저장
+  - 로컬 백업/fallback용 비식별 운영 지침 저장
+  - 전체 대화 원문, 이력서 원문, 채용 공고 원문은 저장하지 않음
 
 - `backend/app/source/interview_policies.jsonl`
-  - 반복 검증된 운영 지침 관리
+  - 로컬 백업/fallback용 운영 지침 관리
   - `candidate`, `promoted`, `deprecated` 상태를 가짐
 
 ### 5.2 Policy 상태
 
 - `candidate`
-  - raw reflection이 집계되어 정책 후보가 된 상태
+  - 비식별 reflection이 집계되어 정책 후보가 된 상태
   - 아직 근거가 부족하므로 기본 프롬프트에는 주입하지 않음
 
 - `promoted`
@@ -162,19 +171,25 @@ TechTree는 지원자의 기본 정보, 이력서, 채용 공고, 면접 대화�
 
 ### 5.3 동작 흐름
 
-1. 면접 종료 후 transcript, 평가 결과, 추천 공고를 기반으로 raw reflection 생성
+1. 면접 종료 후 transcript, 평가 결과, 추천 공고를 기반으로 비식별 reflection 생성
+   - transcript는 요청 처리와 reflection 생성에만 사용하고 별도 저장하지 않음
+   - 저장되는 값은 `issue`, `lesson`, `prompt_hint` 형태의 짧은 운영 지침으로 제한
 2. 동일 직무/경력/학력 조건에서 유사 지침이 반복되면 candidate policy로 집계
 3. evidence count와 confidence 기준을 넘으면 promoted policy로 승격
 4. 더 구체적이거나 근거가 강한 정책이 생기면 기존 정책은 deprecated로 강등
 5. 다음 면접 시작 시 promoted policy를 먼저 주입
 6. 최근 유사 reflection은 보조 지침으로 제한 주입
+7. MongoDB vector index가 준비된 환경에서는 직무/경력/학력 기반 semantic search로 유사 지침을 검색
+   - 검색 쿼리에는 저장하지 않는 이력 요약/공고 컨텍스트/면접 모드를 짧은 힌트로만 사용
 
 ### 5.4 설계 원칙
 
 - 기본 시스템 프롬프트는 전체 면접 흐름과 방법만 설명
 - 누적 경험에 따른 세부 개선은 동적 지침으로 반영
+- 모델 개선은 원문 데이터셋 축적이 아니라 비식별 운영 지침의 누적과 승격/강등으로 수행
 - 평가 점수 자체보다 면접관 행동 품질, 실패 재발 여부, 질문 관련성을 더 중요하게 봄
-- 향후 벡터 DB로 유사 면접 검색과 장기 기억 관리를 고도화
+- 벡터 DB도 transcript 원문이 아니라 `prompt_hint`, `lesson`, `policy`만 벡터화
+- 검색 시에는 새 면접의 직무, 경력, 학력, 이력 요약, 공고 힌트를 사용하되 해당 입력 원문은 저장하지 않음
 
 ---
 
@@ -184,12 +199,11 @@ TechTree는 지원자의 기본 정보, 이력서, 채용 공고, 면접 대화�
 - job search 필터 테스트
 - reflection/policy 승격 테스트
 - prompt 회귀 테스트
-- 전체 backend 테스트 기준: `29 passed`
+- 전체 backend 테스트 기준: `39 passed`
 
 현재 남은 경고:
 
-- evaluator의 Pydantic class-based `Config` deprecation warning
-- 동작에는 영향이 없지만 향후 `ConfigDict`로 교체 필요
+- 현재 알려진 주요 Pydantic deprecation warning은 `ConfigDict` 전환으로 정리됨
 
 ---
 
@@ -213,14 +227,14 @@ TechTree는 지원자의 기본 정보, 이력서, 채용 공고, 면접 대화�
 - policy 준수율 측정
 - 실패 재발 여부 확인
 - 질문 관련성 평가
-- 평가 가능한 transcript가 충분히 수집되었는지 판단
+- 평가 가능한 대화가 충분한지 요청 처리 중 판단하되, 원문은 저장하지 않음
 
 ### 8.2 면접 에이전트 자율성 조정
 
 - 답변 품질에 따른 난이도 조정
 - 꼬리 질문 횟수와 주제 전환 판단
 - 평가 전 정보 충분성 판단
-- 10분 내외 시간 운영 정교화
+- 7분/20분 모드별 시간 운영 정교화
 
 ### 8.3 채용 검색 고도화
 
@@ -236,9 +250,9 @@ TechTree는 지원자의 기본 정보, 이력서, 채용 공고, 면접 대화�
 
 ### 8.5 Reflexion 저장소 고도화
 
-- 로컬 JSONL을 벡터 DB 기반 장기 기억 저장소로 전환
-- `interview_reflections`와 `interview_policies` 컬렉션 분리
-- metadata filter와 vector similarity를 함께 사용
+- Atlas Vector Search index를 운영 DB에 생성
+- vector similarity 점수와 policy evidence/confidence를 함께 반영한 ranking 고도화
+- 관리자 화면에서 candidate/promoted/deprecated 상태 점검
 
 ### 8.6 리포트 개선
 

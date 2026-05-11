@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     # Reflexion 로컬 학습 저장소
     REFLECTION_STORE_PATH: str = "backend/app/source/interview_reflections.jsonl"
     POLICY_STORE_PATH: str = "backend/app/source/interview_policies.jsonl"
+    REFLECTION_STORAGE_BACKEND: str = "auto"  # auto | mongo | jsonl
+    REFLECTION_DB_NAME: str = "reflection"
+    REFLECTION_VECTOR_SEARCH_ENABLED: bool = True
+    REFLECTION_VECTOR_INDEX_NAME: str = "reflection_vector_index"
+    REFLECTION_EMBEDDING_MODEL: str = "text-embedding-3-small"
 
     # 선택적 환경 변수 (기본값 제공)
     PROJECT_NAME: str = "TechTree"
