@@ -93,6 +93,8 @@ export default function InterviewPage() {
   const isSpeakingRef = useRef(false);
   const activeConnectionIdRef = useRef(0);
   const initialResponseRequestedRef = useRef(false);
+  const jobImagePendingRef = useRef(false);
+  const jobImageInjectedRef = useRef(false);
 
   const cleanupRealtimeSession = useCallback(() => {
     if (autoEndTimerRef.current) {
@@ -195,6 +197,8 @@ export default function InterviewPage() {
     const connectionId = ++globalInterviewConnectionId;
     activeConnectionIdRef.current = connectionId;
     initialResponseRequestedRef.current = false;
+    jobImagePendingRef.current = false;
+    jobImageInjectedRef.current = false;
 
     const isActiveConnection = () => (
       !isEffectCancelled && activeConnectionIdRef.current === connectionId
@@ -218,6 +222,8 @@ export default function InterviewPage() {
           experience: "신입",
           resume: "정보 없음"
         };
+        jobImagePendingRef.current = Boolean(profileData.job_image);
+        jobImageInjectedRef.current = false;
 
         // 2) 우리 백엔드 API를 호출해 OpenAI 일회용 접속 토큰(ephemeral_token) 발급
         const res = await fetch("http://localhost:8000/api/interview/start", {
@@ -272,35 +278,44 @@ export default function InterviewPage() {
         const dc = pc.createDataChannel("oai-events");
         dcRef.current = dc;
 
+        const injectJobImageContext = () => {
+          if (
+            !jobImagePendingRef.current ||
+            jobImageInjectedRef.current ||
+            !profileData.job_image ||
+            dc.readyState !== "open"
+          ) {
+            return;
+          }
+
+          jobImageInjectedRef.current = true;
+          jobImagePendingRef.current = false;
+
+          dc.send(JSON.stringify({
+            type: "conversation.item.create",
+            item: {
+              type: "message",
+              role: "user",
+              content: [
+                {
+                  type: "input_image",
+                  image_url: profileData.job_image
+                },
+                {
+                  type: "input_text",
+                  text: "이 이미지는 제가 지원하고자 하는 채용 공고입니다. 이후 질문에서 이 내용을 참고해 주세요."
+                }
+              ]
+            }
+          }));
+          console.log("[Realtime] 첫 응답 이후 공고 이미지 context를 주입했습니다.");
+        };
+
         dc.addEventListener("open", () => {
           if (!isActiveConnection()) return;
 
           const openedAt = Date.now();
           startTimeRef.current = openedAt;
-          
-          // 이미지가 업로드된 경우, 초기 컨텍스트로 전달 (올바른 Realtime API 포맷 사용)
-          if (profileData.job_image) {
-            // "data:image/jpeg;base64,..." 그대로 사용
-            const base64Data = profileData.job_image;
-            
-            dc.send(JSON.stringify({
-              type: "conversation.item.create",
-              item: {
-                type: "message",
-                role: "user",
-                content: [
-                  { 
-                    type: "input_image", 
-                    image_url: base64Data
-                  },
-                  { 
-                    type: "input_text", 
-                    text: "이 이미지는 제가 지원하고자 하는 채용 공고입니다. 이 내용을 바탕으로 맞춤형 면접 질문을 해주세요." 
-                  }
-                ]
-              }
-            }));
-          }
 
           // VAD가 꺼져 있으므로 연결 직후 첫 인사 생성을 수동 요청
           if (!initialResponseRequestedRef.current) {
@@ -397,6 +412,7 @@ export default function InterviewPage() {
           if (realtimeEvent.type === "response.done") {
             isSpeakingRef.current = false;
             setIsSpeaking(false);
+            injectJobImageContext();
             if (pendingAutoEndRef.current) {
               pendingAutoEndRef.current = false;
               scheduleAutoEndInterview();
@@ -454,6 +470,8 @@ export default function InterviewPage() {
       isEffectCancelled = true;
       activeConnectionIdRef.current = 0;
       initialResponseRequestedRef.current = false;
+      jobImagePendingRef.current = false;
+      jobImageInjectedRef.current = false;
       cleanupRealtimeSession();
     };
   }, [cleanupRealtimeSession, markInterviewClosingDetected, scheduleAutoEndInterview]);
@@ -475,7 +493,7 @@ export default function InterviewPage() {
       const audioTrack = streamRef.current.getAudioTracks()[0];
       audioTrack.enabled = false;
       setIsRecording(false);
-      setStatusText("답변을 분석 중입니다...");
+      setStatusText("답변을 전송 중입니다...");
 
       // 수동으로 오디오 버퍼 커밋 및 AI 응답 요청
       const pendingIndex = transcriptRef.current.length;
@@ -483,6 +501,7 @@ export default function InterviewPage() {
       pendingUserTranscriptIndexesRef.current.push(pendingIndex);
       dcRef.current.send(JSON.stringify({ type: "input_audio_buffer.commit" }));
       dcRef.current.send(JSON.stringify({ type: "response.create" }));
+      setStatusText("면접관 답변을 기다리는 중입니다...");
     }
   }, [isRecording]);
 
