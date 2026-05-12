@@ -26,4 +26,7 @@ class EvaluationReport(BaseModel):
     strengths: List[str]
     weaknesses: List[str]
     job_recommendations: List[Dict[str, str]]
+    communication_feedback: Dict[str, Any] = Field(default_factory=dict)
+    self_intro_feedback: Dict[str, Any] = Field(default_factory=dict)
+    role_fit: Dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=datetime.utcnow)

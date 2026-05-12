@@ -16,6 +16,28 @@ interface JobRecommendation {
   url?: string;
 }
 
+interface CommunicationFeedback {
+  summary?: string;
+  strengths?: string[];
+  habits_to_improve?: string[];
+  action_items?: string[];
+}
+
+interface SelfIntroFeedback {
+  original_summary?: string;
+  issues?: string[];
+  improvement_direction?: string;
+  improved_script?: string;
+  evidence_note?: string;
+}
+
+interface RoleFit {
+  score?: number;
+  rationale?: string;
+  matched_keywords?: string[];
+  gaps?: string[];
+}
+
 interface EvaluationResult {
   session_id?: string;
   score: number;
@@ -23,6 +45,9 @@ interface EvaluationResult {
   weaknesses: string[];
   qa_review: QnAReview[];
   job_recommendations: JobRecommendation[];
+  communication_feedback?: CommunicationFeedback;
+  self_intro_feedback?: SelfIntroFeedback;
+  role_fit?: RoleFit;
 }
 
 interface TranscriptItem {
@@ -89,6 +114,9 @@ export default function ResultPage() {
           weaknesses: result.weaknesses,
           qa_review: result.qa_review || [],
           job_recommendations: result.job_recommendations || [],
+          communication_feedback: result.communication_feedback || {},
+          self_intro_feedback: result.self_intro_feedback || {},
+          role_fit: result.role_fit || {},
           transcripts: transcripts,
           interview_date: date,
           interview_duration: duration
@@ -150,6 +178,25 @@ export default function ResultPage() {
     if (score >= 40) return "조금 더 준비하면 좋겠어요.";
     return "집중적인 연습이 필요합니다.";
   };
+
+  const hasCommunicationFeedback = Boolean(
+    result.communication_feedback?.summary ||
+    result.communication_feedback?.strengths?.length ||
+    result.communication_feedback?.habits_to_improve?.length ||
+    result.communication_feedback?.action_items?.length
+  );
+  const hasSelfIntroFeedback = Boolean(
+    result.self_intro_feedback?.original_summary ||
+    result.self_intro_feedback?.issues?.length ||
+    result.self_intro_feedback?.improvement_direction ||
+    result.self_intro_feedback?.improved_script
+  );
+  const hasRoleFit = Boolean(
+    result.role_fit?.score !== undefined ||
+    result.role_fit?.rationale ||
+    result.role_fit?.matched_keywords?.length ||
+    result.role_fit?.gaps?.length
+  );
 
   return (
     <main className="min-h-screen bg-neutral-50 py-12 px-4 sm:px-6 relative overflow-hidden">
@@ -251,6 +298,129 @@ export default function ResultPage() {
                 </div>
               </div>
             </div>
+
+            {(hasCommunicationFeedback || hasSelfIntroFeedback || hasRoleFit) && (
+              <div className="bg-white rounded-[2.5rem] p-8 sm:p-10 shadow-xl shadow-neutral-200/40 border border-neutral-100 space-y-8">
+                <h2 className="text-xl font-black text-neutral-900 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-cyan-600 flex items-center justify-center text-white shadow-lg shadow-cyan-200">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414A1 1 0 0119 9.414V19a2 2 0 01-2 2z" /></svg>
+                  </div>
+                  맞춤 개선 리포트
+                </h2>
+
+                {hasCommunicationFeedback && (
+                  <section className="space-y-5">
+                    <div>
+                      <p className="text-xs font-black text-cyan-600 uppercase tracking-widest mb-2">Speaking Habit</p>
+                      <h3 className="text-lg font-black text-neutral-900">말투/답변 습관 피드백</h3>
+                    </div>
+                    {result.communication_feedback?.summary && (
+                      <p className="text-neutral-700 font-bold leading-relaxed bg-cyan-50/60 border border-cyan-100 rounded-2xl p-5">
+                        {result.communication_feedback.summary}
+                      </p>
+                    )}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      {[
+                        { title: "좋았던 점", items: result.communication_feedback?.strengths || [], color: "emerald" },
+                        { title: "개선할 습관", items: result.communication_feedback?.habits_to_improve || [], color: "orange" },
+                        { title: "다음 액션", items: result.communication_feedback?.action_items || [], color: "blue" },
+                      ].map((group) => (
+                        <div key={group.title} className="rounded-2xl border border-neutral-100 bg-neutral-50/50 p-4">
+                          <h4 className="text-xs font-black text-neutral-500 mb-3">{group.title}</h4>
+                          <ul className="space-y-2">
+                            {group.items.map((item, idx) => (
+                              <li key={idx} className="text-sm font-bold text-neutral-700 leading-relaxed">• {item}</li>
+                            ))}
+                            {group.items.length === 0 && (
+                              <li className="text-sm font-bold text-neutral-400">제공된 항목이 없습니다.</li>
+                            )}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {hasSelfIntroFeedback && (
+                  <section className="space-y-5">
+                    <div>
+                      <p className="text-xs font-black text-indigo-600 uppercase tracking-widest mb-2">Self Introduction</p>
+                      <h3 className="text-lg font-black text-neutral-900">이력서 기반 자기소개 피드백</h3>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="rounded-2xl border border-neutral-100 bg-neutral-50/50 p-5">
+                        <h4 className="text-xs font-black text-neutral-500 mb-3">실제 자기소개 요약</h4>
+                        <p className="text-sm font-bold text-neutral-700 leading-relaxed">
+                          {result.self_intro_feedback?.original_summary || "실제 자기소개 답변 근거가 부족합니다."}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-neutral-100 bg-neutral-50/50 p-5">
+                        <h4 className="text-xs font-black text-neutral-500 mb-3">개선 방향</h4>
+                        <p className="text-sm font-bold text-neutral-700 leading-relaxed">
+                          {result.self_intro_feedback?.improvement_direction || "이력서와 직무 연결성을 더 선명하게 드러내면 좋습니다."}
+                        </p>
+                      </div>
+                    </div>
+                    {!!result.self_intro_feedback?.issues?.length && (
+                      <ul className="space-y-2">
+                        {result.self_intro_feedback.issues.map((issue, idx) => (
+                          <li key={idx} className="text-sm font-bold text-orange-700 bg-orange-50 border border-orange-100 rounded-2xl px-4 py-3">
+                            {issue}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {result.self_intro_feedback?.improved_script && (
+                      <div className="rounded-[2rem] bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-100 p-6">
+                        <h4 className="text-sm font-black text-indigo-700 mb-3">추천 자기소개 멘트</h4>
+                        <p className="whitespace-pre-line text-neutral-900 font-bold leading-relaxed">
+                          {result.self_intro_feedback.improved_script}
+                        </p>
+                      </div>
+                    )}
+                    {result.self_intro_feedback?.evidence_note && (
+                      <p className="text-xs font-bold text-neutral-400">{result.self_intro_feedback.evidence_note}</p>
+                    )}
+                  </section>
+                )}
+
+                {hasRoleFit && (
+                  <section className="space-y-5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-[2rem] border border-blue-100 bg-blue-50/60 p-6">
+                      <div>
+                        <p className="text-xs font-black text-blue-600 uppercase tracking-widest mb-2">Role Fit</p>
+                        <h3 className="text-lg font-black text-neutral-900">이력서-직무 적합도</h3>
+                        <p className="text-sm font-bold text-neutral-600 leading-relaxed mt-2">{result.role_fit?.rationale}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="text-5xl font-black text-blue-600 tabular-nums">
+                          {result.role_fit?.score ?? 0}
+                          <span className="text-xl text-blue-300 ml-1">/100</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="rounded-2xl border border-neutral-100 bg-neutral-50/50 p-5">
+                        <h4 className="text-xs font-black text-neutral-500 mb-3">매칭 강점 키워드</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {(result.role_fit?.matched_keywords || []).map((keyword, idx) => (
+                            <span key={idx} className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-black">{keyword}</span>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="rounded-2xl border border-neutral-100 bg-neutral-50/50 p-5">
+                        <h4 className="text-xs font-black text-neutral-500 mb-3">보완 갭</h4>
+                        <ul className="space-y-2">
+                          {(result.role_fit?.gaps || []).map((gap, idx) => (
+                            <li key={idx} className="text-sm font-bold text-neutral-700 leading-relaxed">• {gap}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </section>
+                )}
+              </div>
+            )}
 
             {/* Q&A History Review */}
             <div className="bg-white rounded-[2.5rem] p-8 sm:p-10 shadow-xl shadow-neutral-200/40 border border-neutral-100">

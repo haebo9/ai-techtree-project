@@ -90,6 +90,10 @@ def test_interview_mode_guidance_supports_short_and_long_modes():
     assert "목표 시간은 약 7분입니다." in short_prompt
     assert "핵심 직무 질문은 최대 3개" in short_prompt
     assert "꼬리 질문은 전체 면접에서 최대 1회" in short_prompt
+    assert "성과, 사용 도구, 팀 피드백 중 하나를 확인했다면" in short_prompt
+    assert "\"마지막으로\", \"마무리로\", \"끝으로\"라는 표현을 사용했다면 그 질문이 최종 질문입니다." in short_prompt
+    assert "지원자가 답변한 뒤에는 추가 확인 질문을 하지 말고 종료 멘트로 마무리하세요." in short_prompt
+    assert "같은 목적의 질문을 반복하지 마세요." in short_prompt
     assert "면접 모드: 긴 면접" in long_prompt
     assert "목표 시간은 약 20분입니다." in long_prompt
     assert "이력서 기반 대표 프로젝트 1-2개" in long_prompt

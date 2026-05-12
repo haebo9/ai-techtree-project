@@ -17,6 +17,7 @@ import uuid
 import random
 import requests
 import resend
+import html
 from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from app.core.config import settings
@@ -51,6 +52,8 @@ INTERVIEW_MODE_GUIDANCE: Dict[str, Dict[str, str]] = {
             "목표 시간은 약 7분입니다. 너무 길게 끌지 말고, "
             "아이스브레이킹 후 자기소개/지원동기를 확인한 다음 대표 경험 1개만 다루세요. "
             "핵심 직무 질문은 최대 3개, 꼬리 질문은 전체 면접에서 최대 1회만 사용하세요. "
+            "대표 경험에 대해 성과, 사용 도구, 팀 피드백 중 하나를 확인했다면 같은 경험에 대한 추가 세부 질문은 하지 말고 마무리로 전환하세요. "
+            "'마지막으로', '마무리로'라고 말한 뒤 지원자가 답변하면 새 질문을 하지 말고 종료 멘트만 하세요. "
             "평가 근거가 어느 정도 확보되면 추가 탐색보다 마지막 발언 기회를 주고 명확한 종료 멘트로 마무리하세요."
         ),
     },
@@ -405,6 +408,9 @@ def generate_report_and_send_email(
             weaknesses=evaluation.get("weaknesses", []),
             qa_review=evaluation.get("qa_review", []),
             job_recommendations=evaluation.get("job_recommendations", []),
+            communication_feedback=evaluation.get("communication_feedback", {}),
+            self_intro_feedback=evaluation.get("self_intro_feedback", {}),
+            role_fit=evaluation.get("role_fit", {}),
             transcripts=transcripts,
             interview_date=interview_date,
             interview_duration=interview_duration,
@@ -448,7 +454,86 @@ def _cleanup_completed_session(session_id: str) -> None:
     session["completed_at"] = datetime.now(timezone.utc).isoformat()
 
 
+def _html(value: Any) -> str:
+    return html.escape(str(value or ""))
+
+
+def _html_multiline(value: Any) -> str:
+    return _html(value).replace("\n", "<br/>")
+
+
+def _has_feedback_content(value: Any) -> bool:
+    if not isinstance(value, dict):
+        return False
+    for item in value.values():
+        if isinstance(item, list) and item:
+            return True
+        if isinstance(item, (str, int, float)) and str(item).strip():
+            return True
+    return False
+
+
+def _render_email_list(items: Any) -> str:
+    if not isinstance(items, list) or not items:
+        return '<p style="color: #64748b; font-size: 14px; margin: 0;">제공된 항목이 없습니다.</p>'
+    return '<ul class="item-list">' + "".join(f"<li>{_html(item)}</li>" for item in items) + "</ul>"
+
+
+def _render_extended_feedback_sections(request: SendEmailRequest) -> str:
+    communication = request.communication_feedback or {}
+    self_intro = request.self_intro_feedback or {}
+    role_fit = request.role_fit or {}
+    sections = []
+
+    if _has_feedback_content(communication):
+        sections.append(f"""
+                    <div class="section">
+                        <h3 class="section-title">🗣️ 말투/답변 습관 피드백</h3>
+                        <p>{_html_multiline(communication.get('summary', ''))}</p>
+                        <p><strong>좋았던 점</strong></p>
+                        {_render_email_list(communication.get('strengths', []))}
+                        <p><strong>개선할 습관</strong></p>
+                        {_render_email_list(communication.get('habits_to_improve', []))}
+                        <p><strong>다음 연습 액션</strong></p>
+                        {_render_email_list(communication.get('action_items', []))}
+                    </div>
+        """)
+
+    if _has_feedback_content(self_intro):
+        sections.append(f"""
+                    <div class="section">
+                        <h3 class="section-title">👤 이력서 기반 자기소개 피드백</h3>
+                        <p><strong>실제 자기소개 요약:</strong> {_html_multiline(self_intro.get('original_summary', ''))}</p>
+                        <p><strong>개선 방향:</strong> {_html_multiline(self_intro.get('improvement_direction', ''))}</p>
+                        <p><strong>보완할 점</strong></p>
+                        {_render_email_list(self_intro.get('issues', []))}
+                        <div class="script-box">
+                            <p style="margin-top: 0;"><strong>추천 자기소개 멘트</strong></p>
+                            <p style="margin-bottom: 0;">{_html_multiline(self_intro.get('improved_script', ''))}</p>
+                        </div>
+                        <p style="color: #64748b; font-size: 12px;">{_html_multiline(self_intro.get('evidence_note', ''))}</p>
+                    </div>
+        """)
+
+    if _has_feedback_content(role_fit):
+        sections.append(f"""
+                    <div class="section">
+                        <h3 class="section-title">📌 이력서-직무 적합도</h3>
+                        <div class="fit-score">{_html(role_fit.get('score', 0))} / 100 점</div>
+                        <p>{_html_multiline(role_fit.get('rationale', ''))}</p>
+                        <p><strong>매칭 강점 키워드</strong></p>
+                        {_render_email_list(role_fit.get('matched_keywords', []))}
+                        <p><strong>보완 갭</strong></p>
+                        {_render_email_list(role_fit.get('gaps', []))}
+                    </div>
+        """)
+
+    return "".join(sections)
+
+
 def _build_report_email_html(request: SendEmailRequest) -> str:
+    extended_feedback_sections = _render_extended_feedback_sections(request)
+
     return f"""
     <html>
         <head>
@@ -463,6 +548,8 @@ def _build_report_email_html(request: SendEmailRequest) -> str:
                 .item-list {{ margin: 0; padding-left: 20px; }}
                 .qa-box {{ background-color: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 12px; }}
                 .job-box {{ border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; margin-bottom: 8px; }}
+                .script-box {{ background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 16px; border-radius: 8px; margin-top: 12px; }}
+                .fit-score {{ font-size: 24px; font-weight: bold; color: #2563eb; margin-bottom: 8px; }}
             </style>
         </head>
         <body>
@@ -492,6 +579,8 @@ def _build_report_email_html(request: SendEmailRequest) -> str:
                             {"".join([f"<li>{w}</li>" for w in request.weaknesses])}
                         </ul>
                     </div>
+
+                    {extended_feedback_sections}
 
                     <div class="section">
                         <h3 class="section-title">📝 상세 답변 분석</h3>
