@@ -99,6 +99,7 @@ def test_background_report_sends_email_and_cleans_sensitive_session(monkeypatch)
         session_id=session_id,
         lc_messages=[],
         report_jobs=[],
+        tool_traces=[{"status": "no_results", "reason": "No Tavily results were returned."}],
         transcripts=[{"role": "user", "text": "답변입니다."}],
         interview_date="2026년 5월 11일",
         interview_duration="7분 10초",

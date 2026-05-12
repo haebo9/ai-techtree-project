@@ -115,6 +115,7 @@ def evaluator_node(state: InterviewState):
     job_description = state.get('job_description', '맞춤형 채용 공고 정보 없음')
     resume = state.get('resume', '이력서 정보 없음')
     interview_mode_label = state.get('interview_mode_label', '면접 모드 정보 없음')
+    tool_traces = state.get('tool_traces', [])
     
     system_prompt = f"""
     당신은 전문 채용 평가관입니다. 지원자({user_id})의 면접 대화 전체를 분석하여 
@@ -123,6 +124,9 @@ def evaluator_node(state: InterviewState):
     - 면접 모드: {interview_mode_label}
     - 지원자 이력서/프로필: {resume}
     - 맞춤형 채용 공고 요건 (참고용): {job_description}
+    - 외부 채용 검색 도구 실행 기록: {tool_traces}
+    - 'score'는 실제 면접 답변의 품질, 전달력, 구조화, 구체성, 질의응답 완성도를 기준으로 산정하세요.
+    - 'role_fit.score'는 면접 전달력과 별개로 이력서/경험/기술 스택과 지원 직무/공고 요건의 적합도를 기준으로 산정하세요.
     - 강점과 약점은 위 직무 및 공고 요건(있을 경우)의 실무적인 관점에서 구체적으로 작성하세요.
     - 면접 중 가장 핵심이 되었던 주요 질문과 답변을 3개 이내로 선정하고, 해당 답변이 어땠는지(현업 트렌드, 논리성 등) 구체적인 코멘트를 'qa_review' 항목에 작성하세요.
     - 'communication_feedback'은 대화 기록에서 확인되는 말투, 답변 길이, 구조화 방식, 불필요한 반복/추임새, 마무리 습관을 평가하세요. 성격이나 인성을 단정하지 말고 면접 전달 방식만 다루세요.

@@ -69,6 +69,8 @@ def test_evaluator_uses_prepared_jobs_without_fallback_search(monkeypatch):
     assert "self_intro_feedback" in result["evaluation_result"]
     assert "role_fit" in result["evaluation_result"]
     assert "테스트 자동화 프로젝트를 수행한 이력서 요약" in FakeStructuredLlm.last_messages[0].content
+    assert "'score'는 실제 면접 답변의 품질" in FakeStructuredLlm.last_messages[0].content
+    assert "'role_fit.score'는 면접 전달력과 별개" in FakeStructuredLlm.last_messages[0].content
 
 
 def test_evaluator_leaves_recommendations_empty_when_no_prepared_jobs(monkeypatch):

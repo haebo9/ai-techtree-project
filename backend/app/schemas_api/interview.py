@@ -20,6 +20,7 @@ class StartInterviewResponse(BaseModel):
     ephemeral_token: str = Field(..., description="OpenAI Realtime WebRTC 접속을 위한 일회용 토큰")
     message: str = Field(..., description="UI 상태 표시용 메시지")
     prepared_jobs: List[Dict[str, Any]] = Field(default=[], description="면접 시작 전에 선별한 모집중 추천 채용 공고")
+    job_posting_analysis: Dict[str, Any] = Field(default_factory=dict, description="지원 공고 텍스트/이미지 분석 상태 및 요약")
 
 # ==========================================
 # 2. 면접 대화 (Chat)
@@ -41,6 +42,7 @@ class TranscriptItem(BaseModel):
 class EndInterviewRequest(BaseModel):
     transcripts: List[TranscriptItem] = Field(default=[], description="전체 대화 내역")
     saved_jobs: List[Dict[str, Any]] = Field(default=[], description="면접 시작 전에 선별된 모집중 추천 채용 공고 정보")
+    tool_traces: List[Dict[str, Any]] = Field(default=[], description="면접 중 외부 도구 호출 상태와 필터링 사유")
     interview_date: Optional[str] = Field(default=None, description="면접 종료 시각 표시 문자열")
     interview_duration: Optional[str] = Field(default=None, description="면접 소요 시간 표시 문자열")
 

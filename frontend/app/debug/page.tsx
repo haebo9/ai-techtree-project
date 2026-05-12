@@ -25,6 +25,7 @@ export default function DebugPage() {
   const audioElRef = useRef<HTMLAudioElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const logsEndRef = useRef<HTMLDivElement | null>(null);
+  const sessionIdRef = useRef<string | null>(null);
 
   const [transcripts, setTranscripts] = useState<{ id: string, role: string, text: string }[]>([]);
 
@@ -84,6 +85,7 @@ export default function DebugPage() {
       if (!res.ok) throw new Error("토큰 발급 API 오류");
       const data = await res.json();
       const EPHEMERAL_KEY = data.ephemeral_token;
+      sessionIdRef.current = data.session_id;
       addLog('SYS', 'Token Received', { session_id: data.session_id });
 
       setStatusText("WebRTC 연결 중...");
@@ -149,13 +151,11 @@ export default function DebugPage() {
 
             try {
               const t1 = Date.now();
-              const toolRes = await fetch("http://localhost:8000/api/interview/tools/search_job", {
+              const toolRes = await fetch(`http://localhost:8000/api/interview/${sessionIdRef.current}/tools/search_job`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                  query: args.query,
-                  experience: profileData.experience || "",
-                  education: profileData.education || ""
+                  query: args.query
                 })
               });
               const searchData = await toolRes.json();

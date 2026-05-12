@@ -13,6 +13,15 @@ interface JobSearchResult {
   deadline_status?: string;
 }
 
+interface ToolTrace {
+  tool_name?: string;
+  query?: string;
+  status?: string;
+  reason?: string;
+  raw_count?: number;
+  filtered_count?: number;
+}
+
 interface TranscriptEntry {
   role: "user" | "ai";
   text: string;
@@ -75,6 +84,7 @@ export default function InterviewPage() {
   const transcriptRef = useRef<TranscriptEntry[]>([]);
   const pendingUserTranscriptIndexesRef = useRef<number[]>([]);
   const savedJobsRef = useRef<JobSearchResult[]>([]);
+  const toolTracesRef = useRef<ToolTrace[]>([]);
   const sessionIdRef = useRef<string | null>(null);
   const startTimeRef = useRef<number | null>(null);
   const isEndingRef = useRef(false);
@@ -142,6 +152,7 @@ export default function InterviewPage() {
         body: JSON.stringify({ 
           transcripts: orderedTranscripts,
           saved_jobs: savedJobsRef.current,
+          tool_traces: toolTracesRef.current,
           interview_date: dateStr,
           interview_duration: durationStr
         })
@@ -315,18 +326,19 @@ export default function InterviewPage() {
 
               try {
                 // 백엔드 API 호출하여 검색 실행 (prefix 주의: /api/interview/tools/search_job)
-                const res = await fetch("http://localhost:8000/api/interview/tools/search_job", {
+                const res = await fetch(`http://localhost:8000/api/interview/${sessionIdRef.current}/tools/search_job`, {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({
-                    query: args.query,
-                    experience: profileData.experience || "",
-                    education: profileData.education || ""
+                    query: args.query
                   })
                 });
                 const searchData = await res.json();
                 console.log("[Tool] 검색 결과 수신 완료", searchData.result);
                 savedJobsRef.current = mergeJobResults(savedJobsRef.current, searchData.result);
+                if (searchData.trace && typeof searchData.trace === "object") {
+                  toolTracesRef.current = [...toolTracesRef.current, searchData.trace].slice(-10);
+                }
                 
                 // 검색 결과를 OpenAI Realtime API 컨텍스트에 추가
                 dc.send(JSON.stringify({

@@ -11,6 +11,7 @@ class SendEmailRequest(BaseModel):
     communication_feedback: Dict[str, Any] = Field(default_factory=dict)
     self_intro_feedback: Dict[str, Any] = Field(default_factory=dict)
     role_fit: Dict[str, Any] = Field(default_factory=dict)
+    tool_traces: List[Dict[str, Any]] = Field(default_factory=list)
     transcripts: List[Dict[str, str]] = Field(default_factory=list)
     interview_date: Optional[str] = None
     interview_duration: Optional[str] = None
