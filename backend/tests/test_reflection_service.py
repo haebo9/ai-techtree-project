@@ -1,6 +1,7 @@
 from langchain_core.messages import AIMessage, HumanMessage
 
 from app.services.reflection_service import (
+    PolicyItem,
     PolicyStore,
     ReflectionCandidate,
     ReflectionItem,
@@ -44,6 +45,16 @@ def test_reflection_store_appends_and_reads(tmp_path):
     assert store.read_all() == [item]
 
 
+def test_legacy_reflection_defaults_to_long_mode(tmp_path):
+    path = tmp_path / "reflections.jsonl"
+    path.write_text(
+        '{"id":"legacy","created_at":"2026-05-10T00:00:00+00:00","job_title":"QA Engineer","experience":"신입","education":"학사","tags":["qa"],"issue":"이슈","lesson":"교훈","prompt_hint":"질문을 명확히 하세요.","confidence":0.8,"source_session_id":"session-legacy"}\n',
+        encoding="utf-8",
+    )
+
+    assert ReflectionStore(path).read_all()[0].interview_mode == "long"
+
+
 def test_reflection_store_skips_corrupt_lines(tmp_path):
     path = tmp_path / "reflections.jsonl"
     path.write_text("{bad json}\n" + _reflection().model_dump_json(ensure_ascii=False) + "\n", encoding="utf-8")
@@ -72,6 +83,53 @@ def test_reflection_search_prioritizes_matching_profile(tmp_path):
     results = store.search("QA Engineer", experience="신입", education="학사", limit=1)
 
     assert [item.id for item in results] == ["qa-entry"]
+
+
+def test_reflection_search_prioritizes_matching_interview_mode(tmp_path):
+    store = ReflectionStore(tmp_path / "reflections.jsonl")
+    store.append(_reflection(id="long", interview_mode="long", confidence=0.9, created_at="2026-05-10T00:00:00+00:00", source_session_id="long-session"))
+    store.append(_reflection(id="short", interview_mode="short", confidence=0.9, created_at="2026-05-09T00:00:00+00:00", source_session_id="short-session"))
+
+    short_results = store.search("QA Engineer", experience="신입", education="학사", interview_mode="short", limit=2)
+    long_results = store.search("QA Engineer", experience="신입", education="학사", interview_mode="long", limit=2)
+
+    assert [item.id for item in short_results] == ["short", "long"]
+    assert [item.id for item in long_results] == ["long", "short"]
+
+
+def test_policy_search_prioritizes_matching_interview_mode():
+    short_policy = PolicyItem(
+        id="short",
+        created_at="2026-05-09T00:00:00+00:00",
+        updated_at="2026-05-09T00:00:00+00:00",
+        status="promoted",
+        job_title="QA Engineer",
+        experience="신입",
+        education="학사",
+        policy="짧은 면접에서는 꼬리 질문을 줄이세요.",
+        evidence_count=3,
+        confidence=0.8,
+        interview_mode="short",
+    )
+    long_policy = PolicyItem(
+        id="long",
+        created_at="2026-05-10T00:00:00+00:00",
+        updated_at="2026-05-10T00:00:00+00:00",
+        status="promoted",
+        job_title="QA Engineer",
+        experience="신입",
+        education="학사",
+        policy="실전 면접에서는 답변 깊이를 충분히 검증하세요.",
+        evidence_count=3,
+        confidence=0.8,
+        interview_mode="long",
+    )
+    policy_store = PolicyStore()
+    policy_store.read_all = lambda: [long_policy, short_policy]
+
+    results = policy_store.search("QA Engineer", experience="신입", education="학사", interview_mode="short", limit=2)
+
+    assert [policy.id for policy in results] == ["short", "long"]
 
 
 def test_format_reflection_guidelines_returns_prompt_section():
@@ -175,10 +233,12 @@ def test_service_stores_generated_reflections_without_transcript(monkeypatch, tm
         ],
         evaluation={"score": 75},
         saved_jobs=[{"title": "QA Engineer", "company": "A"}],
+        interview_mode="short",
     )
 
     saved = store.read_all()
     assert stored_count == 1
+    assert saved[0].interview_mode == "short"
     assert saved[0].prompt_hint.startswith("면접 초반에는")
     assert "Playwright" not in saved[0].model_dump_json(ensure_ascii=False)
     assert "test@example.com" not in saved[0].model_dump_json(ensure_ascii=False)
@@ -297,9 +357,12 @@ def test_mongo_reflection_document_is_vector_ready_without_raw_transcript():
         issue="후속 질문이 직무 요건과 느슨하게 연결됨",
         lesson="공고 요건을 질문 축으로 사용한다.",
         prompt_hint="공고의 필수 요건을 기준으로 답변 검증 질문을 구성하세요.",
+        interview_mode="short",
     ))
 
     assert document["kind"] == "reflection"
+    assert document["interview_mode"] == "short"
+    assert document["interview_mode_key"] == "short"
     assert document["job_title_key"] == "qa engineer"
     assert document["prompt_hint_key"]
     assert "embedding_text" in document
@@ -339,6 +402,7 @@ def test_mongo_policy_document_excludes_deprecated_from_vector_filter_definition
     assert document["kind"] == "policy"
     assert document["embedding_text"]
     assert definition["name"]
+    assert any(field["path"] == "interview_mode_key" for field in definition["definition"]["fields"])
     assert any(field["path"] == "status" for field in definition["definition"]["fields"])
 
 

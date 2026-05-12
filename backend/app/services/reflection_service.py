@@ -43,6 +43,11 @@ def _normalize_key(value: str) -> str:
     return re.sub(r"\s+", " ", (value or "").strip().lower())
 
 
+def _normalize_interview_mode(value: str | None) -> str:
+    normalized = _normalize_key(value or "")
+    return "short" if normalized == "short" else "long"
+
+
 def _profile_tokens(*values: str) -> set[str]:
     tokens: set[str] = set()
     for value in values:
@@ -65,6 +70,7 @@ class ReflectionItem(BaseModel):
     prompt_hint: str
     confidence: float = 0.0
     source_session_id: str = ""
+    interview_mode: str = "long"
 
 
 class ReflectionCandidate(BaseModel):
@@ -95,6 +101,7 @@ class PolicyItem(BaseModel):
     supersedes: List[str] = Field(default_factory=list)
     replaced_by: Optional[str] = None
     reason: str = ""
+    interview_mode: str = "long"
 
 
 class ReflectionStore:
@@ -142,12 +149,14 @@ class ReflectionStore:
         job_title: str,
         experience: str = "",
         education: str = "",
+        interview_mode: str = "",
         limit: int = 5,
     ) -> List[ReflectionItem]:
         profile_tokens = _profile_tokens(job_title, experience, education)
         normalized_job_title = _normalize_key(job_title)
         normalized_experience = _normalize_key(experience)
         normalized_education = _normalize_key(education)
+        normalized_mode = _normalize_interview_mode(interview_mode)
 
         scored: List[tuple[int, str, ReflectionItem]] = []
         for reflection in self.read_all():
@@ -182,6 +191,8 @@ class ReflectionStore:
 
             if reflection.confidence >= 0.7:
                 score += 1
+
+            score += _mode_score(reflection.interview_mode, normalized_mode)
 
             if score > 0:
                 scored.append((score, reflection.created_at, reflection))
@@ -233,9 +244,11 @@ class PolicyStore:
         job_title: str,
         experience: str = "",
         education: str = "",
+        interview_mode: str = "",
         limit: int = 5,
     ) -> List[PolicyItem]:
         profile_tokens = _profile_tokens(job_title, experience, education)
+        normalized_mode = _normalize_interview_mode(interview_mode)
         scored: List[tuple[int, str, PolicyItem]] = []
         for policy in self.read_all():
             if policy.status != "promoted":
@@ -254,6 +267,7 @@ class PolicyStore:
             if _normalize_key(education) and _normalize_key(education) == _normalize_key(policy.education):
                 score += 1
             score += min(policy.evidence_count, 5)
+            score += _mode_score(policy.interview_mode, normalized_mode)
 
             if score > 0:
                 scored.append((score, policy.updated_at, policy))
@@ -275,7 +289,8 @@ class PolicyStore:
             candidates,
             key=lambda policy: _text_similarity(policy.policy, reflection.prompt_hint),
         )
-        if _text_similarity(best_policy.policy, reflection.prompt_hint) >= 0.42:
+        similarity = _text_similarity(best_policy.policy, reflection.prompt_hint)
+        if _policy_merge_allowed(best_policy, reflection, similarity):
             return best_policy
         return None
 
@@ -348,6 +363,7 @@ class ReflectionService:
                     job_title=job_title,
                     experience=experience,
                     education=education,
+                    interview_mode=interview_mode,
                     limit=3,
                 )
                 reflections = self.mongo_client.search_reflections(
@@ -356,6 +372,7 @@ class ReflectionService:
                     job_title=job_title,
                     experience=experience,
                     education=education,
+                    interview_mode=interview_mode,
                     limit=limit + len(policies),
                 )
                 policy_keys = {_normalize_key(policy.policy) for policy in policies}
@@ -372,12 +389,14 @@ class ReflectionService:
             job_title=job_title,
             experience=experience,
             education=education,
+            interview_mode=interview_mode,
             limit=3,
         )
         reflections = self.store.search(
             job_title=job_title,
             experience=experience,
             education=education,
+            interview_mode=interview_mode,
             limit=limit + len(policies),
         )
         policy_keys = {_normalize_key(policy.policy) for policy in policies}
@@ -398,7 +417,9 @@ class ReflectionService:
         messages: Iterable[Any],
         evaluation: Dict[str, Any],
         saved_jobs: List[Dict[str, Any]],
+        interview_mode: str = "long",
     ) -> int:
+        normalized_mode = _normalize_interview_mode(interview_mode)
         candidates = self._generate_candidates(
             job_title=job_title,
             experience=experience,
@@ -406,6 +427,7 @@ class ReflectionService:
             messages=messages,
             evaluation=evaluation,
             saved_jobs=saved_jobs,
+            interview_mode=normalized_mode,
         )
 
         stored_count = 0
@@ -426,6 +448,7 @@ class ReflectionService:
                 prompt_hint=_compact_prompt_hint(candidate.prompt_hint),
                 confidence=round(float(candidate.confidence), 2),
                 source_session_id=session_id,
+                interview_mode=normalized_mode,
             )
             if self._append_reflection(item):
                 stored_count += 1
@@ -493,6 +516,7 @@ class ReflectionService:
         messages: Iterable[Any],
         evaluation: Dict[str, Any],
         saved_jobs: List[Dict[str, Any]],
+        interview_mode: str = "long",
     ) -> List[ReflectionCandidate]:
         transcript = _format_messages(messages, max_chars=7000)
         if not transcript:
@@ -506,6 +530,7 @@ class ReflectionService:
 - 지원 직무: {job_title or "정보 없음"}
 - 경력: {experience or "정보 없음"}
 - 학력: {education or "정보 없음"}
+- 면접 모드: {_normalize_interview_mode(interview_mode)}
 
 [면접 대화]
 {transcript}
@@ -571,6 +596,7 @@ def safe_generate_and_store_reflections(
     messages: Iterable[Any],
     evaluation: Dict[str, Any],
     saved_jobs: List[Dict[str, Any]],
+    interview_mode: str = "long",
 ) -> int:
     try:
         return ReflectionService().generate_and_store(
@@ -581,6 +607,7 @@ def safe_generate_and_store_reflections(
             messages=messages,
             evaluation=evaluation,
             saved_jobs=saved_jobs,
+            interview_mode=interview_mode,
         )
     except Exception as exc:
         logger.warning("Reflection generation failed for session %s: %s", session_id, exc)
@@ -688,6 +715,7 @@ def _policy_from_reflection(reflection: ReflectionItem) -> PolicyItem:
         confidence=reflection.confidence,
         source_reflection_ids=[reflection.id],
         reason="created_from_reflection",
+        interview_mode=_normalize_interview_mode(reflection.interview_mode),
     )
 
 
@@ -751,6 +779,38 @@ def _same_policy_scope(policy: PolicyItem, other: ReflectionItem | PolicyItem) -
         and _normalize_key(policy.job_title) == _normalize_key(other.job_title)
         and _normalize_key(policy.experience) == _normalize_key(other.experience)
     )
+
+
+def _mode_score(item_mode: str, requested_mode: str) -> int:
+    item_mode = _normalize_interview_mode(item_mode)
+    requested_mode = _normalize_interview_mode(requested_mode)
+    if item_mode == requested_mode:
+        return 5
+    if item_mode == "long":
+        return 1
+    return 0
+
+
+def _policy_merge_allowed(policy: PolicyItem, reflection: ReflectionItem, similarity: float) -> bool:
+    if _normalize_interview_mode(policy.interview_mode) == _normalize_interview_mode(reflection.interview_mode):
+        return similarity >= 0.42
+    return similarity >= 0.72 and not _is_mode_specific_text(policy.policy, reflection.prompt_hint)
+
+
+def _is_mode_specific_text(*values: str) -> bool:
+    text = _normalize_key(" ".join(values))
+    return any(keyword in text for keyword in (
+        "짧은",
+        "긴",
+        "빠른",
+        "실전",
+        "7분",
+        "20분",
+        "꼬리 질문",
+        "꼬리질문",
+        "마무리",
+        "종료 멘트",
+    ))
 
 
 def _text_similarity(left: str, right: str) -> float:

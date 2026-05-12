@@ -295,73 +295,6 @@ export default function Home() {
     localStorage.removeItem("interviewProfile");
   };
 
-  const loadDummyData = async () => {
-    try {
-      setJobTitle("AI Engineer");
-      setExperience("신입");
-      setEducation("학사(4년제)");
-
-      // Load dummy resume PDF
-      setResumeMode("file");
-      setIsParsingResume(true);
-      const resumeRes = await fetch("/dummy/dummy_resume.pdf");
-      const resumeBlob = await resumeRes.blob();
-      const resumeFile = new File([resumeBlob], "dummy_resume.pdf", { type: "application/pdf" });
-      setResumeFile(resumeFile);
-
-      const formData = new FormData();
-      formData.append("file", resumeFile);
-      const parseRes = await fetch("http://localhost:8000/api/upload/parse-pdf", {
-        method: "POST",
-        body: formData,
-      });
-      if (parseRes.ok) {
-        const data = await parseRes.json();
-        setResumeText(data.text);
-      }
-      setIsParsingResume(false);
-
-      // Load dummy job posting PNG
-      setJdMode("image");
-      const jdRes = await fetch("/dummy/dummy_position.png");
-      const jdBlob = await jdRes.blob();
-      const jdFile = new File([jdBlob], "dummy_position.png", { type: "image/png" });
-      setJdFileName(jdFile.name);
-
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          const MAX_WIDTH = 800;
-          let width = img.width;
-          let height = img.height;
-          if (width > MAX_WIDTH) {
-            height = Math.round((height * MAX_WIDTH) / width);
-            width = MAX_WIDTH;
-          }
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext("2d");
-          if (ctx) {
-            ctx.drawImage(img, 0, 0, width, height);
-            const compressedBase64 = canvas.toDataURL("image/jpeg", 0.6);
-            setJdImageBase64(compressedBase64);
-          }
-        };
-        if (event.target?.result) {
-          img.src = event.target.result as string;
-        }
-      };
-      reader.readAsDataURL(jdFile);
-
-    } catch (error) {
-      console.error("더미 데이터 로드 중 오류:", error);
-      alert("더미 데이터 로드 실패");
-      setIsParsingResume(false);
-    }
-  };
-
   return (
     <main className="min-h-screen bg-neutral-50 py-6 px-4 sm:px-6">
       <div className="max-w-4xl mx-auto w-full bg-white rounded-[2rem] shadow-xl border border-neutral-100 p-5 sm:p-8 relative overflow-hidden">
@@ -385,13 +318,6 @@ export default function Home() {
             type="button"
           >
             입력 초기화
-          </button>
-          <button
-            onClick={loadDummyData}
-            className="px-3 py-2 bg-neutral-100 hover:bg-blue-50 hover:text-blue-600 text-neutral-600 text-xs font-bold rounded-full transition-all border border-neutral-200 hover:border-blue-200"
-            type="button"
-          >
-            테스트 데이터 로드
           </button>
         </div>
 

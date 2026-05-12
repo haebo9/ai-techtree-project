@@ -419,6 +419,7 @@ def generate_report_and_send_email(
             messages=final_state.get("messages", lc_messages),
             evaluation=evaluation,
             saved_jobs=report_jobs,
+            interview_mode=final_state.get("interview_mode", session.get("interview_mode", "long")),
         )
 
         temp_sessions.setdefault(session_id, {})["status"] = "REPORT_SENT"

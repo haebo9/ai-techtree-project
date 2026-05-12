@@ -67,6 +67,7 @@ def test_background_report_sends_email_and_cleans_sensitive_session(monkeypatch)
         "report_email": "report@example.com",
         "resume": "민감한 이력 요약",
         "job_description": "민감한 공고 원문",
+        "interview_mode": "short",
         "prepared_jobs": [],
         "context_jobs": [],
     }
@@ -91,3 +92,4 @@ def test_background_report_sends_email_and_cleans_sensitive_session(monkeypatch)
     assert sent[0].email == "report@example.com"
     assert sent[0].score == 80
     assert reflected
+    assert reflected[0]["interview_mode"] == "short"
