@@ -36,6 +36,7 @@ frontend/.env.local
 frontend/out/
 frontend/.vercel/
 node_modules/
+frontend/public/dummy/
 
 # --- Environment & Virtualenvs ---
 .env

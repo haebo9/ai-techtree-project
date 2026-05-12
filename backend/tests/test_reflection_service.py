@@ -1,6 +1,7 @@
 from langchain_core.messages import AIMessage, HumanMessage
 
 from app.services.reflection_service import (
+    PolicyItem,
     PolicyStore,
     ReflectionCandidate,
     ReflectionItem,
@@ -44,6 +45,18 @@ def test_reflection_store_appends_and_reads(tmp_path):
     assert store.read_all() == [item]
 
 
+def test_legacy_reflection_defaults_to_long_mode(tmp_path):
+    path = tmp_path / "reflections.jsonl"
+    path.write_text(
+        '{"id":"legacy","created_at":"2026-05-10T00:00:00+00:00","job_title":"QA Engineer","experience":"신입","education":"학사","tags":["qa"],"issue":"이슈","lesson":"교훈","prompt_hint":"질문을 명확히 하세요.","confidence":0.8,"source_session_id":"session-legacy"}\n',
+        encoding="utf-8",
+    )
+
+    legacy = ReflectionStore(path).read_all()[0]
+    assert legacy.interview_mode == "long"
+    assert legacy.mode_scope == "long"
+
+
 def test_reflection_store_skips_corrupt_lines(tmp_path):
     path = tmp_path / "reflections.jsonl"
     path.write_text("{bad json}\n" + _reflection().model_dump_json(ensure_ascii=False) + "\n", encoding="utf-8")
@@ -72,6 +85,55 @@ def test_reflection_search_prioritizes_matching_profile(tmp_path):
     results = store.search("QA Engineer", experience="신입", education="학사", limit=1)
 
     assert [item.id for item in results] == ["qa-entry"]
+
+
+def test_reflection_search_prioritizes_matching_interview_mode(tmp_path):
+    store = ReflectionStore(tmp_path / "reflections.jsonl")
+    store.append(_reflection(id="long", interview_mode="long", mode_scope="long", confidence=0.9, created_at="2026-05-10T00:00:00+00:00", source_session_id="long-session"))
+    store.append(_reflection(id="short", interview_mode="short", mode_scope="short", confidence=0.9, created_at="2026-05-09T00:00:00+00:00", source_session_id="short-session"))
+
+    short_results = store.search("QA Engineer", experience="신입", education="학사", interview_mode="short", limit=2)
+    long_results = store.search("QA Engineer", experience="신입", education="학사", interview_mode="long", limit=2)
+
+    assert [item.id for item in short_results] == ["short"]
+    assert [item.id for item in long_results] == ["long"]
+
+
+def test_policy_search_prioritizes_matching_interview_mode():
+    short_policy = PolicyItem(
+        id="short",
+        created_at="2026-05-09T00:00:00+00:00",
+        updated_at="2026-05-09T00:00:00+00:00",
+        status="promoted",
+        job_title="QA Engineer",
+        experience="신입",
+        education="학사",
+        policy="짧은 면접에서는 꼬리 질문을 줄이세요.",
+        evidence_count=3,
+        confidence=0.8,
+        interview_mode="short",
+        mode_scope="short",
+    )
+    long_policy = PolicyItem(
+        id="long",
+        created_at="2026-05-10T00:00:00+00:00",
+        updated_at="2026-05-10T00:00:00+00:00",
+        status="promoted",
+        job_title="QA Engineer",
+        experience="신입",
+        education="학사",
+        policy="실전 면접에서는 답변 깊이를 충분히 검증하세요.",
+        evidence_count=3,
+        confidence=0.8,
+        interview_mode="long",
+        mode_scope="long",
+    )
+    policy_store = PolicyStore()
+    policy_store.read_all = lambda: [long_policy, short_policy]
+
+    results = policy_store.search("QA Engineer", experience="신입", education="학사", interview_mode="short", limit=2)
+
+    assert [policy.id for policy in results] == ["short"]
 
 
 def test_format_reflection_guidelines_returns_prompt_section():
@@ -145,6 +207,164 @@ def test_prompt_guidelines_prioritize_promoted_policy(tmp_path):
     assert recent_hint in guidelines
 
 
+def test_prompt_guidelines_filter_short_only_hints_for_long_mode(tmp_path):
+    reflection_store = ReflectionStore(tmp_path / "reflections.jsonl")
+    policy_store = PolicyStore(tmp_path / "policies.jsonl")
+    short_hint = "짧은 면접에서는 꼬리 질문을 전체 1회 이하로 제한하세요."
+    long_hint = "실전 면접에서는 프로젝트 설계 선택과 대안 비교를 충분히 확인하세요."
+
+    reflection_store.append(_reflection(id="short-only", prompt_hint=short_hint, interview_mode="short", mode_scope="short", confidence=0.95))
+    reflection_store.append(_reflection(id="long", prompt_hint=long_hint, interview_mode="long", mode_scope="long", confidence=0.82))
+
+    guidelines = ReflectionService(reflection_store, policy_store).get_prompt_guidelines(
+        "QA Engineer",
+        experience="신입",
+        education="학사",
+        interview_mode="long",
+    )
+
+    assert short_hint not in guidelines
+    assert long_hint in guidelines
+
+
+def test_prompt_guidelines_keep_short_only_hints_for_short_mode(tmp_path):
+    reflection_store = ReflectionStore(tmp_path / "reflections.jsonl")
+    policy_store = PolicyStore(tmp_path / "policies.jsonl")
+    short_hint = "짧은 면접에서는 꼬리 질문을 전체 1회 이하로 제한하세요."
+
+    reflection_store.append(_reflection(id="short-only", prompt_hint=short_hint, interview_mode="short", mode_scope="short", confidence=0.95))
+
+    guidelines = ReflectionService(reflection_store, policy_store).get_prompt_guidelines(
+        "QA Engineer",
+        experience="신입",
+        education="학사",
+        interview_mode="short",
+    )
+
+    assert short_hint in guidelines
+
+
+def test_prompt_guidelines_common_scope_is_shared_but_unrelated_role_is_excluded(tmp_path):
+    reflection_store = ReflectionStore(tmp_path / "reflections.jsonl")
+    policy_store = PolicyStore(tmp_path / "policies.jsonl")
+    common_hint = "공고의 필수 요건을 기준으로 답변 검증 질문을 구성하세요."
+    unrelated_hint = "백엔드 지원자에게는 트랜잭션 격리 수준을 확인하세요."
+
+    reflection_store.append(_reflection(id="common", prompt_hint=common_hint, mode_scope="common"))
+    reflection_store.append(_reflection(
+        id="unrelated",
+        job_title="Backend Engineer",
+        tags=["backend"],
+        prompt_hint=unrelated_hint,
+        mode_scope="common",
+        source_session_id="unrelated-session",
+    ))
+
+    short_guidelines = ReflectionService(reflection_store, policy_store).get_prompt_guidelines(
+        "QA Engineer",
+        experience="신입",
+        education="학사",
+        interview_mode="short",
+    )
+    long_guidelines = ReflectionService(reflection_store, policy_store).get_prompt_guidelines(
+        "QA Engineer",
+        experience="신입",
+        education="학사",
+        interview_mode="long",
+    )
+
+    assert common_hint in short_guidelines
+    assert common_hint in long_guidelines
+    assert unrelated_hint not in short_guidelines
+    assert unrelated_hint not in long_guidelines
+
+
+def test_select_prompt_guidelines_returns_source_ids_and_excludes_deprecated(tmp_path):
+    reflection_store = ReflectionStore(tmp_path / "reflections.jsonl")
+    policy_store = PolicyStore(tmp_path / "policies.jsonl")
+    policy_store.write_all([
+        PolicyItem(
+            id="promoted-policy",
+            created_at="2026-05-10T00:00:00+00:00",
+            updated_at="2026-05-10T00:00:00+00:00",
+            status="promoted",
+            job_title="QA Engineer",
+            experience="신입",
+            education="학사",
+            policy="신입 QA 지원자에게는 테스트 기초를 먼저 확인하세요.",
+            evidence_count=3,
+            confidence=0.9,
+            mode_scope="common",
+        ),
+        PolicyItem(
+            id="deprecated-policy",
+            created_at="2026-05-10T00:00:00+00:00",
+            updated_at="2026-05-10T00:00:00+00:00",
+            status="deprecated",
+            job_title="QA Engineer",
+            experience="신입",
+            education="학사",
+            policy="이 지침은 주입되면 안 됩니다.",
+            evidence_count=3,
+            confidence=0.9,
+            mode_scope="common",
+        ),
+    ])
+
+    selection = ReflectionService(reflection_store, policy_store).select_prompt_guidelines(
+        "QA Engineer",
+        experience="신입",
+        education="학사",
+        interview_mode="long",
+    )
+
+    assert selection.policy_ids == ["promoted-policy"]
+    assert selection.reflection_ids == []
+    assert "이 지침은 주입되면 안 됩니다." not in selection.text
+
+
+def test_record_guideline_outcomes_deprecates_repeatedly_negative_policy(tmp_path):
+    reflection_store = ReflectionStore(tmp_path / "reflections.jsonl")
+    policy_store = PolicyStore(tmp_path / "policies.jsonl")
+    policy_store.write_all([
+        PolicyItem(
+            id="policy-1",
+            created_at="2026-05-10T00:00:00+00:00",
+            updated_at="2026-05-10T00:00:00+00:00",
+            status="promoted",
+            job_title="QA Engineer",
+            experience="신입",
+            education="학사",
+            policy="질문 목적을 명확히 구분해 같은 질문을 반복하지 마세요.",
+            evidence_count=3,
+            confidence=0.9,
+            mode_scope="common",
+            injected_count=2,
+            negative_outcome_count=1,
+        )
+    ])
+    reflection_store.append(_reflection(
+        id="new-issue",
+        source_session_id="session-new",
+        issue="같은 질문이 반복됨",
+        lesson="같은 질문을 반복하지 않는다.",
+        prompt_hint="질문 목적을 명확히 구분해 같은 질문을 반복하지 마세요.",
+        mode_scope="common",
+    ))
+
+    ReflectionService(reflection_store, policy_store).record_guideline_outcomes(
+        source_reflection_ids=[],
+        source_policy_ids=["policy-1"],
+        session_id="session-new",
+        evaluation={"score": 70},
+    )
+
+    updated = policy_store.read_all()[0]
+    assert updated.injected_count == 3
+    assert updated.negative_outcome_count == 2
+    assert updated.status == "deprecated"
+
+
 def test_service_stores_generated_reflections_without_transcript(monkeypatch, tmp_path):
     store = ReflectionStore(tmp_path / "reflections.jsonl")
     policy_store = PolicyStore(tmp_path / "policies.jsonl")
@@ -175,10 +395,12 @@ def test_service_stores_generated_reflections_without_transcript(monkeypatch, tm
         ],
         evaluation={"score": 75},
         saved_jobs=[{"title": "QA Engineer", "company": "A"}],
+        interview_mode="short",
     )
 
     saved = store.read_all()
     assert stored_count == 1
+    assert saved[0].interview_mode == "short"
     assert saved[0].prompt_hint.startswith("면접 초반에는")
     assert "Playwright" not in saved[0].model_dump_json(ensure_ascii=False)
     assert "test@example.com" not in saved[0].model_dump_json(ensure_ascii=False)
@@ -297,9 +519,12 @@ def test_mongo_reflection_document_is_vector_ready_without_raw_transcript():
         issue="후속 질문이 직무 요건과 느슨하게 연결됨",
         lesson="공고 요건을 질문 축으로 사용한다.",
         prompt_hint="공고의 필수 요건을 기준으로 답변 검증 질문을 구성하세요.",
+        interview_mode="short",
     ))
 
     assert document["kind"] == "reflection"
+    assert document["interview_mode"] == "short"
+    assert document["interview_mode_key"] == "short"
     assert document["job_title_key"] == "qa engineer"
     assert document["prompt_hint_key"]
     assert "embedding_text" in document
@@ -339,6 +564,7 @@ def test_mongo_policy_document_excludes_deprecated_from_vector_filter_definition
     assert document["kind"] == "policy"
     assert document["embedding_text"]
     assert definition["name"]
+    assert any(field["path"] == "interview_mode_key" for field in definition["definition"]["fields"])
     assert any(field["path"] == "status" for field in definition["definition"]["fields"])
 
 

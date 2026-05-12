@@ -1,5 +1,5 @@
 import re
-from typing import Dict, List
+from typing import Any, Dict, List
 from urllib.parse import urlparse
 
 import requests
@@ -331,7 +331,7 @@ def _dedupe_jobs(jobs: List[Dict[str, str]]) -> List[Dict[str, str]]:
 
     return deduped
 
-def _fetch_tavily_results(query: str, role_query: str, max_results: int) -> List[Dict[str, str]]:
+def _fetch_tavily_results(query: str, role_query: str, max_results: int) -> tuple[List[Dict[str, str]], int]:
     response = requests.post(
         "https://api.tavily.com/search",
         json={
@@ -347,8 +347,9 @@ def _fetch_tavily_results(query: str, role_query: str, max_results: int) -> List
     response.raise_for_status()
     data = response.json()
 
+    raw_results = data.get("results", [])
     jobs: List[Dict[str, str]] = []
-    for res in data.get("results", []):
+    for res in raw_results:
         if not isinstance(res, dict):
             continue
         job = _format_job(
@@ -360,7 +361,93 @@ def _fetch_tavily_results(query: str, role_query: str, max_results: int) -> List
         if job and _is_relevant_to_role_query(role_query, job["title"]):
             jobs.append(job)
 
-    return jobs
+    return jobs, len(raw_results)
+
+def search_korean_job_postings_with_trace(query: str, experience: str = "", education: str = "") -> Dict[str, Any]:
+    """
+    Search wrapper for API endpoints that need operational trace metadata.
+    The public LangChain tool still returns only the job list for model compatibility.
+    """
+    search_query = _build_search_query(query, experience=experience, education=education)
+    trace: Dict[str, Any] = {
+        "tool_name": "search_job_postings",
+        "query": query,
+        "status": "success",
+        "reason": "",
+        "raw_count": 0,
+        "filtered_count": 0,
+    }
+
+    if not settings.TAVILY_API_KEY:
+        trace.update({
+            "status": "no_api_key",
+            "reason": "TAVILY_API_KEY is not configured.",
+            "raw_count": 0,
+            "filtered_count": 0,
+        })
+        return {"jobs": [], "trace": trace}
+
+    try:
+        raw_count = 0
+        results, count = _fetch_tavily_results(search_query, role_query=query, max_results=10)
+        raw_count += count
+        results = [
+            job for job in results
+            if _is_relevant_to_profile(experience, education, job.get("title", ""), job.get("content", ""))
+        ]
+
+        for fallback_query in _build_fallback_queries(query, experience=experience, education=education):
+            if len(_dedupe_jobs(results)) >= 3:
+                break
+            try:
+                fallback_results, count = _fetch_tavily_results(fallback_query, role_query=query, max_results=5)
+                raw_count += count
+                results.extend(
+                    job for job in fallback_results
+                    if _is_relevant_to_profile(experience, education, job.get("title", ""), job.get("content", ""))
+                )
+            except Exception as fallback_error:
+                print(f"⚠️ 상세 공고 보강 검색 실패: {fallback_error}")
+
+        if not _dedupe_jobs(results) and (experience or education):
+            broad_results, count = _fetch_tavily_results(_build_search_query(query), role_query=query, max_results=10)
+            raw_count += count
+            results.extend(
+                job for job in broad_results
+                if _is_relevant_to_profile(experience, education, job.get("title", ""), job.get("content", ""))
+            )
+
+            for fallback_query in _build_fallback_queries(query):
+                if len(_dedupe_jobs(results)) >= 3:
+                    break
+                try:
+                    fallback_results, count = _fetch_tavily_results(fallback_query, role_query=query, max_results=5)
+                    raw_count += count
+                    results.extend(
+                        job for job in fallback_results
+                        if _is_relevant_to_profile(experience, education, job.get("title", ""), job.get("content", ""))
+                    )
+                except Exception as fallback_error:
+                    print(f"⚠️ 상세 공고 보강 검색 실패: {fallback_error}")
+
+        jobs = _dedupe_jobs(results)[:3]
+        trace["raw_count"] = raw_count
+        trace["filtered_count"] = len(jobs)
+        if not jobs:
+            trace["status"] = "no_results" if raw_count == 0 else "filtered_expired"
+            trace["reason"] = (
+                "No Tavily results were returned."
+                if raw_count == 0
+                else "Search results were filtered out by detail URL, deadline, role, or profile checks."
+            )
+        return {"jobs": jobs, "trace": trace}
+    except Exception as e:
+        print(f"❌ 검색 도구 실패: {e}")
+        trace.update({
+            "status": "search_error",
+            "reason": str(e),
+        })
+        return {"jobs": [], "trace": trace}
 
 @tool
 def search_korean_job_postings(query: str, experience: str = "", education: str = "") -> List[Dict[str, str]]:
@@ -371,7 +458,6 @@ def search_korean_job_postings(query: str, experience: str = "", education: str 
     실제 채용 공고 목록을 company, title, url, content 필드로 반환합니다.
     """
     print(f"[Tool: search_korean_job_postings] '{query}' 채용 정보 검색 중...")
-    search_query = _build_search_query(query, experience=experience, education=education)
     
     if not settings.TAVILY_API_KEY:
         print("⚠️ TAVILY_API_KEY가 없어 Mock 데이터를 반환합니다.")
@@ -384,46 +470,8 @@ def search_korean_job_postings(query: str, experience: str = "", education: str 
             }
         ]
 
-    try:
-        results = _fetch_tavily_results(search_query, role_query=query, max_results=10)
-        results = [
-            job for job in results
-            if _is_relevant_to_profile(experience, education, job.get("title", ""), job.get("content", ""))
-        ]
-
-        for fallback_query in _build_fallback_queries(query, experience=experience, education=education):
-            if len(_dedupe_jobs(results)) >= 3:
-                break
-            try:
-                fallback_results = _fetch_tavily_results(fallback_query, role_query=query, max_results=5)
-                results.extend(
-                    job for job in fallback_results
-                    if _is_relevant_to_profile(experience, education, job.get("title", ""), job.get("content", ""))
-                )
-            except Exception as fallback_error:
-                print(f"⚠️ 상세 공고 보강 검색 실패: {fallback_error}")
-
-        if not _dedupe_jobs(results) and (experience or education):
-            broad_results = _fetch_tavily_results(_build_search_query(query), role_query=query, max_results=10)
-            results.extend(
-                job for job in broad_results
-                if _is_relevant_to_profile(experience, education, job.get("title", ""), job.get("content", ""))
-            )
-
-            for fallback_query in _build_fallback_queries(query):
-                if len(_dedupe_jobs(results)) >= 3:
-                    break
-                try:
-                    fallback_results = _fetch_tavily_results(fallback_query, role_query=query, max_results=5)
-                    results.extend(
-                        job for job in fallback_results
-                        if _is_relevant_to_profile(experience, education, job.get("title", ""), job.get("content", ""))
-                    )
-                except Exception as fallback_error:
-                    print(f"⚠️ 상세 공고 보강 검색 실패: {fallback_error}")
-            
-        return _dedupe_jobs(results)[:3]
-        
-    except Exception as e:
-        print(f"❌ 검색 도구 실패: {e}")
-        return []
+    return search_korean_job_postings_with_trace(
+        query=query,
+        experience=experience,
+        education=education,
+    )["jobs"]

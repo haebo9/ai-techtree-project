@@ -48,11 +48,11 @@ class ReflectionMongoClient:
     def ensure_indexes(self) -> None:
         self.reflections.create_index("id", unique=True)
         self.reflections.create_index([("source_session_id", 1), ("prompt_hint_key", 1)], unique=True)
-        self.reflections.create_index([("job_title_key", 1), ("experience_key", 1), ("education_key", 1)])
+        self.reflections.create_index([("mode_scope_key", 1), ("job_title_key", 1), ("experience_key", 1), ("education_key", 1)])
         self.reflections.create_index([("confidence", -1), ("created_at", -1)])
 
         self.policies.create_index("id", unique=True)
-        self.policies.create_index([("status", 1), ("job_title_key", 1), ("experience_key", 1), ("education_key", 1)])
+        self.policies.create_index([("status", 1), ("mode_scope_key", 1), ("job_title_key", 1), ("experience_key", 1), ("education_key", 1)])
         self.policies.create_index([("status", 1), ("confidence", -1), ("evidence_count", -1)])
 
     def build_vector_index_definition(self) -> Dict[str, Any]:
@@ -72,6 +72,8 @@ class ReflectionMongoClient:
                     {"type": "filter", "path": "job_title_key"},
                     {"type": "filter", "path": "experience_key"},
                     {"type": "filter", "path": "education_key"},
+                    {"type": "filter", "path": "interview_mode_key"},
+                    {"type": "filter", "path": "mode_scope_key"},
                 ]
             },
         }
@@ -124,6 +126,19 @@ class ReflectionMongoClient:
             logger.warning("Mongo reflection read failed: %s", exc)
             raise MongoReflectionUnavailable(str(exc)) from exc
 
+    def write_reflections(self, reflections: List[Any]) -> None:
+        operations = []
+        for reflection in reflections:
+            document = _reflection_document(reflection)
+            operations.append(ReplaceOne({"id": document["id"]}, self._with_embedding(document), upsert=True))
+
+        try:
+            if operations:
+                self.reflections.bulk_write(operations, ordered=False)
+        except PyMongoError as exc:
+            logger.warning("Mongo reflection write failed: %s", exc)
+            raise MongoReflectionUnavailable(str(exc)) from exc
+
     def write_policies(self, policies: List[Any]) -> None:
         operations = []
         for policy in policies:
@@ -145,6 +160,18 @@ class ReflectionMongoClient:
             logger.warning("Mongo policy read failed: %s", exc)
             raise MongoReflectionUnavailable(str(exc)) from exc
 
+    def reset_memory(self) -> Dict[str, int]:
+        try:
+            reflection_result = self.reflections.delete_many({})
+            policy_result = self.policies.delete_many({})
+            return {
+                "mongo_reflections_deleted": reflection_result.deleted_count,
+                "mongo_policies_deleted": policy_result.deleted_count,
+            }
+        except PyMongoError as exc:
+            logger.warning("Mongo reflection memory reset failed: %s", exc)
+            raise MongoReflectionUnavailable(str(exc)) from exc
+
     def search_reflections(
         self,
         item_model: Any,
@@ -153,6 +180,7 @@ class ReflectionMongoClient:
         job_title: str,
         experience: str,
         education: str,
+        interview_mode: str,
         limit: int,
     ) -> List[Any]:
         vector_results = self._vector_search(
@@ -161,18 +189,23 @@ class ReflectionMongoClient:
             query_text=query_text,
             kind="reflection",
             status_filter=None,
+            interview_mode=interview_mode,
+            job_title=job_title,
+            experience=experience,
+            education=education,
             limit=limit,
         )
         if vector_results:
             return vector_results
 
-        filter_query = _profile_filter(job_title, experience, education)
+        filter_query = _mode_scope_filter(interview_mode)
         try:
             cursor = self.reflections.find(
                 filter_query,
                 {"_id": 0, VECTOR_FIELD: 0, "embedding_text": 0, "embedding_model": 0},
-            ).sort([("confidence", -1), ("created_at", -1)]).limit(limit)
-            return [item_model(**doc) for doc in cursor]
+            ).sort([("confidence", -1), ("created_at", -1)]).limit(max(limit * 3, limit))
+            docs = _rank_docs(list(cursor), interview_mode, job_title, experience, education)
+            return [item_model(**doc) for doc in docs[:limit]]
         except PyMongoError as exc:
             logger.warning("Mongo reflection search failed: %s", exc)
             raise MongoReflectionUnavailable(str(exc)) from exc
@@ -185,6 +218,7 @@ class ReflectionMongoClient:
         job_title: str,
         experience: str,
         education: str,
+        interview_mode: str,
         limit: int,
     ) -> List[Any]:
         vector_results = self._vector_search(
@@ -193,18 +227,23 @@ class ReflectionMongoClient:
             query_text=query_text,
             kind="policy",
             status_filter="promoted",
+            interview_mode=interview_mode,
+            job_title=job_title,
+            experience=experience,
+            education=education,
             limit=limit,
         )
         if vector_results:
             return vector_results
 
-        filter_query = {"status": "promoted", **_profile_filter(job_title, experience, education)}
+        filter_query = {"status": "promoted", **_mode_scope_filter(interview_mode)}
         try:
             cursor = self.policies.find(
                 filter_query,
                 {"_id": 0, VECTOR_FIELD: 0, "embedding_text": 0, "embedding_model": 0},
-            ).sort([("evidence_count", -1), ("confidence", -1), ("updated_at", -1)]).limit(limit)
-            return [item_model(**doc) for doc in cursor]
+            ).sort([("evidence_count", -1), ("confidence", -1), ("updated_at", -1)]).limit(max(limit * 3, limit))
+            docs = _rank_docs(list(cursor), interview_mode, job_title, experience, education)
+            return [item_model(**doc) for doc in docs[:limit]]
         except PyMongoError as exc:
             logger.warning("Mongo policy search failed: %s", exc)
             raise MongoReflectionUnavailable(str(exc)) from exc
@@ -217,6 +256,10 @@ class ReflectionMongoClient:
         query_text: str,
         kind: str,
         status_filter: Optional[str],
+        interview_mode: str,
+        job_title: str,
+        experience: str,
+        education: str,
         limit: int,
     ) -> List[Any]:
         if not settings.REFLECTION_VECTOR_SEARCH_ENABLED:
@@ -229,6 +272,7 @@ class ReflectionMongoClient:
         filter_query: Dict[str, Any] = {"kind": kind}
         if status_filter:
             filter_query["status"] = status_filter
+        filter_query.update(_mode_scope_filter(interview_mode))
 
         pipeline = [
             {
@@ -237,7 +281,7 @@ class ReflectionMongoClient:
                     "path": VECTOR_FIELD,
                     "queryVector": query_vector,
                     "numCandidates": max(limit * 20, 50),
-                    "limit": limit,
+                    "limit": max(limit * 3, limit),
                     "filter": filter_query,
                 }
             },
@@ -245,7 +289,8 @@ class ReflectionMongoClient:
         ]
 
         try:
-            return [item_model(**doc) for doc in collection.aggregate(pipeline)]
+            docs = _rank_docs(list(collection.aggregate(pipeline)), interview_mode, job_title, experience, education)
+            return [item_model(**doc) for doc in docs[:limit]]
         except PyMongoError as exc:
             logger.info("Vector search unavailable for %s: %s", collection.name, exc)
             return []
@@ -280,11 +325,15 @@ class ReflectionMongoClient:
 
 def _reflection_document(reflection: Any) -> Dict[str, Any]:
     doc = reflection.model_dump()
+    doc["interview_mode"] = _normalize_interview_mode(doc.get("interview_mode"))
+    doc["mode_scope"] = _normalize_mode_scope(doc.get("mode_scope"), doc["interview_mode"])
     doc.update({
         "kind": "reflection",
         "job_title_key": _normalize_key(doc.get("job_title", "")),
         "experience_key": _normalize_key(doc.get("experience", "")),
         "education_key": _normalize_key(doc.get("education", "")),
+        "interview_mode_key": _normalize_interview_mode(doc.get("interview_mode")),
+        "mode_scope_key": _normalize_mode_scope(doc.get("mode_scope"), doc.get("interview_mode")),
         "prompt_hint_key": _normalize_key(doc.get("prompt_hint", "")),
         "embedding_text": _reflection_embedding_text(doc),
         "synced_at": datetime.now(timezone.utc).isoformat(),
@@ -294,11 +343,15 @@ def _reflection_document(reflection: Any) -> Dict[str, Any]:
 
 def _policy_document(policy: Any) -> Dict[str, Any]:
     doc = policy.model_dump()
+    doc["interview_mode"] = _normalize_interview_mode(doc.get("interview_mode"))
+    doc["mode_scope"] = _normalize_mode_scope(doc.get("mode_scope"), doc["interview_mode"])
     doc.update({
         "kind": "policy",
         "job_title_key": _normalize_key(doc.get("job_title", "")),
         "experience_key": _normalize_key(doc.get("experience", "")),
         "education_key": _normalize_key(doc.get("education", "")),
+        "interview_mode_key": _normalize_interview_mode(doc.get("interview_mode")),
+        "mode_scope_key": _normalize_mode_scope(doc.get("mode_scope"), doc.get("interview_mode")),
         "policy_key": _normalize_key(doc.get("policy", "")),
         "embedding_text": _policy_embedding_text(doc),
         "synced_at": datetime.now(timezone.utc).isoformat(),
@@ -308,6 +361,8 @@ def _policy_document(policy: Any) -> Dict[str, Any]:
 
 def _reflection_embedding_text(doc: Dict[str, Any]) -> str:
     return "\n".join([
+        f"면접 모드: {_normalize_interview_mode(doc.get('interview_mode'))}",
+        f"주입 범위: {_normalize_mode_scope(doc.get('mode_scope'), doc.get('interview_mode'))}",
         f"직무: {doc.get('job_title', '')}",
         f"경력: {doc.get('experience', '')}",
         f"학력: {doc.get('education', '')}",
@@ -320,6 +375,8 @@ def _reflection_embedding_text(doc: Dict[str, Any]) -> str:
 
 def _policy_embedding_text(doc: Dict[str, Any]) -> str:
     return "\n".join([
+        f"면접 모드: {_normalize_interview_mode(doc.get('interview_mode'))}",
+        f"주입 범위: {_normalize_mode_scope(doc.get('mode_scope'), doc.get('interview_mode'))}",
         f"상태: {doc.get('status', '')}",
         f"범위: {doc.get('scope', '')}",
         f"직무: {doc.get('job_title', '')}",
@@ -330,19 +387,82 @@ def _policy_embedding_text(doc: Dict[str, Any]) -> str:
     ]).strip()
 
 
-def _profile_filter(job_title: str, experience: str, education: str) -> Dict[str, Any]:
-    clauses = []
-    job_key = _normalize_key(job_title)
-    experience_key = _normalize_key(experience)
-    education_key = _normalize_key(education)
-    if job_key:
-        clauses.append({"job_title_key": job_key})
-    if experience_key:
-        clauses.append({"experience_key": experience_key})
-    if education_key:
-        clauses.append({"education_key": education_key})
-    return {"$or": clauses} if clauses else {}
+def _mode_scope_filter(interview_mode: str) -> Dict[str, Any]:
+    normalized_mode = _normalize_interview_mode(interview_mode)
+    return {"mode_scope_key": {"$in": ["common", normalized_mode]}}
 
 
 def _normalize_key(value: str) -> str:
     return re.sub(r"\s+", " ", (value or "").strip().lower())
+
+
+def _normalize_interview_mode(value: Any) -> str:
+    return "short" if _normalize_key(str(value or "")) == "short" else "long"
+
+
+def _normalize_mode_scope(value: Any, fallback_mode: Any = "long") -> str:
+    normalized = _normalize_key(str(value or ""))
+    if normalized in {"common", "short", "long"}:
+        return normalized
+    return _normalize_interview_mode(fallback_mode)
+
+
+def _mode_scope_score(mode_scope: Any, requested_mode: str) -> int:
+    scope = _normalize_mode_scope(mode_scope, requested_mode)
+    requested_mode = _normalize_interview_mode(requested_mode)
+    if scope == requested_mode:
+        return 5
+    if scope == "common":
+        return 3
+    return 0
+
+
+def _profile_tokens(*values: str) -> set[str]:
+    tokens: set[str] = set()
+    for value in values:
+        normalized = _normalize_key(value)
+        if not normalized:
+            continue
+        tokens.update(token for token in re.split(r"[^0-9a-zA-Z가-힣+.#]+", normalized) if token)
+    return tokens
+
+
+def _profile_score(doc: Dict[str, Any], job_title: str, experience: str, education: str) -> int:
+    requested_job_title = _normalize_key(job_title)
+    doc_job_title = _normalize_key(doc.get("job_title", ""))
+    score = 0
+    if _normalize_key(doc.get("scope", "")) == "global":
+        score += 2
+    if requested_job_title and doc_job_title:
+        if requested_job_title == doc_job_title:
+            score += 8
+        elif requested_job_title in doc_job_title or doc_job_title in requested_job_title:
+            score += 6
+        elif len(_profile_tokens(job_title) & _profile_tokens(doc_job_title, " ".join(doc.get("tags", []) or []))) >= 2:
+            score += 4
+        else:
+            return 0
+    if _normalize_key(experience) and _normalize_key(experience) == _normalize_key(doc.get("experience", "")):
+        score += 3
+    if _normalize_key(education) and _normalize_key(education) == _normalize_key(doc.get("education", "")):
+        score += 1
+    return score
+
+
+def _rank_docs(docs: List[Dict[str, Any]], interview_mode: str, job_title: str, experience: str, education: str) -> List[Dict[str, Any]]:
+    relevant_docs = [
+        doc for doc in docs
+        if _profile_score(doc, job_title, experience, education) > 0
+    ]
+    return sorted(
+        relevant_docs,
+        key=lambda doc: (
+            _profile_score(doc, job_title, experience, education),
+            _mode_scope_score(doc.get("mode_scope") or doc.get("mode_scope_key"), interview_mode),
+            doc.get("evidence_count", 0),
+            doc.get("positive_outcome_count", 0) - doc.get("negative_outcome_count", 0),
+            doc.get("confidence", 0),
+            doc.get("updated_at") or doc.get("created_at") or "",
+        ),
+        reverse=True,
+    )

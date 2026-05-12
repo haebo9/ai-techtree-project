@@ -195,6 +195,22 @@ export default function Home() {
     }
   };
 
+  const handleJdPaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    if (jdMode !== "image") return;
+
+    const imageItem = Array.from(e.clipboardData.items).find((item) => item.type.startsWith("image/"));
+    if (!imageItem) return;
+
+    const file = imageItem.getAsFile();
+    if (!file) return;
+
+    e.preventDefault();
+    setJdMode("image");
+    const extension = file.type.split("/")[1] || "png";
+    const pastedFile = new File([file], `pasted-job-posting.${extension}`, { type: file.type });
+    processJdImage(pastedFile);
+  };
+
   // jdImageBase64가 변경될 때 자동 분석
   useEffect(() => {
     if (jdImageBase64) {
@@ -215,6 +231,22 @@ export default function Home() {
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+  };
+
+  const handleDragEnter = (e: React.DragEvent, type: 'resume' | 'jd') => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (type === 'resume') setIsDraggingResume(true);
+    else setIsDraggingJd(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent, type: 'resume' | 'jd') => {
+    e.preventDefault();
+    e.stopPropagation();
+    const nextTarget = e.relatedTarget as Node | null;
+    if (nextTarget && e.currentTarget.contains(nextTarget)) return;
+    if (type === 'resume') setIsDraggingResume(false);
+    else setIsDraggingJd(false);
   };
 
   const handleDrop = (e: React.DragEvent, type: 'resume' | 'jd') => {
@@ -295,73 +327,6 @@ export default function Home() {
     localStorage.removeItem("interviewProfile");
   };
 
-  const loadDummyData = async () => {
-    try {
-      setJobTitle("AI Engineer");
-      setExperience("신입");
-      setEducation("학사(4년제)");
-
-      // Load dummy resume PDF
-      setResumeMode("file");
-      setIsParsingResume(true);
-      const resumeRes = await fetch("/dummy/dummy_resume.pdf");
-      const resumeBlob = await resumeRes.blob();
-      const resumeFile = new File([resumeBlob], "dummy_resume.pdf", { type: "application/pdf" });
-      setResumeFile(resumeFile);
-
-      const formData = new FormData();
-      formData.append("file", resumeFile);
-      const parseRes = await fetch("http://localhost:8000/api/upload/parse-pdf", {
-        method: "POST",
-        body: formData,
-      });
-      if (parseRes.ok) {
-        const data = await parseRes.json();
-        setResumeText(data.text);
-      }
-      setIsParsingResume(false);
-
-      // Load dummy job posting PNG
-      setJdMode("image");
-      const jdRes = await fetch("/dummy/dummy_position.png");
-      const jdBlob = await jdRes.blob();
-      const jdFile = new File([jdBlob], "dummy_position.png", { type: "image/png" });
-      setJdFileName(jdFile.name);
-
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          const MAX_WIDTH = 800;
-          let width = img.width;
-          let height = img.height;
-          if (width > MAX_WIDTH) {
-            height = Math.round((height * MAX_WIDTH) / width);
-            width = MAX_WIDTH;
-          }
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext("2d");
-          if (ctx) {
-            ctx.drawImage(img, 0, 0, width, height);
-            const compressedBase64 = canvas.toDataURL("image/jpeg", 0.6);
-            setJdImageBase64(compressedBase64);
-          }
-        };
-        if (event.target?.result) {
-          img.src = event.target.result as string;
-        }
-      };
-      reader.readAsDataURL(jdFile);
-
-    } catch (error) {
-      console.error("더미 데이터 로드 중 오류:", error);
-      alert("더미 데이터 로드 실패");
-      setIsParsingResume(false);
-    }
-  };
-
   return (
     <main className="min-h-screen bg-neutral-50 py-6 px-4 sm:px-6">
       <div className="max-w-4xl mx-auto w-full bg-white rounded-[2rem] shadow-xl border border-neutral-100 p-5 sm:p-8 relative overflow-hidden">
@@ -385,13 +350,6 @@ export default function Home() {
             type="button"
           >
             입력 초기화
-          </button>
-          <button
-            onClick={loadDummyData}
-            className="px-3 py-2 bg-neutral-100 hover:bg-blue-50 hover:text-blue-600 text-neutral-600 text-xs font-bold rounded-full transition-all border border-neutral-200 hover:border-blue-200"
-            type="button"
-          >
-            테스트 데이터 로드
           </button>
         </div>
 
@@ -443,10 +401,13 @@ export default function Home() {
                 {jdMode === "image" && (
                   <div
                     className={`flex-grow border-2 border-dashed rounded-xl p-6 text-center flex flex-col items-center justify-center transition-all ${isDraggingJd ? 'border-emerald-500 bg-emerald-50' : 'border-neutral-100 bg-neutral-50'}`}
+                    tabIndex={0}
                     onDragOver={handleDragOver}
-                    onDragEnter={(e) => { e.preventDefault(); setIsDraggingJd(true); }}
-                    onDragLeave={(e) => { e.preventDefault(); setIsDraggingJd(false); }}
+                    onDragEnter={(e) => handleDragEnter(e, 'jd')}
+                    onDragLeave={(e) => handleDragLeave(e, 'jd')}
                     onDrop={(e) => handleDrop(e, 'jd')}
+                    onPaste={handleJdPaste}
+                    onClick={(e) => e.currentTarget.focus()}
                   >
                     <input key={`jd-${inputResetKey}`} type="file" id="jdImageFile" accept="image/*" onChange={handleJdImageChange} className="hidden" />
                     <label htmlFor="jdImageFile" className="cursor-pointer group flex flex-col items-center">
@@ -454,7 +415,7 @@ export default function Home() {
                         <svg className="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                       </div>
                       <span className="text-xs font-bold text-emerald-600">공고 이미지 업로드</span>
-                      <span className="text-[10px] text-neutral-600 mt-1 font-bold">PNG, JPG, JPEG, HEIC 지원</span>
+                      <span className="text-[10px] text-neutral-600 mt-1 font-bold">PNG, JPG, JPEG, HEIC / 드래그앤드롭 / 캡처 후 붙여넣기 지원</span>
                     </label>
                     {jdFileName && <p className="text-[11px] font-bold text-emerald-700 mt-3 bg-emerald-100/50 px-2 py-1 rounded-md">✓ {jdFileName}</p>}
                   </div>
@@ -499,8 +460,8 @@ export default function Home() {
                   <div
                     className={`flex-grow border-2 border-dashed rounded-xl p-6 text-center flex flex-col items-center justify-center transition-all ${isDraggingResume ? 'border-indigo-500 bg-indigo-50' : 'border-neutral-100 bg-neutral-50'}`}
                     onDragOver={handleDragOver}
-                    onDragEnter={(e) => { e.preventDefault(); setIsDraggingResume(true); }}
-                    onDragLeave={(e) => { e.preventDefault(); setIsDraggingResume(false); }}
+                    onDragEnter={(e) => handleDragEnter(e, 'resume')}
+                    onDragLeave={(e) => handleDragLeave(e, 'resume')}
                     onDrop={(e) => handleDrop(e, 'resume')}
                   >
                     <input key={`resume-${inputResetKey}`} type="file" id="resumeFile" accept=".pdf,.txt" onChange={handleResumeFileChange} className="hidden" />
@@ -509,7 +470,7 @@ export default function Home() {
                         <svg className="w-5 h-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                       </div>
                       <span className="text-xs font-bold text-indigo-600">이력서 파일 업로드</span>
-                      <span className="text-[10px] text-neutral-600 mt-1 font-bold">PDF, TXT 파일 지원</span>
+                      <span className="text-[10px] text-neutral-600 mt-1 font-bold">PDF, TXT / 드래그앤드롭 지원</span>
                     </label>
                     {resumeFile && <p className="text-[11px] font-bold text-indigo-700 mt-3 bg-indigo-100/50 px-2 py-1 rounded-md truncate max-w-full">✓ {resumeFile.name}</p>}
                     {isParsingResume && <p className="text-[10px] text-indigo-600 mt-2 animate-pulse font-bold">분석 중...</p>}
