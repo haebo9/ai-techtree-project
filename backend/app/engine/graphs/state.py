@@ -22,6 +22,10 @@ class InterviewState(TypedDict):
     job_posting_analysis: Optional[Dict[str, Any]]
     job_posting_analysis_status: str
     reflection_guidelines: str # 이전 면접에서 학습한 운영 지침
+    guideline_selection: Dict[str, Any]
+    reflection_source_ids: list[str]
+    policy_source_ids: list[str]
+    prompt_variant: str
     
     # 2. 대화 기록 (LangGraph의 add_messages reducer를 통해 누적됨)
     messages: Annotated[list[BaseMessage], add_messages]

@@ -21,6 +21,9 @@ class StartInterviewResponse(BaseModel):
     message: str = Field(..., description="UI 상태 표시용 메시지")
     prepared_jobs: List[Dict[str, Any]] = Field(default=[], description="면접 시작 전에 선별한 모집중 추천 채용 공고")
     job_posting_analysis: Dict[str, Any] = Field(default_factory=dict, description="지원 공고 텍스트/이미지 분석 상태 및 요약")
+    interview_mode: Optional[str] = Field(default=None, description="정규화된 면접 모드")
+    prompt_variant: Optional[str] = Field(default=None, description="Realtime에 주입된 프롬프트 variant")
+    guideline_selection: Dict[str, Any] = Field(default_factory=dict, description="주입된 reflection/policy 지침 id와 텍스트 요약")
 
 # ==========================================
 # 2. 면접 대화 (Chat)

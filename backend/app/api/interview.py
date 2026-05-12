@@ -23,7 +23,7 @@ from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from app.core.config import settings
 from app.core.logger import get_logger
-from app.engine.prompts.api_interview import INTERVIEWER_SYSTEM_PROMPT
+from app.engine.prompts.api_interview import build_realtime_interviewer_prompt, normalize_interview_mode
 from app.services.reflection_service import ReflectionService, safe_generate_and_store_reflections
 
 from app.engine.graphs.graph import get_interview_workflow
@@ -74,7 +74,7 @@ def _prompt_value(value: str | None, default: str = "정보 없음") -> str:
     return cleaned if cleaned else default
 
 def _interview_mode_settings(mode: str | None) -> Dict[str, str]:
-    normalized = (mode or "long").strip().lower()
+    normalized = normalize_interview_mode(mode)
     return INTERVIEW_MODE_GUIDANCE.get(normalized, INTERVIEW_MODE_GUIDANCE["long"])
 
 def _normalize_job_list(raw_jobs: Any, *, require_active: bool = False) -> List[Dict[str, str]]:
@@ -254,7 +254,8 @@ def prepare_interview_context(request: StartInterviewRequest) -> Dict[str, Any]:
     education = _prompt_value(request.education)
     experience = _prompt_value(request.experience)
     resume = _prompt_value(request.resume)
-    mode_settings = _interview_mode_settings(request.interview_mode)
+    interview_mode = normalize_interview_mode(request.interview_mode)
+    mode_settings = _interview_mode_settings(interview_mode)
 
     job_posting_analysis = _build_job_posting_analysis(request)
     job_desc = str(job_posting_analysis.get("summary") or "").strip() or "맞춤형 채용 공고 정보 없음"
@@ -267,26 +268,27 @@ def prepare_interview_context(request: StartInterviewRequest) -> Dict[str, Any]:
     interview_job_context = _format_prepared_job_context(job_desc, context_jobs)
 
     try:
-        reflection_guidelines = ReflectionService().get_prompt_guidelines(
+        guideline_selection = ReflectionService().select_prompt_guidelines(
             job_title=job_title,
             experience=experience,
             education=education,
             resume=resume,
             job_context=interview_job_context,
-            interview_mode=request.interview_mode,
+            interview_mode=interview_mode,
             limit=5,
         )
+        reflection_guidelines = guideline_selection.text
     except Exception as e:
         logger.warning("Reflection guideline lookup failed: %s", e)
         reflection_guidelines = ""
+        guideline_selection = None
 
     selected_voice = random.choice(list(VOICE_INTERVIEWER_NAMES.keys()))
     interviewer_name = VOICE_INTERVIEWER_NAMES[selected_voice]
 
-    instructions = INTERVIEWER_SYSTEM_PROMPT.format(
+    instructions = build_realtime_interviewer_prompt(
+        interview_mode=interview_mode,
         interviewer_name=interviewer_name,
-        interview_mode_label=mode_settings["label"],
-        interview_mode_guidance=mode_settings["guidance"],
         job_title=job_title,
         education=education,
         experience=experience,
@@ -296,6 +298,8 @@ def prepare_interview_context(request: StartInterviewRequest) -> Dict[str, Any]:
     )
 
     return {
+        "interview_mode": interview_mode,
+        "prompt_variant": f"realtime_interviewer_{interview_mode}",
         "job_title": job_title,
         "education": education,
         "experience": experience,
@@ -307,6 +311,11 @@ def prepare_interview_context(request: StartInterviewRequest) -> Dict[str, Any]:
         "recommended_jobs": recommended_jobs,
         "interview_job_context": interview_job_context,
         "reflection_guidelines": reflection_guidelines,
+        "guideline_selection": (
+            guideline_selection.model_dump()
+            if guideline_selection
+            else {"text": "", "reflection_ids": [], "policy_ids": []}
+        ),
         "selected_voice": selected_voice,
         "interviewer_name": interviewer_name,
         "instructions": instructions,
@@ -368,10 +377,14 @@ async def start_interview(request: StartInterviewRequest):
         "job_posting_analysis": context["job_posting_analysis"],
         "job_posting_analysis_status": context["job_posting_analysis_status"],
         "reflection_guidelines": context["reflection_guidelines"],
+        "guideline_selection": context["guideline_selection"],
+        "reflection_source_ids": context["guideline_selection"].get("reflection_ids", []),
+        "policy_source_ids": context["guideline_selection"].get("policy_ids", []),
         "interviewer_name": context["interviewer_name"],
-        "interview_mode": request.interview_mode,
+        "interview_mode": context["interview_mode"],
         "interview_mode_label": context["mode_settings"]["label"],
         "interview_mode_guidance": context["mode_settings"]["guidance"],
+        "prompt_variant": context["prompt_variant"],
         "major": "",  # request에 없음
         "messages": [],
         "saved_jobs": context["recommended_jobs"],
@@ -393,7 +406,11 @@ async def start_interview(request: StartInterviewRequest):
         "job_description": context["interview_job_context"],
         "job_posting_analysis": context["job_posting_analysis"],
         "job_posting_analysis_status": context["job_posting_analysis_status"],
-        "interview_mode": request.interview_mode,
+        "interview_mode": context["interview_mode"],
+        "prompt_variant": context["prompt_variant"],
+        "guideline_selection": context["guideline_selection"],
+        "reflection_source_ids": context["guideline_selection"].get("reflection_ids", []),
+        "policy_source_ids": context["guideline_selection"].get("policy_ids", []),
         "prepared_jobs": context["recommended_jobs"],
         "context_jobs": context["context_jobs"],
         "tool_traces": [],
@@ -405,6 +422,9 @@ async def start_interview(request: StartInterviewRequest):
         message="면접 세션이 준비되었습니다.",
         prepared_jobs=context["recommended_jobs"],
         job_posting_analysis=context["job_posting_analysis"],
+        interview_mode=context["interview_mode"],
+        prompt_variant=context["prompt_variant"],
+        guideline_selection=context["guideline_selection"],
     )
 
 class ToolSearchRequest(BaseModel):
@@ -588,6 +608,8 @@ def generate_report_and_send_email(
             evaluation=evaluation,
             saved_jobs=report_jobs,
             interview_mode=final_state.get("interview_mode", session.get("interview_mode", "long")),
+            injected_reflection_ids=final_state.get("reflection_source_ids", session.get("reflection_source_ids", [])),
+            injected_policy_ids=final_state.get("policy_source_ids", session.get("policy_source_ids", [])),
         )
 
         temp_sessions.setdefault(session_id, {})["status"] = "REPORT_SENT"

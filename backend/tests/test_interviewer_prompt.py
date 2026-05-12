@@ -1,12 +1,11 @@
-from app.engine.prompts.api_interview import INTERVIEWER_SYSTEM_PROMPT
-from app.api.interview import INTERVIEW_MODE_GUIDANCE, VOICE_INTERVIEWER_NAMES
+from app.engine.prompts.api_interview import build_realtime_interviewer_prompt
+from app.api.interview import VOICE_INTERVIEWER_NAMES
 
 
 def _prompt(**overrides):
     data = {
         "interviewer_name": "Mina",
-        "interview_mode_label": "긴 면접",
-        "interview_mode_guidance": INTERVIEW_MODE_GUIDANCE["long"]["guidance"],
+        "interview_mode": "long",
         "job_title": "QA Engineer",
         "education": "학사",
         "experience": "신입",
@@ -15,7 +14,7 @@ def _prompt(**overrides):
         "reflection_guidelines": "",
     }
     data.update(overrides)
-    return INTERVIEWER_SYSTEM_PROMPT.format(**data)
+    return build_realtime_interviewer_prompt(**data)
 
 
 def test_prompt_treats_entered_job_title_as_authoritative():
@@ -81,20 +80,28 @@ def test_every_realtime_voice_has_interviewer_name():
 
 def test_interview_mode_guidance_supports_short_and_long_modes():
     short_prompt = _prompt(
-        interview_mode_label=INTERVIEW_MODE_GUIDANCE["short"]["label"],
-        interview_mode_guidance=INTERVIEW_MODE_GUIDANCE["short"]["guidance"],
+        interview_mode="short",
     )
     long_prompt = _prompt()
 
-    assert "면접 모드: 짧은 면접" in short_prompt
+    assert "면접 시간 운영: 짧은 면접" in short_prompt
     assert "목표 시간은 약 7분입니다." in short_prompt
     assert "핵심 직무 질문은 최대 3개" in short_prompt
     assert "꼬리 질문은 전체 면접에서 최대 1회" in short_prompt
     assert "성과, 사용 도구, 팀 피드백 중 하나를 확인했다면" in short_prompt
     assert "\"마지막으로\", \"마무리로\", \"끝으로\"라는 표현을 사용했다면 그 질문이 최종 질문입니다." in short_prompt
     assert "지원자가 답변한 뒤에는 추가 확인 질문을 하지 말고 종료 멘트로 마무리하세요." in short_prompt
-    assert "같은 목적의 질문을 반복하지 마세요." in short_prompt
-    assert "면접 모드: 긴 면접" in long_prompt
+    assert "면접 시간 운영: 실전 면접" in long_prompt
     assert "목표 시간은 약 20분입니다." in long_prompt
     assert "이력서 기반 대표 프로젝트 1-2개" in long_prompt
     assert "실패·개선 경험" in long_prompt
+    assert "최소 6개 안팎의 핵심 질문" in long_prompt
+
+
+def test_long_prompt_does_not_include_short_mode_pressure():
+    long_prompt = _prompt()
+
+    assert "짧은 면접" not in long_prompt
+    assert "목표 시간은 약 7분" not in long_prompt
+    assert "대표 경험 1개만" not in long_prompt
+    assert "꼬리 질문은 전체 면접에서 최대 1회" not in long_prompt

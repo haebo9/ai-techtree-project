@@ -33,6 +33,13 @@ interface BackendJobPostingAnalysis {
   [key: string]: unknown;
 }
 
+interface GuidelineSelectionSummary {
+  reflection_ids?: string[];
+  policy_ids?: string[];
+  text?: string;
+  [key: string]: unknown;
+}
+
 export default function DebugPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [isSessionActive, setIsSessionActive] = useState(false);
@@ -42,6 +49,8 @@ export default function DebugPage() {
   const [imageInjectionStatus, setImageInjectionStatus] = useState<ImageInjectionStatus>("none");
   const [profileSummary, setProfileSummary] = useState<DebugProfileSummary | null>(null);
   const [backendJobAnalysis, setBackendJobAnalysis] = useState<BackendJobPostingAnalysis | null>(null);
+  const [promptVariant, setPromptVariant] = useState<string>("-");
+  const [guidelineSelection, setGuidelineSelection] = useState<GuidelineSelectionSummary | null>(null);
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const dcRef = useRef<RTCDataChannel | null>(null);
@@ -130,6 +139,7 @@ export default function DebugPage() {
       jobImageInjectedRef.current = false;
       setImageInjectionStatus(profileData.job_image ? "pending" : "none");
       setBackendJobAnalysis(null);
+      setPromptVariant("-");
       setProfileSummary({
         jobTitle: profileData.job_title || "직무 미상",
         interviewMode: selectedInterviewMode,
@@ -165,6 +175,14 @@ export default function DebugPage() {
       const data = await res.json();
       const EPHEMERAL_KEY = data.ephemeral_token;
       sessionIdRef.current = data.session_id;
+      const responsePromptVariant = typeof data.prompt_variant === "string" ? data.prompt_variant : "-";
+      const responseGuidelineSelection = (
+        data.guideline_selection &&
+        typeof data.guideline_selection === "object" &&
+        !Array.isArray(data.guideline_selection)
+      )
+        ? data.guideline_selection as GuidelineSelectionSummary
+        : null;
       const jobPostingAnalysis = (
         data.job_posting_analysis &&
         typeof data.job_posting_analysis === "object" &&
@@ -173,7 +191,17 @@ export default function DebugPage() {
         ? data.job_posting_analysis as BackendJobPostingAnalysis
         : null;
       setBackendJobAnalysis(jobPostingAnalysis);
+      setPromptVariant(responsePromptVariant);
+      setGuidelineSelection(responseGuidelineSelection);
       addLog('SYS', 'Token Received', { session_id: data.session_id });
+      addLog('SYS', 'Backend start response mode', {
+        interview_mode: data.interview_mode || selectedInterviewMode,
+        prompt_variant: responsePromptVariant,
+        guideline_reflection_count: responseGuidelineSelection?.reflection_ids?.length || 0,
+        guideline_policy_count: responseGuidelineSelection?.policy_ids?.length || 0,
+        guideline_reflection_ids: responseGuidelineSelection?.reflection_ids?.slice(0, 3) || [],
+        guideline_policy_ids: responseGuidelineSelection?.policy_ids?.slice(0, 3) || [],
+      });
       addLog('SYS', 'Backend job posting analysis received', jobPostingAnalysis || { status: "missing" });
 
       setStatusText("WebRTC 연결 중...");
@@ -483,6 +511,7 @@ export default function DebugPage() {
             setStatusText("더미 데이터 설정 완료!");
             setImageInjectionStatus("pending");
             setBackendJobAnalysis(null);
+            setPromptVariant("-");
             setProfileSummary({
               jobTitle: "AI Engineer",
               interviewMode,
@@ -566,6 +595,17 @@ export default function DebugPage() {
               <p className="font-bold">실전 연습</p>
               <p className="mt-1 text-xs opacity-75">20분 내외, 깊이 있는 검증</p>
             </button>
+          </div>
+          <div className="mt-3 rounded bg-black/30 p-2 text-xs text-gray-300">
+            <p className="text-gray-500">백엔드 프롬프트 variant</p>
+            <p className="mt-1 break-words">{promptVariant}</p>
+            <p className="mt-3 text-gray-500">주입된 reflection/policy</p>
+            <p className="mt-1">
+              reflection {guidelineSelection?.reflection_ids?.length || 0}개 / policy {guidelineSelection?.policy_ids?.length || 0}개
+            </p>
+            <p className="mt-1 break-words text-gray-500">
+              {[...(guidelineSelection?.policy_ids || []), ...(guidelineSelection?.reflection_ids || [])].slice(0, 4).join(", ") || "없음"}
+            </p>
           </div>
         </div>
 

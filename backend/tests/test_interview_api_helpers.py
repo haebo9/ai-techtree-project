@@ -78,6 +78,35 @@ def test_prepare_interview_context_uses_image_analysis_for_job_description(monke
     assert context["job_posting_analysis_status"] == "image_analyzed"
     assert "직무명: 언어공학자" in context["interview_job_context"]
     assert "직무명: 언어공학자" in context["instructions"]
+    assert context["interview_mode"] == "short"
+    assert context["prompt_variant"] == "realtime_interviewer_short"
+
+
+def test_prepare_interview_context_falls_back_to_long_for_unknown_mode(monkeypatch):
+    monkeypatch.setattr(interview_api, "_prepare_job_materials", lambda **kwargs: ([], []))
+
+    class FakeReflectionService:
+        def get_prompt_guidelines(self, **kwargs):
+            return ""
+
+    monkeypatch.setattr(interview_api, "ReflectionService", lambda: FakeReflectionService())
+
+    context = prepare_interview_context(
+        StartInterviewRequest(
+            user_id="test@example.com",
+            report_email="report@example.com",
+            job_title="AI Engineer",
+            experience="신입",
+            education="학사",
+            resume="LLM 프로젝트",
+            interview_mode="unexpected",
+        )
+    )
+
+    assert context["interview_mode"] == "long"
+    assert context["prompt_variant"] == "realtime_interviewer_long"
+    assert "면접 시간 운영: 실전 면접" in context["instructions"]
+    assert "짧은 면접" not in context["instructions"]
 
 
 def test_session_search_uses_server_session_profile(monkeypatch):
