@@ -151,6 +151,7 @@ export default function InterviewPage() {
         .map(({ role, text }) => ({ role, text }));
       const response = await fetch(apiPath(`/interview/${currentSessionId}/end`), {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           transcripts: orderedTranscripts,
@@ -229,6 +230,7 @@ export default function InterviewPage() {
         // 2) 우리 백엔드 API를 호출해 OpenAI 일회용 접속 토큰(ephemeral_token) 발급
         const res = await fetch(apiPath("/interview/start"), {
           method: "POST",
+          credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             user_id: "test@example.com",
@@ -344,6 +346,7 @@ export default function InterviewPage() {
                 // 백엔드 API 호출하여 검색 실행 (prefix 주의: /api/interview/tools/search_job)
                 const res = await fetch(apiPath(`/interview/${sessionIdRef.current}/tools/search_job`), {
                   method: "POST",
+                  credentials: "include",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({
                     query: args.query

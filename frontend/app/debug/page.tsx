@@ -158,6 +158,7 @@ export default function DebugPage() {
 
       const res = await fetch(apiPath("/interview/start"), {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           user_id: "debug@example.com",
@@ -285,6 +286,7 @@ export default function DebugPage() {
               const t1 = Date.now();
               const toolRes = await fetch(apiPath(`/interview/${sessionIdRef.current}/tools/search_job`), {
                 method: "POST",
+                credentials: "include",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                   query: args.query
@@ -467,6 +469,7 @@ export default function DebugPage() {
       formData.append("file", resumeFile);
       const parseRes = await fetch(apiPath("/upload/parse-pdf"), {
         method: "POST",
+        credentials: "include",
         body: formData,
       });
       let resumeText = "";

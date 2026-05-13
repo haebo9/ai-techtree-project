@@ -107,6 +107,7 @@ export default function ResultPage() {
     try {
       const response = await fetch(apiPath(`/interview/${result.session_id || 'default'}/email`), {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: email,

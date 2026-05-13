@@ -1,4 +1,4 @@
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Path
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path
 from pydantic import BaseModel
 from typing import Dict, Any, List
 from app.schemas_api.email import SendEmailRequest
@@ -11,8 +11,6 @@ from app.schemas_api.interview import (
     EndInterviewResponse
 )
 
-router = APIRouter()
-
 import uuid
 import random
 import requests
@@ -24,10 +22,13 @@ from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
 from app.core.config import settings
 from app.core.logger import get_logger
 from app.engine.prompts.api_interview import build_realtime_interviewer_prompt, normalize_interview_mode
+from app.services.invite_service import require_invite_session
 from app.services.reflection_service import ReflectionService, safe_generate_and_store_reflections
 
 from app.engine.graphs.graph import get_interview_workflow
 from langchain_core.messages import HumanMessage, AIMessage
+
+router = APIRouter(dependencies=[Depends(require_invite_session)])
 
 interview_workflow = get_interview_workflow()
 logger = get_logger(__name__)
