@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { apiPath } from "@/lib/api";
 
 interface LogEntry {
   id: string;
@@ -155,7 +156,7 @@ export default function DebugPage() {
         resume_chars: String(profileData.resume || "").length
       });
 
-      const res = await fetch("http://localhost:8000/api/interview/start", {
+      const res = await fetch(apiPath("/interview/start"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -282,7 +283,7 @@ export default function DebugPage() {
 
             try {
               const t1 = Date.now();
-              const toolRes = await fetch(`http://localhost:8000/api/interview/${sessionIdRef.current}/tools/search_job`, {
+              const toolRes = await fetch(apiPath(`/interview/${sessionIdRef.current}/tools/search_job`), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -464,7 +465,7 @@ export default function DebugPage() {
 
       const formData = new FormData();
       formData.append("file", resumeFile);
-      const parseRes = await fetch("http://localhost:8000/api/upload/parse-pdf", {
+      const parseRes = await fetch(apiPath("/upload/parse-pdf"), {
         method: "POST",
         body: formData,
       });

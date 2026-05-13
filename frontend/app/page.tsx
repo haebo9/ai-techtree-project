@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import NextImage from "next/image";
+import { apiPath } from "@/lib/api";
 
 export default function Home() {
   const router = useRouter();
@@ -72,7 +73,7 @@ export default function Home() {
       formData.append("file", file);
 
       try {
-        const res = await fetch("http://localhost:8000/api/upload/parse-pdf", {
+        const res = await fetch(apiPath("/upload/parse-pdf"), {
           method: "POST",
           body: formData,
         });
@@ -164,7 +165,7 @@ export default function Home() {
     if (!text && !image) return;
     setIsAnalyzingJd(true);
     try {
-      const res = await fetch("http://localhost:8000/api/upload/analyze-jd", {
+      const res = await fetch(apiPath("/upload/analyze-jd"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text, image }),

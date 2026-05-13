@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { apiPath } from "@/lib/api";
 
 interface QnAReview {
   question: string;
@@ -104,7 +105,7 @@ export default function ResultPage() {
     setEmailStatus("idle");
 
     try {
-      const response = await fetch(`http://localhost:8000/api/interview/${result.session_id || 'default'}/email`, {
+      const response = await fetch(apiPath(`/interview/${result.session_id || 'default'}/email`), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

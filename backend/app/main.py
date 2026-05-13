@@ -13,7 +13,11 @@ app = FastAPI(
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"], # Next.js 포트
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:8080",
+        "https://techtree.haebo.pro",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

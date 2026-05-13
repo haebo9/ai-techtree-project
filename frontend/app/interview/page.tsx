@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { apiPath } from "@/lib/api";
 import { isInterviewClosingTranscript } from "@/lib/interviewClosing";
 
 interface JobSearchResult {
@@ -148,7 +149,7 @@ export default function InterviewPage() {
       const orderedTranscripts = transcriptRef.current
         .filter((item) => item.text.trim())
         .map(({ role, text }) => ({ role, text }));
-      const response = await fetch(`http://localhost:8000/api/interview/${currentSessionId}/end`, {
+      const response = await fetch(apiPath(`/interview/${currentSessionId}/end`), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -226,7 +227,7 @@ export default function InterviewPage() {
         jobImageInjectedRef.current = false;
 
         // 2) 우리 백엔드 API를 호출해 OpenAI 일회용 접속 토큰(ephemeral_token) 발급
-        const res = await fetch("http://localhost:8000/api/interview/start", {
+        const res = await fetch(apiPath("/interview/start"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -341,7 +342,7 @@ export default function InterviewPage() {
 
               try {
                 // 백엔드 API 호출하여 검색 실행 (prefix 주의: /api/interview/tools/search_job)
-                const res = await fetch(`http://localhost:8000/api/interview/${sessionIdRef.current}/tools/search_job`, {
+                const res = await fetch(apiPath(`/interview/${sessionIdRef.current}/tools/search_job`), {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({
