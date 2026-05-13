@@ -5,20 +5,6 @@
 
 ---
 
-## Index
-
-1. [AWS 인스턴스 설정값](#0-aws-인스턴스-설정값)
-2. [환경 변수](#1-환경-변수)
-3. [로컬 개발 환경](#2-로컬-개발-환경)
-4. [로컬 Docker 검증](#3-로컬-docker-검증)
-5. [AWS 서버 초기 세팅](#4-aws-서버-초기-세팅)
-6. [AWS Docker 배포](#5-aws-docker-배포)
-7. [운영 명령](#6-운영-명령)
-8. [서비스 사용 흐름](#7-서비스-사용-흐름)
-9. [문제 해결](#8-문제-해결)
-
----
-
 ## 0. AWS 인스턴스 설정값
 
 운영 배포 기준 인스턴스는 아래 설정을 권장합니다.
@@ -35,9 +21,9 @@
 | Elastic IP | 권장 |
 | Domain | `techtree.haebo.pro` -> EC2 Elastic IP |
 | Security Group | `22`, `80`, `443` 허용 |
-| SSH Source | 가능하면 내 IP만 허용 |
+| SSH Source | 내 IP만 허용 |
 | HTTP/HTTPS Source | `0.0.0.0/0`, `::/0` |
-| Swap | `2 GiB` 권장 |
+| Swap | `2 GiB` |
 
 보안 그룹 운영 원칙:
 
@@ -202,7 +188,7 @@ echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.
 sudo apt update
 sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 sudo usermod -aG docker ubuntu
-```
+
 
 그룹 권한 반영을 위해 SSH를 다시 접속합니다.
 
