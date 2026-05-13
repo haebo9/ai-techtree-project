@@ -151,6 +151,7 @@ AI 모델을 사용하지 않는 주요 기능:
 - PDF 이력서 텍스트 추출: `PyPDF2` 기반 파싱이며 별도 AI 모델을 호출하지 않습니다.
 - 채용 공고 검색: `Tavily API`를 직접 호출하며 OpenAI 모델을 사용하지 않습니다.
 - 이메일 발송: `Resend API`를 사용하며 AI 모델을 호출하지 않습니다.
+- 초대코드 인증: MongoDB 조회와 서명된 세션 쿠키 검증으로 처리하며 AI 모델을 호출하지 않습니다.
 - 텔레그램 알림/로깅: `Telegram Bot API` 구조이며 AI 모델을 호출하지 않습니다.
 
 ---
@@ -162,9 +163,9 @@ AI 모델을 사용하지 않는 주요 기능:
 | Service | Current Usage | Decision Notes |
 | :--- | :--- | :--- |
 | **Tavily API** | `search_job_postings` 도구와 면접 시작 전 추천 공고 탐색 | 채용 공고 추천은 실제 검색 결과 기반이어야 하므로 LLM 생성 대신 검색 API를 사용합니다. API 키가 없거나 검색 실패 시 구조화된 빈 결과/trace를 반환합니다. |
-| **MongoDB / Atlas Vector Search** | reflection/policy 저장과 선택적 벡터 검색 | 로컬 JSONL 저장소와 Mongo 저장소를 함께 고려하는 구조입니다. Atlas Vector Search가 가능하면 embedding 기반 유사 지침 검색을 사용합니다. |
+| **MongoDB / Atlas Vector Search** | reflection/policy 저장과 선택적 벡터 검색, 초대코드 저장 | 로컬 JSONL 저장소와 Mongo 저장소를 함께 고려하는 구조입니다. Atlas Vector Search가 가능하면 embedding 기반 유사 지침 검색을 사용합니다. 초대코드는 `invite_codes` 컬렉션에 `code`, `name`, `status`, `use_max`, `use_count`만 저장합니다. |
 | **Resend** | 최종 면접 리포트 이메일 발송 | 면접 종료 후 백그라운드 작업에서 평가 결과를 HTML 이메일로 발송합니다. |
-| **Telegram Bot API** | 운영 로그/알림 구조 | 배포 운영에서 장애나 주요 이벤트 알림에 사용할 수 있도록 설정값과 logger 구조를 유지합니다. |
+| **Telegram Bot API** | 운영 로그/초대코드 인증 알림 구조 | 배포 운영에서 장애나 주요 이벤트 알림에 사용할 수 있도록 설정값과 logger 구조를 유지합니다. 초대코드 인증 성공 시 전체 코드, 관리용 이름, 상태, 사용 횟수를 전송합니다. |
 
 ---
 
@@ -186,4 +187,5 @@ AI 모델을 사용하지 않는 주요 기능:
 - **Zero-Downtime Deployment**: 새로운 이미지 빌드 시 `docker-compose up -d --build`를 통해 서비스 중단을 최소화합니다.
 - **CORS Management**: 백엔드 API는 허용된 도메인(`CORSMiddleware`)에 대해서만 요청을 허용합니다.
 - **Logging**: Docker 로그 시스템 및 필요시 Telegram Bot 알림을 연동하여 시스템 상태를 모니터링합니다.
+- **Access Control**: 공개 서비스 진입 전 초대코드 인증을 요구하며, 이력서/공고 분석과 면접 시작 API에도 인증 dependency를 적용합니다.
 - **Secret Management**: 모든 API Key는 절대 코드에 포함하지 않으며, 배포 환경의 환경 변수로만 관리합니다.

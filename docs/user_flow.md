@@ -10,7 +10,8 @@ flowchart TD
     %% 페이지 1: 면접 전 정보 입력 (Blue Theme)
     subgraph Page1 [페이지 1: 면접 전 정보 입력]
         direction TB
-        A["사용자 접속<br/>(techtree.haebo.pro)"] --> B["프론트엔드 (Next.js)<br/>이력서 및 채용공고 입력"]
+        A["사용자 접속<br/>(techtree.haebo.pro)"] --> AUTH["초대코드 인증<br/>MongoDB invite_codes 확인"]
+        AUTH --> B["프론트엔드 (Next.js)<br/>이력서 및 채용공고 입력"]
         B --> C["데이터 분석<br/>PDF 파싱 및 공고 분석"]
         C --> D["면접 모드 선택<br/>Short / Long"]
         D --> E["백엔드 (FastAPI)<br/>면접 세션 시작 요청"]
@@ -36,6 +37,7 @@ flowchart TD
         N --> O["이메일 전송<br/>최종 리포트 발송"]
         M --> P["자기 피드백 (Reflection)<br/>지침 데이터베이스 저장"]
         O --> Q["완료 화면<br/>결과 안내 및 재시도"]
+        AUTH --> R["Telegram 알림<br/>코드/이름/사용횟수 전송"]
     end
 
     %% 페이지 간 연결
@@ -89,7 +91,7 @@ Backend:  http://localhost:8000
 
 | Route | Purpose | Current Status |
 | :--- | :--- | :--- |
-| `/` | 지원 정보, 이력서, 채용 공고, 리포트 이메일, 면접 모드 입력 | 메인 사용자 시작 화면 |
+| `/` | 초대코드 인증, 지원 정보, 이력서, 채용 공고, 리포트 이메일, 면접 모드 입력 | 메인 사용자 시작 화면 |
 | `/interview` | OpenAI Realtime WebRTC 기반 음성 면접 진행 | 메인 면접 화면 |
 | `/complete` | 면접 종료 후 비동기 리포트 생성/이메일 발송 안내 | 현재 기본 종료 화면 |
 | `/result` | 브라우저 localStorage 기반 리포트 조회 및 수동 이메일 발송 | 이전/보조 흐름. 현재 기본 종료 흐름에서는 `/complete` 사용 |
@@ -99,7 +101,28 @@ Backend:  http://localhost:8000
 
 ### Step 1. 사용자가 메인 화면에 접속
 
-사용자는 `https://techtree.haebo.pro`에 접속해 TechTree 메인 화면(`/`)을 봅니다.
+사용자는 `https://techtree.haebo.pro`에 접속해 TechTree 메인 화면(`/`)을 봅니다. 먼저 초대코드를 입력해야 서비스 본문에 접근할 수 있습니다.
+
+초대코드 인증:
+
+- 프론트엔드는 `GET /api/invite/session`으로 기존 인증 세션을 확인합니다.
+- 인증 세션이 없으면 초대코드 입력 화면만 표시합니다.
+- 사용자가 초대코드를 입력하면 `POST /api/invite/verify`로 검증합니다.
+- MongoDB의 `invite_codes` 컬렉션에서 `status=active`이고 `use_count < use_max`인 코드만 인증됩니다.
+- 인증 성공 시 `use_count`를 1 증가시키고, HttpOnly browser session cookie를 발급합니다.
+- 인증 성공 이벤트는 Telegram으로 전송되며, 알림에는 전체 `code`, 관리용 `name`, `status`, `usage`가 포함됩니다.
+
+초대코드 저장 문서:
+
+```json
+{
+  "code": "TECHTREE-ABCDEFG",
+  "name": "",
+  "status": "active",
+  "use_max": 1,
+  "use_count": 0
+}
+```
 
 사용자가 입력하는 정보:
 
@@ -408,6 +431,8 @@ gpt-4.1
 | Resume/JD original text | DB 저장 안 함 | 세션 처리 후 정리 대상 |
 | Saved job postings | 프론트 ref + backend state | 최종 추천 공고에 사용 |
 | Reflection/Policy | JSONL 또는 MongoDB | 운영 지침 재사용 |
+| Invite codes | MongoDB `invite_codes` | 초대코드, 관리용 이름, 상태, 사용 한도/횟수 저장 |
+| Invite session | HttpOnly browser session cookie | 같은 브라우저의 탭에서 공유되며 브라우저 세션 종료 시 만료 |
 | Email report | Resend로 발송 | 수신자는 사용자가 입력한 이메일 |
 
 ## 11. Production Infrastructure
@@ -434,7 +459,7 @@ Browser WebRTC Stream
 - **SSL**: Let's Encrypt 및 Certbot을 통한 자동 갱신 적용.
 - **CORS**: 백엔드 API는 공식 도메인(`techtree.haebo.pro`)의 요청만 허용하도록 보안 설정.
 - **Secrets**: 모든 외부 API Key(OpenAI, Tavily, Resend 등)는 Docker 환경 변수로 안전하게 주입.
-- **Monitoring**: Docker 컨테이너 로그 및 Telegram 알림 봇을 통한 실시간 모니터링 수행.
+- **Monitoring**: Docker 컨테이너 로그 및 Telegram 알림 봇을 통한 에러/초대코드 인증 이벤트 모니터링 수행.
 
 ## 12. Failure / Fallback Cases
 
@@ -446,6 +471,8 @@ Browser WebRTC Stream
 | Realtime 연결 실패 | “면접관 연결에 실패했습니다.” 표시 | WebRTC 초기화 중단 |
 | 면접 종료 API 실패 | `/complete`로 이동 | 콘솔에 종료 에러 기록 |
 | 이메일 발송 실패 | 현재 기본 UI에서는 상세 재시도 화면 없음 | backend session status가 `REPORT_FAILED`로 기록될 수 있음 |
+| 초대코드 불일치 또는 사용 한도 초과 | “유효하지 않거나 사용 가능한 횟수를 초과한 초대코드입니다.” 표시 | `POST /api/invite/verify`가 401 반환 |
+| 초대코드 DB 연결 실패 | 인증 저장소 오류 표시 | `POST /api/invite/verify`가 503 반환 |
 
 ## 13. Operational Considerations & Gaps
 

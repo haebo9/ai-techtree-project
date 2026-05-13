@@ -48,6 +48,7 @@ MONGODB_URL=your_mongodb_url
 RESEND_API_KEY=your_resend_api_key
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token
 TELEGRAM_CHAT_ID=your_telegram_chat_id
+INVITE_SESSION_SECRET=your_long_random_secret
 APP_ENV=LOCAL
 ```
 
@@ -62,6 +63,7 @@ MONGODB_URL=your_mongodb_url
 RESEND_API_KEY=your_resend_api_key
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token
 TELEGRAM_CHAT_ID=your_telegram_chat_id
+INVITE_SESSION_SECRET=your_long_random_secret
 APP_ENV=PRODUCTION
 ```
 
@@ -239,6 +241,28 @@ nano backend/.env
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_CHAT_ID`
 
+초대코드 인증 관련:
+
+- `INVITE_AUTH_ENABLED`: 기본값 `true`. `false`로 두면 초대코드 인증을 우회합니다.
+- `INVITE_DB_NAME`: 초대코드 저장 DB. 없으면 `DB_NAME`을 사용합니다.
+- `INVITE_COLLECTION_NAME`: 기본값 `invite_codes`.
+- `INVITE_SESSION_SECRET`: 초대 인증 세션 서명용 secret. 운영에서는 반드시 별도 난수 값을 둡니다.
+- `INVITE_SESSION_COOKIE_NAME`: 기본값 `techtree_invite_session`.
+
+초대코드 문서 구조:
+
+```json
+{
+  "code": "TECHTREE-ABCDEFG",
+  "name": "",
+  "status": "active",
+  "use_max": 1,
+  "use_count": 0
+}
+```
+
+`status=active`이고 `use_count < use_max`인 경우에만 입장할 수 있습니다. 기본 생성 코드는 `use_max=1`인 1회용 코드입니다.
+
 ### 5.3 DNS 연결
 
 Route 53 또는 DNS 관리 페이지에서 아래 레코드를 설정합니다.
@@ -333,7 +357,48 @@ docker compose run --rm certbot renew --dry-run
 
 ---
 
-## 7. 서비스 사용 흐름
+## 7. 초대코드 및 알림 운영
+
+초대코드 인증은 스크래핑/무단 API 호출을 줄이기 위한 최소 접근 제어입니다. 사용자는 메인 화면에서 초대코드를 입력해야 하며, 인증 성공 후에만 이력서 분석, 공고 분석, 면접 시작 API를 호출할 수 있습니다.
+
+기본 50개 1회용 코드 생성:
+
+```bash
+.venv/bin/python backend/scripts/create_invite_code.py
+```
+
+관리용 이름을 공통으로 넣어 50개 생성:
+
+```bash
+.venv/bin/python backend/scripts/create_invite_code.py --name haebo
+```
+
+특정 코드 1개 생성 또는 덮어쓰기:
+
+```bash
+.venv/bin/python backend/scripts/create_invite_code.py --code TECHTREE-ABCDEFG --name haebo
+```
+
+생성 규칙:
+
+- 자동 생성 코드는 `TECHTREE-{무작위 문자숫자열 7자리}` 형식입니다.
+- 혼동을 줄이기 위해 `0`, `O`, `1`, `I`는 자동 생성 문자에서 제외합니다.
+- `--use-max`를 지정하지 않으면 `1`로 저장되어 1회용으로 동작합니다.
+
+텔레그램 알림:
+
+- 인증 성공 시 `code`, `name`, `status`, `usage`가 텔레그램으로 전송됩니다.
+- 백엔드 `ERROR`/`CRITICAL` 로그도 `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`가 있으면 텔레그램으로 전송됩니다.
+- 알림 전송 실패는 사용자 인증 성공 흐름을 막지 않습니다.
+
+주의:
+
+- 현재 인증 세션은 HttpOnly browser session cookie입니다. 같은 브라우저의 다른 탭에서도 공유되며, 브라우저 세션이 끝날 때 만료됩니다.
+- 초대코드를 완전히 비활성화하려면 MongoDB 문서의 `status`를 `disabled`로 변경합니다.
+
+---
+
+## 8. 서비스 사용 흐름
 
 운영 접속:
 
@@ -356,7 +421,7 @@ https://techtree.haebo.pro
 
 ---
 
-## 8. 문제 해결
+## 9. 문제 해결
 
 ### Next.js dev lock 오류
 

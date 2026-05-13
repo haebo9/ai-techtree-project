@@ -14,6 +14,7 @@ Current runtime path: **FastAPI + LangGraph + OpenAI Realtime + Next.js**.
 │   │   ├── api/
 │   │   │   ├── router.py            # /api router aggregation
 │   │   │   ├── interview.py         # Realtime session, tool calls, evaluation, email
+│   │   │   ├── invite.py            # Invite code verification/session API
 │   │   │   └── upload.py            # Resume/job posting parsing
 │   │   ├── core/
 │   │   │   ├── config.py            # Environment settings
@@ -25,9 +26,10 @@ Current runtime path: **FastAPI + LangGraph + OpenAI Realtime + Next.js**.
 │   │   │   ├── prompts/             # Realtime and reflection prompts
 │   │   │   └── tools/               # Tavily-backed job search
 │   │   ├── schemas_api/             # FastAPI request/response DTOs
-│   │   ├── services/                # Reflection memory stores/services
+│   │   ├── services/                # Reflection memory stores/services and invite auth
 │   │   └── source/                  # Local reflection memory files
 │   ├── scripts/
+│   │   ├── create_invite_code.py    # Generate one-time invite codes in MongoDB
 │   │   └── setup_reflection_db.py   # Optional Mongo reflection index setup
 │   ├── tests/                       # Focused backend regression tests
 │   ├── langgraph.json
