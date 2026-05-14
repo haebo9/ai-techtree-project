@@ -57,7 +57,6 @@ def test_background_report_sends_email_and_cleans_sensitive_session(monkeypatch)
                     "strengths": ["명확한 직무 관심"],
                     "weaknesses": ["정량 지표 보완"],
                     "qa_review": [],
-                    "job_recommendations": [],
                     "communication_feedback": {
                         "summary": "답변이 간결합니다.",
                         "strengths": ["핵심을 먼저 말합니다."],

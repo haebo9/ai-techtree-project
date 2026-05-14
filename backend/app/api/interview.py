@@ -63,6 +63,59 @@ def prepare_interview_context(request: StartInterviewRequest) -> Dict[str, Any]:
         "status": "PREPARING",
     })
 
+
+def _build_evaluation_state(
+    *,
+    session: Dict[str, Any],
+    lc_messages: List[Any],
+    report_jobs: List[Dict[str, Any]],
+    tool_traces: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    return {
+        "user_id": session.get("user_id", ""),
+        "report_email": session.get("report_email", ""),
+        "job_title": session.get("job_title", "정보 없음"),
+        "field": "",
+        "experience": session.get("experience", ""),
+        "education": session.get("education", ""),
+        "resume": session.get("resume", "이력서 정보 없음"),
+        "major": "",
+        "raw_job_description": session.get("job_description", ""),
+        "job_description": session.get("job_description", "맞춤형 채용 공고 정보 없음"),
+        "job_image": None,
+        "interview_mode": session.get("interview_mode", "long"),
+        "interview_mode_label": INTERVIEW_MODE_GUIDANCE.get(
+            session.get("interview_mode", "long"),
+            INTERVIEW_MODE_GUIDANCE["long"],
+        )["label"],
+        "interview_mode_guidance": INTERVIEW_MODE_GUIDANCE.get(
+            session.get("interview_mode", "long"),
+            INTERVIEW_MODE_GUIDANCE["long"],
+        )["guidance"],
+        "messages": lc_messages,
+        "saved_jobs": report_jobs,
+        "tool_traces": tool_traces,
+        "candidate_summary": "",
+        "interview_brief": "",
+        "context_jobs": session.get("context_jobs", []),
+        "prepared_jobs": session.get("prepared_jobs", []),
+        "job_posting_analysis": session.get("job_posting_analysis", {}),
+        "job_posting_analysis_status": session.get("job_posting_analysis_status", "not_provided"),
+        "reflection_guidelines": "",
+        "guideline_selection": session.get("guideline_selection", {}),
+        "reflection_source_ids": session.get("reflection_source_ids", []),
+        "policy_source_ids": session.get("policy_source_ids", []),
+        "prompt_variant": session.get("prompt_variant", ""),
+        "realtime_instructions": "",
+        "instructions": "",
+        "selected_voice": session.get("voice", "sage"),
+        "voice": session.get("voice", "sage"),
+        "interviewer_name": session.get("interviewer_name", VOICE_INTERVIEWER_NAMES["sage"]),
+        "evaluation_result": None,
+        "status": "EVALUATING",
+    }
+
+
 @router.post("/start", response_model=StartInterviewResponse)
 async def start_interview(request: StartInterviewRequest):
     """
@@ -166,12 +219,17 @@ async def end_interview(
     session_tool_traces = _normalize_tool_traces(temp_sessions.get(session_id, {}).get("tool_traces", []))
     request_tool_traces = _normalize_tool_traces(request.tool_traces)
     tool_traces = _dedupe_tool_traces(session_tool_traces + request_tool_traces)
+    report_jobs = _normalize_job_list(
+        request.saved_jobs or temp_sessions.get(session_id, {}).get("prepared_jobs", []),
+        require_active=False,
+    )
 
     temp_sessions.setdefault(session_id, {})["status"] = "REPORT_QUEUED"
     background_tasks.add_task(
         generate_report_and_send_email,
         session_id=session_id,
         lc_messages=lc_messages,
+        report_jobs=report_jobs,
         tool_traces=tool_traces,
         transcripts=[item.model_dump() for item in request.transcripts],
         interview_date=request.interview_date,
@@ -188,25 +246,34 @@ def generate_report_and_send_email(
     *,
     session_id: str,
     lc_messages: List[Any],
+    report_jobs: List[Dict[str, Any]],
     tool_traces: List[Dict[str, Any]],
     transcripts: List[Dict[str, str]],
     interview_date: str | None,
     interview_duration: str | None,
 ) -> None:
     session = temp_sessions.get(session_id, {})
-    config = {"configurable": {"thread_id": session_id}}
+    report_jobs = _normalize_job_list(
+        report_jobs or session.get("prepared_jobs", []),
+        require_active=False,
+    )
+    evaluation_state = _build_evaluation_state(
+        session=session,
+        lc_messages=lc_messages,
+        report_jobs=report_jobs,
+        tool_traces=tool_traces,
+    )
+    config = {"configurable": {"thread_id": f"{session_id}:evaluation"}}
 
     try:
         temp_sessions.setdefault(session_id, {})["status"] = "REPORT_GENERATING"
-        interview_workflow.update_state(config, {
-            "status": "EVALUATING",
-            "messages": lc_messages,
-            "tool_traces": tool_traces,
-        })
-
-        final_state = interview_workflow.invoke(None, config=config)
+        final_state = interview_workflow.invoke(evaluation_state, config=config)
         evaluation = final_state.get("evaluation_result", {})
-
+        
+        if not evaluation:
+            raise ValueError(
+                f"evaluation_result is empty. final_state keys={list(final_state.keys())}"
+            )
         email_request = SendEmailRequest(
             email=session.get("report_email", ""),
             score=evaluation.get("score", 0),

@@ -33,6 +33,7 @@ class TranscriptItem(BaseModel):
 
 class EndInterviewRequest(BaseModel):
     transcripts: List[TranscriptItem] = Field(default=[], description="전체 대화 내역")
+    saved_jobs: List[Dict[str, Any]] = Field(default=[], description="면접 중 수집된 실제 채용 공고")
     tool_traces: List[Dict[str, Any]] = Field(default=[], description="면접 중 외부 도구 호출 상태와 필터링 사유")
     interview_date: Optional[str] = Field(default=None, description="면접 종료 시각 표시 문자열")
     interview_duration: Optional[str] = Field(default=None, description="면접 소요 시간 표시 문자열")

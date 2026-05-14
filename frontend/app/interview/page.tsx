@@ -80,9 +80,12 @@ export default function InterviewPage() {
   const pendingAutoEndRef = useRef(false);
   const isSpeakingRef = useRef(false);
   const activeConnectionIdRef = useRef(0);
+  const initStartTimerRef = useRef<number | null>(null);
   const initialResponseRequestedRef = useRef(false);
   const jobImagePendingRef = useRef(false);
   const jobImageInjectedRef = useRef(false);
+  const interviewModeRef = useRef<"short" | "long">("long");
+  const userRequestedEndRef = useRef(false);
 
   const createTimedResponseEvent = useCallback(() => {
     return {
@@ -91,6 +94,10 @@ export default function InterviewPage() {
   }, []);
 
   const cleanupRealtimeSession = useCallback(() => {
+    if (initStartTimerRef.current) {
+      window.clearTimeout(initStartTimerRef.current);
+      initStartTimerRef.current = null;
+    }
     if (autoEndTimerRef.current) {
       window.clearTimeout(autoEndTimerRef.current);
       autoEndTimerRef.current = null;
@@ -169,6 +176,15 @@ export default function InterviewPage() {
 
   const scheduleAutoEndInterview = useCallback(() => {
     if (isEndingRef.current || autoEndTimerRef.current) return;
+    if (!userRequestedEndRef.current) {
+      const elapsedMs = startTimeRef.current ? Date.now() - startTimeRef.current : 0;
+      const minimumMs = interviewModeRef.current === "short" ? 7 * 60 * 1000 : 15 * 60 * 1000;
+      if (elapsedMs < minimumMs) {
+        pendingAutoEndRef.current = false;
+        setStatusText("면접이 계속 진행됩니다. 스페이스바를 누른 채로 대답하세요.");
+        return;
+      }
+    }
     setStatusText("면접관의 마무리 멘트가 끝나면 리포트를 생성합니다...");
     autoEndTimerRef.current = window.setTimeout(() => {
       autoEndTimerRef.current = null;
@@ -189,6 +205,7 @@ export default function InterviewPage() {
   // 1. 컴포넌트 마운트 시 WebRTC 직접 연결 시도
   useEffect(() => {
     let isEffectCancelled = false;
+    
     const connectionId = ++globalInterviewConnectionId;
     activeConnectionIdRef.current = connectionId;
     initialResponseRequestedRef.current = false;
@@ -217,6 +234,7 @@ export default function InterviewPage() {
           experience: "신입",
           resume: "정보 없음"
         };
+        interviewModeRef.current = profileData.interview_mode === "short" ? "short" : "long";
         jobImagePendingRef.current = Boolean(profileData.job_image);
         jobImageInjectedRef.current = false;
 
@@ -358,6 +376,7 @@ export default function InterviewPage() {
             }
             console.log("[내 답변]:", userText);
             if (isUserEndingTranscript(userText)) {
+              userRequestedEndRef.current = true;
               markInterviewClosingDetected();
             }
           }
@@ -423,7 +442,10 @@ export default function InterviewPage() {
       }
     };
 
-    initWebRTC();
+    initStartTimerRef.current = window.setTimeout(() => {
+      initStartTimerRef.current = null;
+      initWebRTC();
+    }, 0);
 
     return () => {
       isEffectCancelled = true;
@@ -433,7 +455,7 @@ export default function InterviewPage() {
       jobImageInjectedRef.current = false;
       cleanupRealtimeSession();
     };
-  }, [cleanupRealtimeSession, createTimedResponseEvent, markInterviewClosingDetected, scheduleAutoEndInterview]);
+  }, [cleanupRealtimeSession, createTimedResponseEvent, markInterviewClosingDetected, router, scheduleAutoEndInterview]);
 
   // 2. 마이크 Push-To-Talk 핸들러
   const startRecording = useCallback(() => {

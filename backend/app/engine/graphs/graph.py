@@ -16,7 +16,7 @@ def route_start(state: InterviewState):
     status = state.get("status", "IN_PROGRESS")
     if status == "EVALUATING":
         return "evaluate"
-    return "manager_agent"
+    return "manager"
 
 def route_manager(state: InterviewState):
     """
@@ -44,7 +44,7 @@ workflow.add_conditional_edges(
     START,
     route_start,
     {
-        "manager_agent": "manager_agent",
+        "manager": "manager_agent",
         "evaluate": "evaluate",
     }
 )

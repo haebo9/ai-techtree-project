@@ -12,7 +12,7 @@ manager_tool_node = ToolNode(tools)
 def manager_agent_node(state: InterviewState):
     """
     LLM 매니저 노드.
-    지원자의 직무 관련 정보가 부족할 경우 자율적으로 타빌리 검색 툴을 호출합니다.
+    지원자의 직무 관련 정보가 부족할 경우 자율적으로 `search_korean_job_postings` 툴을 호출합니다.
     """
     llm = get_llm(temperature=0).bind_tools(tools)
     
