@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import NextImage from "next/image";
+import { apiPath } from "@/lib/api";
 
 export default function Home() {
   const router = useRouter();
@@ -13,6 +14,11 @@ export default function Home() {
   const [interviewMode, setInterviewMode] = useState<"short" | "long">("long");
   const [reportEmail, setReportEmail] = useState("");
   const [inputResetKey, setInputResetKey] = useState(0);
+  const [isCheckingInvite, setIsCheckingInvite] = useState(true);
+  const [isInviteAuthenticated, setIsInviteAuthenticated] = useState(false);
+  const [inviteCode, setInviteCode] = useState("");
+  const [inviteError, setInviteError] = useState("");
+  const [isVerifyingInvite, setIsVerifyingInvite] = useState(false);
 
   // 이력서 관련 상태
   const [resumeMode, setResumeMode] = useState<"none" | "text" | "file">("file");
@@ -29,6 +35,34 @@ export default function Home() {
   const [isDraggingJd, setIsDraggingJd] = useState(false);
   const [isAnalyzingJd, setIsAnalyzingJd] = useState(false);
   const [isAutoFilled, setIsAutoFilled] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const checkInviteSession = async () => {
+      try {
+        const res = await fetch(apiPath("/invite/session"), {
+          credentials: "include",
+          cache: "no-store",
+        });
+        const data = await res.json();
+        if (cancelled) return;
+        setIsInviteAuthenticated(Boolean(data.authenticated));
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Failed to check invite session", error);
+          setIsInviteAuthenticated(false);
+        }
+      } finally {
+        if (!cancelled) setIsCheckingInvite(false);
+      }
+    };
+
+    checkInviteSession();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const shouldReuseProfile = sessionStorage.getItem("reuseInterviewProfile") === "true";
@@ -72,8 +106,9 @@ export default function Home() {
       formData.append("file", file);
 
       try {
-        const res = await fetch("http://localhost:8000/api/upload/parse-pdf", {
+        const res = await fetch(apiPath("/upload/parse-pdf"), {
           method: "POST",
+          credentials: "include",
           body: formData,
         });
 
@@ -164,8 +199,9 @@ export default function Home() {
     if (!text && !image) return;
     setIsAnalyzingJd(true);
     try {
-      const res = await fetch("http://localhost:8000/api/upload/analyze-jd", {
+      const res = await fetch(apiPath("/upload/analyze-jd"), {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text, image }),
       });
@@ -302,6 +338,37 @@ export default function Home() {
     startInterview(interviewMode);
   };
 
+  const handleInviteSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const code = inviteCode.trim();
+    if (!code) {
+      setInviteError("초대코드를 입력해 주세요.");
+      return;
+    }
+
+    setIsVerifyingInvite(true);
+    setInviteError("");
+    try {
+      const res = await fetch(apiPath("/invite/verify"), {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.authenticated) {
+        throw new Error(data.detail || "초대코드를 확인할 수 없습니다.");
+      }
+      setIsInviteAuthenticated(true);
+      setInviteCode("");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "초대코드를 확인할 수 없습니다.";
+      setInviteError(message);
+    } finally {
+      setIsVerifyingInvite(false);
+    }
+  };
+
   const resetInterviewInputs = () => {
     setJobTitle("");
     setExperience("");
@@ -368,6 +435,47 @@ export default function Home() {
           </p>
         </div>
 
+        {isCheckingInvite ? (
+          <div className="flex flex-col items-center justify-center rounded-[2rem] border border-neutral-100 bg-neutral-50 px-6 py-14 text-center">
+            <div className="mb-4 h-10 w-10 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+            <p className="text-sm font-bold text-neutral-600">접속 권한을 확인하고 있습니다.</p>
+          </div>
+        ) : !isInviteAuthenticated ? (
+          <form onSubmit={handleInviteSubmit} className="mx-auto max-w-md rounded-[2rem] border border-neutral-100 bg-neutral-50 p-6 shadow-inner">
+            <div className="mb-5 text-center">
+              <h2 className="text-xl font-black text-neutral-900">초대코드 입력</h2>
+              <p className="mt-2 text-sm font-medium leading-relaxed text-neutral-600">
+                TechTree는 초대받은 사용자에게만 면접 연습을 제공합니다.
+              </p>
+            </div>
+            <label htmlFor="inviteCode" className="mb-2 block text-xs font-bold uppercase tracking-widest text-blue-600">
+              Invite Code
+            </label>
+            <input
+              id="inviteCode"
+              value={inviteCode}
+              onChange={(e) => {
+                setInviteCode(e.target.value);
+                setInviteError("");
+              }}
+              placeholder="초대코드를 입력하세요"
+              className="w-full rounded-2xl border border-neutral-200 bg-white px-5 py-4 text-center text-base font-black tracking-wide text-neutral-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+              autoComplete="off"
+            />
+            {inviteError && (
+              <p className="mt-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-center text-sm font-bold text-red-600">
+                {inviteError}
+              </p>
+            )}
+            <button
+              type="submit"
+              disabled={isVerifyingInvite}
+              className="mt-5 w-full rounded-2xl bg-blue-600 px-5 py-4 text-sm font-black text-white shadow-lg shadow-blue-100 transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isVerifyingInvite ? "확인 중..." : "입장하기"}
+            </button>
+          </form>
+        ) : (
         <form onSubmit={handleSubmit} className="space-y-7">
           {/* Section 1: JD & Resume Analysis - Two Column Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -414,8 +522,8 @@ export default function Home() {
                       <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm border border-neutral-100 mb-2 group-hover:scale-110 transition-transform">
                         <svg className="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                       </div>
-                      <span className="text-xs font-bold text-emerald-600">공고 이미지 업로드</span>
-                      <span className="text-[10px] text-neutral-600 mt-1 font-bold">PNG, JPG, JPEG, HEIC / 드래그앤드롭 / 캡처 후 붙여넣기 지원</span>
+                      <span className="text-xs font-bold text-emerald-600">Paste, drop, or click to add files</span>
+                      <span className="text-[10px] text-neutral-600 mt-1 font-bold">PNG, JPG, JPEG, HEIC</span>
                     </label>
                     {jdFileName && <p className="text-[11px] font-bold text-emerald-700 mt-3 bg-emerald-100/50 px-2 py-1 rounded-md">✓ {jdFileName}</p>}
                   </div>
@@ -469,8 +577,8 @@ export default function Home() {
                       <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm border border-neutral-100 mb-2 group-hover:scale-110 transition-transform">
                         <svg className="w-5 h-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                       </div>
-                      <span className="text-xs font-bold text-indigo-600">이력서 파일 업로드</span>
-                      <span className="text-[10px] text-neutral-600 mt-1 font-bold">PDF, TXT / 드래그앤드롭 지원</span>
+                      <span className="text-xs font-bold text-indigo-600">Drop or click to add files</span>
+                      <span className="text-[10px] text-neutral-600 mt-1 font-bold">PDF, TXT</span>
                     </label>
                     {resumeFile && <p className="text-[11px] font-bold text-indigo-700 mt-3 bg-indigo-100/50 px-2 py-1 rounded-md truncate max-w-full">✓ {resumeFile.name}</p>}
                     {isParsingResume && <p className="text-[10px] text-indigo-600 mt-2 animate-pulse font-bold">분석 중...</p>}
@@ -630,6 +738,7 @@ export default function Home() {
             </div>
           </div>
         </form>
+        )}
       </div>
 
       <div className="mt-12 flex justify-center opacity-30 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-500">

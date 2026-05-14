@@ -14,7 +14,6 @@ class FakeStructuredLlm:
             strengths=["직무 이해도가 있습니다."],
             weaknesses=["답변 구체성이 더 필요합니다."],
             qa_review=[],
-            job_recommendations=[],
             communication_feedback={
                 "summary": "답변이 간결합니다.",
                 "strengths": ["핵심을 먼저 말합니다."],
@@ -42,7 +41,7 @@ class FakeLlm:
         return FakeStructuredLlm()
 
 
-def test_evaluator_uses_prepared_jobs_without_fallback_search(monkeypatch):
+def test_evaluator_excludes_job_recommendations_from_report(monkeypatch):
     monkeypatch.setattr(evaluator_module, "get_llm", lambda temperature=0.2: FakeLlm())
     prepared_jobs = [
         {
@@ -64,16 +63,17 @@ def test_evaluator_uses_prepared_jobs_without_fallback_search(monkeypatch):
     })
 
     assert result["status"] == "COMPLETED"
-    assert result["evaluation_result"]["job_recommendations"] == prepared_jobs
+    assert "job_recommendations" not in result["evaluation_result"]
     assert "communication_feedback" in result["evaluation_result"]
     assert "self_intro_feedback" in result["evaluation_result"]
     assert "role_fit" in result["evaluation_result"]
     assert "테스트 자동화 프로젝트를 수행한 이력서 요약" in FakeStructuredLlm.last_messages[0].content
     assert "'score'는 실제 면접 답변의 품질" in FakeStructuredLlm.last_messages[0].content
     assert "'role_fit.score'는 면접 전달력과 별개" in FakeStructuredLlm.last_messages[0].content
+    assert "0-100 퍼센트" in FakeStructuredLlm.last_messages[0].content
 
 
-def test_evaluator_leaves_recommendations_empty_when_no_prepared_jobs(monkeypatch):
+def test_evaluator_excludes_recommendations_when_no_prepared_jobs(monkeypatch):
     monkeypatch.setattr(evaluator_module, "get_llm", lambda temperature=0.2: FakeLlm())
 
     result = evaluator_node({
@@ -85,4 +85,4 @@ def test_evaluator_leaves_recommendations_empty_when_no_prepared_jobs(monkeypatc
     })
 
     assert result["status"] == "COMPLETED"
-    assert result["evaluation_result"]["job_recommendations"] == []
+    assert "job_recommendations" not in result["evaluation_result"]

@@ -7,13 +7,13 @@
 ## 📘 기획 및 방향성 (PRD)
 **"현재 우리가 집중하는 목표와 흐름"**
 
-* `mvp.md`: 최소 기능 개발 (MVP) [[바로가기](./mvp.md)]
+* `mvp_and_plan.md`: 최소 기능 개발 (MVP) 및 개선 계획 [[바로가기](./mvp_and_plan.md)]
 * `user_flow.md`: 서비스 사용자 흐름도 [[바로가기](./user_flow.md)]
 
 ---
 
 ## 📐 아키텍처 및 설계 (Design)
-**"이전 버전(v1)의 개발 기록 및 전체 구조 설계"**
+**"현재 구조와 주요 워크플로우"**
 
 * `architecture.md`: 시스템 전체 구조 설계 [[바로가기](./architecture.md)]
 * `agent_workflow.md`: AI 에이전트 워크플로우 설계 [[바로가기](./agent_workflow.md)]

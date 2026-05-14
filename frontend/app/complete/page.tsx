@@ -2,16 +2,15 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 export default function CompletePage() {
-  const [email, setEmail] = useState("");
-
-  useEffect(() => {
+  const [email] = useState(() => {
+    if (typeof window === "undefined") return "";
     const savedProfile = sessionStorage.getItem("interviewProfile");
     const profile = savedProfile ? JSON.parse(savedProfile) : null;
-    setEmail(profile?.report_email || "");
-  }, []);
+    return profile?.report_email || "";
+  });
 
   const reuseProfile = () => {
     sessionStorage.setItem("reuseInterviewProfile", "true");

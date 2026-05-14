@@ -17,6 +17,13 @@ class Settings(BaseSettings):
     # 이메일 전송 (Resend API) 설정
     RESEND_API_KEY: str | None = None
 
+    # 초대코드 인증 설정
+    INVITE_AUTH_ENABLED: bool = True
+    INVITE_DB_NAME: str | None = None
+    INVITE_COLLECTION_NAME: str = "invite_codes"
+    INVITE_SESSION_SECRET: str | None = None
+    INVITE_SESSION_COOKIE_NAME: str = "techtree_invite_session"
+
     # Reflexion 로컬 학습 저장소
     REFLECTION_STORE_PATH: str = "backend/app/source/interview_reflections.jsonl"
     POLICY_STORE_PATH: str = "backend/app/source/interview_policies.jsonl"

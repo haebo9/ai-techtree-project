@@ -1,14 +1,15 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 import io
 from PyPDF2 import PdfReader
 from pydantic import BaseModel
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from app.core.config import settings
+from app.services.invite_service import require_invite_session
 import base64
 import json
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_invite_session)])
 
 @router.post("/parse-pdf")
 async def parse_pdf(file: UploadFile = File(...)):

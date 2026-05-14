@@ -22,7 +22,7 @@
 > 본 서비스는 사용자의 **취업 성공**을 최우선 목표로 하며, 반복적인 실전 연습과 AI의 객관적인 피드백을 통해 면접 역량을 극대화합니다. 
 
 ## 👑 서비스 작동 화면 (v.2.0.0)
-![Service Capture](backend/app/source/v1.1_capture_1.png)
+![Service Capture](docs/images/v1.1_capture_1.png)
 *(v2.0 최신 화면 업데이트 예정)*
 
 ## 📖 Index
@@ -59,7 +59,7 @@
 | Category | Technology | Description |
 | --- | --- | --- |
 | **Frontend** | ![Next.js](https://img.shields.io/badge/Next.js-000000?style=flat-square&logo=nextdotjs&logoColor=white) ![React](https://img.shields.io/badge/React-61DAFB?style=flat-square&logo=react&logoColor=black) ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=flat-square&logo=tailwind-css&logoColor=white) | Modern Web Application (App Router) |
-| **Backend** | ![Python](https://img.shields.io/badge/python-3670A0?style=flat-square&logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white) ![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white)  | High-Performance API & Realtime Socket |
+| **Backend** | ![Python](https://img.shields.io/badge/python-3670A0?style=flat-square&logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white) | High-Performance API & Realtime Session Server |
 | **AI / LLM** | ![OpenAI](https://img.shields.io/badge/OpenAI_Realtime-412991?style=flat-square&logo=openai&logoColor=white) ![LangGraph](https://img.shields.io/badge/LangGraph-FF4B4B?style=flat-square) ![LangChain](https://img.shields.io/badge/LangChain-1C3C3C?style=flat-square&logo=langchain&logoColor=white) | Realtime S2S & Agent Orchestration |
 | **ExternalAPI** | ![WebRTC](https://img.shields.io/badge/WebRTC-333333?style=flat-square&logo=webrtc&logoColor=white) ![Tavily](https://img.shields.io/badge/Tavily-4285F4?style=flat-square) ![Resend](https://img.shields.io/badge/Resend-000000?style=flat-square) | Realtime Communication & External Services |
 | **Cloud/DB** | ![AWS](https://img.shields.io/badge/AWS-232F3E?style=flat-square&logo=amazon-aws&logoColor=white) ![Vercel](https://img.shields.io/badge/Vercel-000000?style=flat-square&logo=vercel&logoColor=white) ![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=flat-square&logo=mongodb&logoColor=white) | Cloud Infrastructure & Database |
@@ -72,7 +72,7 @@
 - **Realtime**: `WebRTC` 기술을 활용하여 저지연 실시간 음성 통신을 지원합니다.
 
 > **System Architecture**
-![alt text](backend/app/source/Techtree-Arch-v1.1.drawio.svg)
+![alt text](docs/images/Techtree-Arch-v1.1.drawio.svg)
 *(v2.0 아키텍처 다이어그램 업데이트 예정)*
 
 ---
@@ -83,7 +83,7 @@
 | Branch | Action & Role | Frontend | Backend | Database |
 | :--- | :--- | :--- | :--- | :--- |
 | **`develop`** | **Develop & Test**<br/>개발 및 로컬 테스트 | **Localhost / Preview**<br/>(Dev Environment) | **Local Docker**<br/>(Uvicorn Reload) | **MongoDB Atlas**<br/>(Dev) |
-| **`main` / `Tag`** | **Production**<br/>실제 라이브 서비스 | **Vercel Prod**<br/>(Edge Network) | **AWS EC2**<br/>(Docker Compose) | **MongoDB Atlas**<br/>(Prod) |
+| **`main` / `Tag`** | **Production**<br/>실제 라이브 서비스 | **Vercel Prod**<br/>(Edge Network) | **FastAPI Runtime** | **Optional MongoDB Atlas**<br/>(Reflection Memory) |
 
 ---
 
@@ -105,11 +105,13 @@
 
 ### Prerequisites (v2.0 Deployment)
 - **Environment**:
-   - Docker & Docker Compose
-   - Node.js 20+ / Python 3.11+
+   - **Node.js**: `v25.2.1`
+   - **Next.js**: `16.2.6`
+   - **React**: `19.2.6`
+   - **Python**: `3.12.13`
+
 - **API Keys**(.env):
    - OPENAI_API_KEY (Required)
    - TAVILY_API_KEY (Job Search)
    - RESEND_API_KEY (Email Report)
-   - MONGODB_URL (Database)
-
+   - MONGODB_URL (Optional reflection memory)

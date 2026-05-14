@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { apiPath } from "@/lib/api";
 import { isInterviewClosingTranscript } from "@/lib/interviewClosing";
 
 interface JobSearchResult {
@@ -29,6 +30,7 @@ interface TranscriptEntry {
 }
 
 let globalInterviewConnectionId = 0;
+const FINAL_REMARK_GRACE_MS = 12000;
 
 const USER_ENDING_PATTERNS = [
   /\bbye\b/i,
@@ -42,28 +44,15 @@ function isUserEndingTranscript(text: string) {
   return USER_ENDING_PATTERNS.some((pattern) => pattern.test(normalized));
 }
 
-function mergeJobResults(current: JobSearchResult[], next: unknown): JobSearchResult[] {
-  if (!Array.isArray(next)) return current;
-
-  const merged = [...current];
-  const seen = new Set(merged.map((job) => job.url).filter(Boolean));
-
-  next.forEach((item) => {
-    if (!item || typeof item !== "object") return;
-    const job = item as JobSearchResult;
-    const normalized = {
-      company: job.company || "회사명 미상",
-      title: job.title || "공고명 미상",
-      url: job.url || "",
-      content: job.content || "",
-      deadline_status: job.deadline_status,
-    };
-    if (normalized.url && seen.has(normalized.url)) return;
-    if (normalized.url) seen.add(normalized.url);
-    merged.push(normalized);
-  });
-
-  return merged.slice(0, 6);
+async function readApiError(response: Response, fallback: string): Promise<string> {
+  try {
+    const data = await response.json();
+    if (typeof data?.detail === "string") return data.detail;
+    if (typeof data?.message === "string") return data.message;
+  } catch {
+    // Ignore non-JSON error responses.
+  }
+  return fallback;
 }
 
 export default function InterviewPage() {
@@ -73,6 +62,7 @@ export default function InterviewPage() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [statusText, setStatusText] = useState("마이크 권한을 확인 중입니다...");
   const [isEnding, setIsEnding] = useState(false);
+  const [isAutoEnding, setIsAutoEnding] = useState(false);
 
   // WebRTC 및 Media 참조
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -91,17 +81,32 @@ export default function InterviewPage() {
   const autoEndTimerRef = useRef<number | null>(null);
   const pendingAutoEndRef = useRef(false);
   const isSpeakingRef = useRef(false);
+  const isAutoEndingRef = useRef(false);
   const activeConnectionIdRef = useRef(0);
+  const initStartTimerRef = useRef<number | null>(null);
   const initialResponseRequestedRef = useRef(false);
   const jobImagePendingRef = useRef(false);
   const jobImageInjectedRef = useRef(false);
+  const interviewModeRef = useRef<"short" | "long">("long");
+  const userRequestedEndRef = useRef(false);
+
+  const createTimedResponseEvent = useCallback(() => {
+    return {
+      type: "response.create"
+    };
+  }, []);
 
   const cleanupRealtimeSession = useCallback(() => {
+    if (initStartTimerRef.current) {
+      window.clearTimeout(initStartTimerRef.current);
+      initStartTimerRef.current = null;
+    }
     if (autoEndTimerRef.current) {
       window.clearTimeout(autoEndTimerRef.current);
       autoEndTimerRef.current = null;
     }
     pendingAutoEndRef.current = false;
+    isAutoEndingRef.current = false;
     pendingUserTranscriptIndexesRef.current = [];
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(t => t.stop());
@@ -148,8 +153,9 @@ export default function InterviewPage() {
       const orderedTranscripts = transcriptRef.current
         .filter((item) => item.text.trim())
         .map(({ role, text }) => ({ role, text }));
-      const response = await fetch(`http://localhost:8000/api/interview/${currentSessionId}/end`, {
+      const response = await fetch(apiPath(`/interview/${currentSessionId}/end`), {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           transcripts: orderedTranscripts,
@@ -174,17 +180,32 @@ export default function InterviewPage() {
 
   const scheduleAutoEndInterview = useCallback(() => {
     if (isEndingRef.current || autoEndTimerRef.current) return;
-    setStatusText("면접관의 마무리 멘트가 끝나면 리포트를 생성합니다...");
+    if (!userRequestedEndRef.current) {
+      const elapsedMs = startTimeRef.current ? Date.now() - startTimeRef.current : 0;
+      const minimumMs = interviewModeRef.current === "short" ? 7 * 60 * 1000 : 15 * 60 * 1000;
+      if (elapsedMs < minimumMs) {
+        pendingAutoEndRef.current = false;
+        isAutoEndingRef.current = false;
+        setIsAutoEnding(false);
+        setStatusText("면접이 계속 진행됩니다. 스페이스바를 누른 채로 대답하세요.");
+        return;
+      }
+    }
+    isAutoEndingRef.current = true;
+    setIsAutoEnding(true);
+    setStatusText("면접관의 마지막 멘트가 끝난 뒤 리포트를 생성합니다...");
     autoEndTimerRef.current = window.setTimeout(() => {
       autoEndTimerRef.current = null;
       endInterview();
-    }, 6500);
+    }, FINAL_REMARK_GRACE_MS);
   }, [endInterview]);
 
   const markInterviewClosingDetected = useCallback(() => {
     if (isEndingRef.current) return;
     pendingAutoEndRef.current = true;
-    setStatusText("면접관이 마무리 중입니다. 잠시만 기다려 주세요...");
+    isAutoEndingRef.current = true;
+    setIsAutoEnding(true);
+    setStatusText("면접관이 마지막 멘트를 하는 중입니다. 잠시만 기다려 주세요...");
     if (!isSpeakingRef.current) {
       pendingAutoEndRef.current = false;
       scheduleAutoEndInterview();
@@ -194,6 +215,7 @@ export default function InterviewPage() {
   // 1. 컴포넌트 마운트 시 WebRTC 직접 연결 시도
   useEffect(() => {
     let isEffectCancelled = false;
+    
     const connectionId = ++globalInterviewConnectionId;
     activeConnectionIdRef.current = connectionId;
     initialResponseRequestedRef.current = false;
@@ -222,12 +244,14 @@ export default function InterviewPage() {
           experience: "신입",
           resume: "정보 없음"
         };
+        interviewModeRef.current = profileData.interview_mode === "short" ? "short" : "long";
         jobImagePendingRef.current = Boolean(profileData.job_image);
         jobImageInjectedRef.current = false;
 
         // 2) 우리 백엔드 API를 호출해 OpenAI 일회용 접속 토큰(ephemeral_token) 발급
-        const res = await fetch("http://localhost:8000/api/interview/start", {
+        const res = await fetch(apiPath("/interview/start"), {
           method: "POST",
+          credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             user_id: "test@example.com",
@@ -242,7 +266,17 @@ export default function InterviewPage() {
           })
         });
 
-        if (!res.ok) throw new Error("토큰 발급 API 오류");
+        if (!res.ok) {
+          const detail = await readApiError(res, "토큰 발급 API 오류");
+          if (res.status === 401) {
+            setStatusText("초대코드 인증이 필요합니다. 메인 화면에서 다시 입장해 주세요.");
+            router.replace("/");
+            return;
+          }
+          setStatusText(`면접 세션을 시작하지 못했습니다. (${res.status}) ${detail}`);
+          console.warn("Interview start API failed:", { status: res.status, detail });
+          return;
+        }
         const data = await res.json();
         if (!isActiveConnection()) return;
 
@@ -320,7 +354,7 @@ export default function InterviewPage() {
           // VAD가 꺼져 있으므로 연결 직후 첫 인사 생성을 수동 요청
           if (!initialResponseRequestedRef.current) {
             initialResponseRequestedRef.current = true;
-            dc.send(JSON.stringify({ type: "response.create" }));
+            dc.send(JSON.stringify(createTimedResponseEvent()));
           }
         });
 
@@ -328,53 +362,6 @@ export default function InterviewPage() {
           if (!isActiveConnection()) return;
 
           const realtimeEvent = JSON.parse(e.data);
-
-          // --- 에이전틱 툴(Function Calling) 처리 ---
-          if (realtimeEvent.type === "response.function_call_arguments.done") {
-            const callId = realtimeEvent.call_id;
-            const name = realtimeEvent.name;
-            const args = JSON.parse(realtimeEvent.arguments);
-
-            if (name === "search_job_postings") {
-              setStatusText("🔍 최신 채용 정보를 검색 중입니다...");
-              console.log("[Tool] 검색 요청:", args.query);
-
-              try {
-                // 백엔드 API 호출하여 검색 실행 (prefix 주의: /api/interview/tools/search_job)
-                const res = await fetch(`http://localhost:8000/api/interview/${sessionIdRef.current}/tools/search_job`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    query: args.query
-                  })
-                });
-                const searchData = await res.json();
-                console.log("[Tool] 검색 결과 수신 완료", searchData.result);
-                savedJobsRef.current = mergeJobResults(savedJobsRef.current, searchData.result);
-                if (searchData.trace && typeof searchData.trace === "object") {
-                  toolTracesRef.current = [...toolTracesRef.current, searchData.trace].slice(-10);
-                }
-                
-                // 검색 결과를 OpenAI Realtime API 컨텍스트에 추가
-                dc.send(JSON.stringify({
-                  type: "conversation.item.create",
-                  item: {
-                    type: "function_call_output",
-                    call_id: callId,
-                    output: JSON.stringify(searchData.result)
-                  }
-                }));
-
-                // 결과를 바탕으로 AI에게 다시 말하도록 트리거
-                dc.send(JSON.stringify({
-                  type: "response.create"
-                }));
-
-              } catch (err) {
-                console.error("검색 툴 실행 에러:", err);
-              }
-            }
-          }
 
           // 텍스트 변환 기록(Transcript) 가로채기 -> 추후 DB 저장을 위해 배열에 푸시
           if (realtimeEvent.type === "response.audio_transcript.done") {
@@ -399,6 +386,7 @@ export default function InterviewPage() {
             }
             console.log("[내 답변]:", userText);
             if (isUserEndingTranscript(userText)) {
+              userRequestedEndRef.current = true;
               markInterviewClosingDetected();
             }
           }
@@ -464,7 +452,10 @@ export default function InterviewPage() {
       }
     };
 
-    initWebRTC();
+    initStartTimerRef.current = window.setTimeout(() => {
+      initStartTimerRef.current = null;
+      initWebRTC();
+    }, 0);
 
     return () => {
       isEffectCancelled = true;
@@ -474,10 +465,11 @@ export default function InterviewPage() {
       jobImageInjectedRef.current = false;
       cleanupRealtimeSession();
     };
-  }, [cleanupRealtimeSession, markInterviewClosingDetected, scheduleAutoEndInterview]);
+  }, [cleanupRealtimeSession, createTimedResponseEvent, markInterviewClosingDetected, router, scheduleAutoEndInterview]);
 
   // 2. 마이크 Push-To-Talk 핸들러
   const startRecording = useCallback(() => {
+    if (isAutoEndingRef.current) return;
     if (streamRef.current && !isRecording && dcRef.current?.readyState === "open") {
       const audioTrack = streamRef.current.getAudioTracks()[0];
       audioTrack.enabled = true;
@@ -489,6 +481,7 @@ export default function InterviewPage() {
   }, [isRecording]);
 
   const stopRecording = useCallback(() => {
+    if (isAutoEndingRef.current) return;
     if (streamRef.current && isRecording && dcRef.current?.readyState === "open") {
       const audioTrack = streamRef.current.getAudioTracks()[0];
       audioTrack.enabled = false;
@@ -500,10 +493,10 @@ export default function InterviewPage() {
       transcriptRef.current.push({ role: "user", text: "", pending: true });
       pendingUserTranscriptIndexesRef.current.push(pendingIndex);
       dcRef.current.send(JSON.stringify({ type: "input_audio_buffer.commit" }));
-      dcRef.current.send(JSON.stringify({ type: "response.create" }));
+      dcRef.current.send(JSON.stringify(createTimedResponseEvent()));
       setStatusText("면접관 답변을 기다리는 중입니다...");
     }
-  }, [isRecording]);
+  }, [createTimedResponseEvent, isRecording]);
 
   // 스페이스바 단축키 (Push-To-Talk)
   useEffect(() => {
@@ -546,7 +539,13 @@ export default function InterviewPage() {
         <button 
           onClick={endInterview} 
           disabled={isEnding}
-          className={`px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white rounded-lg text-sm font-medium transition-colors border border-neutral-700 ${isEnding ? "opacity-50 cursor-not-allowed" : ""}`}
+          className={`px-4 py-2 text-white rounded-lg text-sm font-medium transition-colors border ${
+            isEnding
+              ? "bg-neutral-800 border-neutral-700 opacity-50 cursor-not-allowed"
+              : isAutoEnding
+                ? "bg-red-600 hover:bg-red-500 border-red-500"
+                : "bg-neutral-800 hover:bg-neutral-700 border-neutral-700"
+          }`}
         >
           {isEnding ? "종료중" : "면접 종료하기"}
         </button>

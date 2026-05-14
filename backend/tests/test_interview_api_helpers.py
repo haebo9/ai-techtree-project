@@ -1,6 +1,8 @@
 import asyncio
 
 from app.api import interview as interview_api
+from app.engine.graphs.graph import route_start
+from app.services import interview_manager
 from app.api.interview import _normalize_job_list, prepare_interview_context
 from app.schemas_api.interview import StartInterviewRequest
 
@@ -47,20 +49,26 @@ def test_normalize_job_list_filters_only_expired_report_recommendations():
 
 def test_prepare_interview_context_uses_image_analysis_for_job_description(monkeypatch):
     monkeypatch.setattr(
-        interview_api,
-        "_analyze_job_image_for_context",
+        interview_manager,
+        "analyze_job_image_for_context",
         lambda image: {
             "status": "image_analyzed",
             "summary": "회사명: 테스트\n직무명: 언어공학자\n주요업무: 데이터 평가",
         },
     )
-    monkeypatch.setattr(interview_api, "_prepare_job_materials", lambda **kwargs: ([], []))
+    monkeypatch.setattr(interview_manager, "prepare_job_materials", lambda **kwargs: ([], []))
 
     class FakeReflectionService:
-        def get_prompt_guidelines(self, **kwargs):
-            return ""
+        def select_prompt_guidelines(self, **kwargs):
+            class Selection:
+                text = ""
 
-    monkeypatch.setattr(interview_api, "ReflectionService", lambda: FakeReflectionService())
+                def model_dump(self):
+                    return {"text": "", "reflection_ids": [], "policy_ids": []}
+
+            return Selection()
+
+    monkeypatch.setattr(interview_manager, "ReflectionService", lambda: FakeReflectionService())
 
     context = prepare_interview_context(
         StartInterviewRequest(
@@ -76,20 +84,26 @@ def test_prepare_interview_context_uses_image_analysis_for_job_description(monke
     )
 
     assert context["job_posting_analysis_status"] == "image_analyzed"
-    assert "직무명: 언어공학자" in context["interview_job_context"]
-    assert "직무명: 언어공학자" in context["instructions"]
+    assert "직무명: 언어공학자" in context["job_description"]
+    assert "직무명: 언어공학자" in context["realtime_instructions"]
     assert context["interview_mode"] == "short"
     assert context["prompt_variant"] == "realtime_interviewer_short"
 
 
 def test_prepare_interview_context_falls_back_to_long_for_unknown_mode(monkeypatch):
-    monkeypatch.setattr(interview_api, "_prepare_job_materials", lambda **kwargs: ([], []))
+    monkeypatch.setattr(interview_manager, "prepare_job_materials", lambda **kwargs: ([], []))
 
     class FakeReflectionService:
-        def get_prompt_guidelines(self, **kwargs):
-            return ""
+        def select_prompt_guidelines(self, **kwargs):
+            class Selection:
+                text = ""
 
-    monkeypatch.setattr(interview_api, "ReflectionService", lambda: FakeReflectionService())
+                def model_dump(self):
+                    return {"text": "", "reflection_ids": [], "policy_ids": []}
+
+            return Selection()
+
+    monkeypatch.setattr(interview_manager, "ReflectionService", lambda: FakeReflectionService())
 
     context = prepare_interview_context(
         StartInterviewRequest(
@@ -105,60 +119,75 @@ def test_prepare_interview_context_falls_back_to_long_for_unknown_mode(monkeypat
 
     assert context["interview_mode"] == "long"
     assert context["prompt_variant"] == "realtime_interviewer_long"
-    assert "면접 시간 운영: 실전 면접" in context["instructions"]
-    assert "짧은 면접" not in context["instructions"]
+    assert "면접 시간 운영: 실전 면접" in context["realtime_instructions"]
+    assert "짧은 면접" not in context["realtime_instructions"]
 
 
-def test_session_search_uses_server_session_profile(monkeypatch):
-    calls = []
+def test_start_interview_does_not_register_realtime_search_tools(monkeypatch):
+    captured_payload = {}
 
-    def fake_search(*, query, experience="", education=""):
-        calls.append({"query": query, "experience": experience, "education": education})
-        return {
-            "jobs": [
-                {
-                    "company": "테스트",
-                    "title": "언어공학자",
-                    "url": "https://www.wanted.co.kr/wd/1",
-                    "content": "상시채용",
-                }
-            ],
-            "trace": {
-                "tool_name": "search_job_postings",
-                "query": query,
-                "status": "success",
-                "reason": "",
-                "raw_count": 1,
-                "filtered_count": 1,
-            },
-        }
+    class FakeRealtimeResponse:
+        def raise_for_status(self):
+            return None
 
-    monkeypatch.setattr("app.engine.tools.job_search.search_korean_job_postings_with_trace", fake_search)
+        def json(self):
+            return {"client_secret": {"value": "ephemeral-test-token"}}
+
+    def fake_post(url, *, headers, json, timeout):
+        captured_payload.update(json)
+        return FakeRealtimeResponse()
+
+    monkeypatch.setattr(interview_api.requests, "post", fake_post)
     monkeypatch.setattr(
         interview_api.interview_workflow,
         "update_state",
         lambda *args, **kwargs: None,
     )
+    monkeypatch.setattr(
+        interview_api.interview_workflow,
+        "invoke",
+        lambda *args, **kwargs: {
+            "interview_mode": "long",
+            "prompt_variant": "realtime_interviewer_long",
+            "job_title": "AI Engineer",
+            "education": "학사",
+            "experience": "신입",
+            "resume": "LLM 프로젝트",
+            "interview_mode_label": "긴 면접",
+            "interview_mode_guidance": "약 20분",
+            "job_posting_analysis": {"status": "not_provided"},
+            "job_posting_analysis_status": "not_provided",
+            "context_jobs": [],
+            "prepared_jobs": [],
+            "job_description": "맞춤형 채용 공고 정보 없음",
+            "reflection_guidelines": "",
+            "guideline_selection": {"text": "", "reflection_ids": [], "policy_ids": []},
+            "selected_voice": "sage",
+            "interviewer_name": "Mina",
+            "realtime_instructions": "면접관 프롬프트",
+        },
+    )
 
-    interview_api.temp_sessions["tool-session"] = {
-        "experience": "신입",
-        "education": "학사(4년제)",
-        "prepared_jobs": [],
-        "tool_traces": [],
-    }
-
-    session_result = asyncio.run(
-        interview_api.execute_session_search_job(
-            interview_api.ToolSearchRequest(
-                query="언어공학자 채용",
-                experience="프론트가 보낸 경력",
-                education="프론트가 보낸 학력",
-            ),
-            "tool-session",
+    response = asyncio.run(
+        interview_api.start_interview(
+            StartInterviewRequest(
+                user_id="test@example.com",
+                report_email="report@example.com",
+                job_title="AI Engineer",
+                experience="신입",
+                education="학사",
+                resume="LLM 프로젝트",
+                interview_mode="long",
+            )
         )
     )
 
-    assert calls[0]["experience"] == "신입"
-    assert calls[0]["education"] == "학사(4년제)"
-    assert session_result["result"][0]["company"] == "테스트"
-    assert interview_api.temp_sessions["tool-session"]["tool_traces"]
+    assert response.ephemeral_token == "ephemeral-test-token"
+    assert "tools" not in captured_payload
+    assert "tool_choice" not in captured_payload
+
+
+def test_langgraph_routes_manager_or_evaluator_by_status():
+    assert route_start({"status": "PREPARING"}) == "manager"
+    assert route_start({"status": "IN_PROGRESS"}) == "manager"
+    assert route_start({"status": "EVALUATING"}) == "evaluate"

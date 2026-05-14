@@ -75,7 +75,6 @@ def send_telegram_message(text: str):
     payload = {
         "chat_id": chat_id,
         "text": f"📌 *[{env_name}] Notification*\n{text}",
-        "parse_mode": "Markdown"
     }
     
     try:

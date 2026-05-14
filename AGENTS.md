@@ -14,7 +14,7 @@ TechTree is an AI mock interview service. The current product flow is:
 5. When the interview ends, transcripts and saved job postings are sent to the backend LangGraph evaluator.
 6. The result page shows score, strengths, weaknesses, Q&A feedback, and recommended job postings.
 
-The codebase still contains some older v1.0/v1.1 documentation and Docker/Streamlit references. When instructions conflict, follow the current code path: `FastAPI + LangGraph + OpenAI Realtime + Next.js`.
+When instructions conflict, follow the current code path: `FastAPI + LangGraph + OpenAI Realtime + Next.js`.
 
 ## Repository Map
 
@@ -29,12 +29,13 @@ The codebase still contains some older v1.0/v1.1 documentation and Docker/Stream
 - `backend/app/api/upload.py`: PDF parsing and job posting title extraction from text/image.
 - `backend/app/engine/graphs/`: LangGraph state and workflow.
 - `backend/app/engine/nodes/interviewer.py`: LangGraph interviewer node.
-- `backend/app/engine/nodes/evaluator.py`: final evaluation and `job_recommendations` injection.
 - `backend/app/engine/tools/job_search.py`: Tavily-backed job posting search tool.
-- `backend/app/engine/prompts/api_interviewer.py`: OpenAI Realtime interviewer system prompt.
+- `backend/app/engine/prompts/api_interview.py`: OpenAI Realtime interviewer system prompt.
+- `backend/app/engine/prompts/reflection_analyzer.py`: reflection generation prompt.
 - `backend/app/core/config.py`: environment settings.
 - `backend/app/core/llm.py`: cached `ChatOpenAI` factory.
-- `backend/app/services/`, `backend/app/schemas_db/`: MongoDB/user/keyword legacy and supporting service code.
+- `backend/app/services/reflection_service.py`: local/Mongo reflection memory and policy promotion.
+- `backend/app/services/reflection_mongo_store.py`: optional Mongo vector-ready reflection storage.
 - `docs/`, `README.md`, `STRUCTURE.md`, `dev_log.md`: project documentation; some content may lag behind current implementation.
 
 ## Local Setup
@@ -72,7 +73,7 @@ Required for most backend flows:
 Optional, feature-dependent:
 
 - `TAVILY_API_KEY`: real job posting search. Without it, the search tool returns mock structured postings.
-- `MONGODB_URL`, `DB_NAME`: database-backed service code.
+- `MONGODB_URL`: optional Mongo-backed reflection memory.
 - `RESEND_API_KEY`: email delivery.
 - `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`: Telegram logging.
 
@@ -193,7 +194,7 @@ cd backend
 langgraph dev --host 0.0.0.0 --port 2024
 ```
 
-Docker compose files exist, but the local compose file still references an older Streamlit frontend path. Prefer direct `uvicorn` and `npm run dev` for current Next.js work unless the task is explicitly Docker-related.
+Docker/Streamlit deployment files were removed during production cleanup. Prefer direct `uvicorn` and `npm run dev` locally unless deployment work explicitly adds new infrastructure.
 
 ## Coding Guidelines
 
@@ -209,7 +210,7 @@ Docker compose files exist, but the local compose file still references an older
 
 ## Frontend Guidelines
 
-- Current app uses Next.js app router, React 19, Tailwind CSS, and some lucide icons.
+- Current app uses Next.js app router, React 19, and Tailwind CSS.
 - The main pages are client components because they use browser APIs, localStorage, FileReader, WebRTC, and media devices.
 - Keep controls stable on mobile and desktop. Test long Korean strings and narrow screens when changing UI.
 - Resume upload supports PDF/TXT. Job posting image upload supports common image types and HEIC conversion through `heic2any`.
