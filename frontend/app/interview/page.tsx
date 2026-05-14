@@ -30,6 +30,7 @@ interface TranscriptEntry {
 }
 
 let globalInterviewConnectionId = 0;
+const FINAL_REMARK_GRACE_MS = 12000;
 
 const USER_ENDING_PATTERNS = [
   /\bbye\b/i,
@@ -61,6 +62,7 @@ export default function InterviewPage() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [statusText, setStatusText] = useState("마이크 권한을 확인 중입니다...");
   const [isEnding, setIsEnding] = useState(false);
+  const [isAutoEnding, setIsAutoEnding] = useState(false);
 
   // WebRTC 및 Media 참조
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -79,6 +81,7 @@ export default function InterviewPage() {
   const autoEndTimerRef = useRef<number | null>(null);
   const pendingAutoEndRef = useRef(false);
   const isSpeakingRef = useRef(false);
+  const isAutoEndingRef = useRef(false);
   const activeConnectionIdRef = useRef(0);
   const initStartTimerRef = useRef<number | null>(null);
   const initialResponseRequestedRef = useRef(false);
@@ -103,6 +106,7 @@ export default function InterviewPage() {
       autoEndTimerRef.current = null;
     }
     pendingAutoEndRef.current = false;
+    isAutoEndingRef.current = false;
     pendingUserTranscriptIndexesRef.current = [];
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(t => t.stop());
@@ -181,21 +185,27 @@ export default function InterviewPage() {
       const minimumMs = interviewModeRef.current === "short" ? 7 * 60 * 1000 : 15 * 60 * 1000;
       if (elapsedMs < minimumMs) {
         pendingAutoEndRef.current = false;
+        isAutoEndingRef.current = false;
+        setIsAutoEnding(false);
         setStatusText("면접이 계속 진행됩니다. 스페이스바를 누른 채로 대답하세요.");
         return;
       }
     }
-    setStatusText("면접관의 마무리 멘트가 끝나면 리포트를 생성합니다...");
+    isAutoEndingRef.current = true;
+    setIsAutoEnding(true);
+    setStatusText("면접관의 마지막 멘트가 끝난 뒤 리포트를 생성합니다...");
     autoEndTimerRef.current = window.setTimeout(() => {
       autoEndTimerRef.current = null;
       endInterview();
-    }, 6500);
+    }, FINAL_REMARK_GRACE_MS);
   }, [endInterview]);
 
   const markInterviewClosingDetected = useCallback(() => {
     if (isEndingRef.current) return;
     pendingAutoEndRef.current = true;
-    setStatusText("면접관이 마무리 중입니다. 잠시만 기다려 주세요...");
+    isAutoEndingRef.current = true;
+    setIsAutoEnding(true);
+    setStatusText("면접관이 마지막 멘트를 하는 중입니다. 잠시만 기다려 주세요...");
     if (!isSpeakingRef.current) {
       pendingAutoEndRef.current = false;
       scheduleAutoEndInterview();
@@ -459,6 +469,7 @@ export default function InterviewPage() {
 
   // 2. 마이크 Push-To-Talk 핸들러
   const startRecording = useCallback(() => {
+    if (isAutoEndingRef.current) return;
     if (streamRef.current && !isRecording && dcRef.current?.readyState === "open") {
       const audioTrack = streamRef.current.getAudioTracks()[0];
       audioTrack.enabled = true;
@@ -470,6 +481,7 @@ export default function InterviewPage() {
   }, [isRecording]);
 
   const stopRecording = useCallback(() => {
+    if (isAutoEndingRef.current) return;
     if (streamRef.current && isRecording && dcRef.current?.readyState === "open") {
       const audioTrack = streamRef.current.getAudioTracks()[0];
       audioTrack.enabled = false;
@@ -527,7 +539,13 @@ export default function InterviewPage() {
         <button 
           onClick={endInterview} 
           disabled={isEnding}
-          className={`px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white rounded-lg text-sm font-medium transition-colors border border-neutral-700 ${isEnding ? "opacity-50 cursor-not-allowed" : ""}`}
+          className={`px-4 py-2 text-white rounded-lg text-sm font-medium transition-colors border ${
+            isEnding
+              ? "bg-neutral-800 border-neutral-700 opacity-50 cursor-not-allowed"
+              : isAutoEnding
+                ? "bg-red-600 hover:bg-red-500 border-red-500"
+                : "bg-neutral-800 hover:bg-neutral-700 border-neutral-700"
+          }`}
         >
           {isEnding ? "종료중" : "면접 종료하기"}
         </button>
