@@ -11,11 +11,7 @@ interface QnAReview {
   feedback: string;
 }
 
-interface JobRecommendation {
-  company: string;
-  title: string;
-  url?: string;
-}
+
 
 interface CommunicationFeedback {
   summary?: string;
@@ -45,7 +41,7 @@ interface EvaluationResult {
   strengths: string[];
   weaknesses: string[];
   qa_review: QnAReview[];
-  job_recommendations: JobRecommendation[];
+
   communication_feedback?: CommunicationFeedback;
   self_intro_feedback?: SelfIntroFeedback;
   role_fit?: RoleFit;
@@ -115,7 +111,7 @@ export default function ResultPage() {
           strengths: result.strengths,
           weaknesses: result.weaknesses,
           qa_review: result.qa_review || [],
-          job_recommendations: result.job_recommendations || [],
+
           communication_feedback: result.communication_feedback || {},
           self_intro_feedback: result.self_intro_feedback || {},
           role_fit: result.role_fit || {},
@@ -480,47 +476,6 @@ export default function ResultPage() {
               </span>
             </Link>
 
-            {/* Job Recommendations */}
-            <div className="bg-white rounded-[2.5rem] p-8 shadow-xl shadow-neutral-200/40 border border-neutral-100">
-              <h2 className="text-sm font-black text-neutral-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-                <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-                🎯 맞춤 채용 공고
-              </h2>
-              <div className="space-y-4">
-                {result.job_recommendations?.map((job, idx) => {
-                  const content = (
-                    <>
-                      <div className="flex justify-between items-start mb-2">
-                        <p className="text-[10px] font-black text-blue-600 uppercase bg-blue-50 px-2 py-0.5 rounded-md">{job.company}</p>
-                        <svg className="w-4 h-4 text-neutral-300 group-hover:text-blue-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                      </div>
-                      <h3 className="font-bold text-neutral-900 group-hover:text-blue-600 transition-colors text-sm line-clamp-2">{job.title}</h3>
-                    </>
-                  );
-
-                  return job.url ? (
-                    <a key={idx} href={job.url} target="_blank" rel="noopener noreferrer" className="block p-5 rounded-2xl border border-neutral-100 bg-neutral-50/30 hover:bg-white hover:border-blue-200 hover:shadow-lg hover:shadow-blue-100 transition-all cursor-pointer group">
-                      {content}
-                    </a>
-                  ) : (
-                    <div key={idx} className="block p-5 rounded-2xl border border-neutral-100 bg-neutral-50/30 cursor-default">
-                      {content}
-                    </div>
-                  );
-                })}
-                {(!result.job_recommendations || result.job_recommendations.length === 0) && (
-                  <div className="py-10 px-6 text-center bg-neutral-50 rounded-[2rem] border border-dashed border-neutral-200 group/empty">
-                    <div className="w-12 h-12 rounded-full bg-white border border-neutral-100 flex items-center justify-center mx-auto mb-4 shadow-sm group-hover/empty:scale-110 transition-transform">
-                      <svg className="w-6 h-6 text-neutral-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
-                    </div>
-                    <p className="text-[11px] text-neutral-500 font-bold leading-relaxed">
-                      현재 추천된 공고가 없습니다.<br />
-                      <span className="text-blue-500 font-black">더 많은 면접 경험</span>을 쌓아보세요!
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
 
             {/* Action Card */}
             <div className="bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900 rounded-[2.5rem] p-8 shadow-2xl text-white relative overflow-hidden group">

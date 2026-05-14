@@ -85,14 +85,8 @@ export default function InterviewPage() {
   const jobImageInjectedRef = useRef(false);
 
   const createTimedResponseEvent = useCallback(() => {
-    const elapsedMs = startTimeRef.current ? Date.now() - startTimeRef.current : 0;
-    const elapsedMinutes = Math.max(0, Math.floor(elapsedMs / 60000));
-
     return {
-      type: "response.create",
-      response: {
-        instructions: `현재 면접 진행 시간: 약 ${elapsedMinutes}분.`
-      }
+      type: "response.create"
     };
   }, []);
 

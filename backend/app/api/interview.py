@@ -4,25 +4,27 @@ from app.schemas_api.email import SendEmailRequest
 from app.schemas_api.interview import (
     StartInterviewRequest, 
     StartInterviewResponse, 
-    ChatRequest, 
-    ChatResponse, 
     EndInterviewRequest,
     EndInterviewResponse
 )
 
 import uuid
-import random
 import requests
 import resend
 import html
-from langchain_openai import ChatOpenAI
 from datetime import datetime, timezone
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from app.core.config import settings
 from app.core.logger import get_logger
-from app.engine.prompts.api_interview import build_realtime_interviewer_prompt, normalize_interview_mode
 from app.services.invite_service import require_invite_session
-from app.services.reflection_service import ReflectionService, safe_generate_and_store_reflections
+from app.services.reflection_service import safe_generate_and_store_reflections
+from app.services.interview_manager import (
+    INTERVIEW_MODE_GUIDANCE,
+    VOICE_INTERVIEWER_NAMES,
+    build_manager_context,
+    dedupe_tool_traces,
+    normalize_job_list,
+    normalize_tool_traces,
+)
 
 from app.engine.graphs.graph import get_interview_workflow
 from langchain_core.messages import HumanMessage, AIMessage
@@ -33,305 +35,64 @@ interview_workflow = get_interview_workflow()
 logger = get_logger(__name__)
 
 temp_sessions: Dict[str, Any] = {}
-JOB_SEARCH_TIMEOUT_SECONDS = 10
-JOB_IMAGE_PLACEHOLDER = "[사용자가 이미지(캡처본) 형태로 채용 공고를 직접 제공했습니다.]"
-
-VOICE_INTERVIEWER_NAMES: Dict[str, str] = {
-    "alloy": "Alex",
-    "ash": "Noah",
-    "ballad": "Ethan",
-    "coral": "Sophia",
-    "echo": "Daniel",
-    "sage": "Mina",
-    "shimmer": "Yuna",
-    "verse": "Jin",
-}
-
-INTERVIEW_MODE_GUIDANCE: Dict[str, Dict[str, str]] = {
-    "short": {
-        "label": "짧은 면접",
-        "guidance": (
-            "목표 시간은 약 7분입니다. "
-            "아이스브레이킹 후 자기소개와 지원동기를 각각 별도 질문으로 확인한 다음, "
-            "대표 경험과 핵심 직무 질문을 짧고 밀도 있게 점검하세요. "
-            "꼬리 질문은 답변 근거가 부족할 때만 적게 사용하고, 같은 경험에 오래 머무르지 마세요. "
-            "평가 근거가 어느 정도 확보되면 추가 탐색보다 마지막 발언 기회를 주고 명확한 종료 멘트로 마무리하세요."
-        ),
-    },
-    "long": {
-        "label": "긴 면접",
-        "guidance": (
-            "목표 시간은 약 20분입니다. 아이스브레이킹 이후 자기소개와 지원동기를 각각 별도 질문으로 확인하고, "
-            "이력서 기반 프로젝트/경험은 가능하면 서로 다른 경험 앵커를 2개 이상 활용하고, "
-            "채용 공고 요건 기반 직무 질문, 협업/문제 해결, 기술 선택 이유, 지원 직무 관련 기술 질문까지 균형 있게 진행하세요. "
-            "핵심 주제가 덜 다뤄졌다면 15분 안팎에서 조기 마무리하지 마세요. "
-            "충분한 평가 근거가 확보되면 명확한 종료 멘트로 마무리하세요."
-        ),
-    },
-}
-
-def _prompt_value(value: str | None, default: str = "정보 없음") -> str:
-    cleaned = (value or "").strip()
-    return cleaned if cleaned else default
-
-def _interview_mode_settings(mode: str | None) -> Dict[str, str]:
-    normalized = normalize_interview_mode(mode)
-    return INTERVIEW_MODE_GUIDANCE.get(normalized, INTERVIEW_MODE_GUIDANCE["long"])
 
 def _normalize_job_list(raw_jobs: Any, *, require_active: bool = False) -> List[Dict[str, str]]:
-    from app.engine.tools.job_search import classify_job_deadline_status, is_recommendable_active_job
+    return normalize_job_list(raw_jobs, require_active=require_active)
 
-    if not isinstance(raw_jobs, list):
-        return []
-
-    jobs = []
-    seen_keys = set()
-    for job in raw_jobs:
-        if not isinstance(job, dict):
-            continue
-        normalized = {
-            "company": str(job.get("company") or "회사명 미상"),
-            "title": str(job.get("title") or "공고명 미상"),
-            "url": str(job.get("url") or ""),
-            "content": str(job.get("content") or ""),
-        }
-        url = normalized["url"]
-        dedupe_key = (
-            url.strip().lower() if url else "",
-            normalized["company"].strip().lower(),
-            normalized["title"].strip().lower(),
-        )
-        fallback_key = ("", normalized["company"].strip().lower(), normalized["title"].strip().lower())
-        if dedupe_key in seen_keys or fallback_key in seen_keys:
-            continue
-        if require_active and not is_recommendable_active_job(normalized):
-            continue
-        if require_active:
-            normalized["deadline_status"] = classify_job_deadline_status(normalized)
-        seen_keys.add(dedupe_key)
-        seen_keys.add(fallback_key)
-        jobs.append(normalized)
-    return jobs[:3]
 
 def _normalize_tool_traces(raw_traces: Any) -> List[Dict[str, Any]]:
-    if not isinstance(raw_traces, list):
-        return []
-    return [trace for trace in raw_traces if isinstance(trace, dict)]
+    return normalize_tool_traces(raw_traces)
+
 
 def _dedupe_tool_traces(raw_traces: Any) -> List[Dict[str, Any]]:
-    deduped = []
-    seen = set()
-    for trace in _normalize_tool_traces(raw_traces):
-        key = (
-            str(trace.get("tool_name") or ""),
-            str(trace.get("query") or ""),
-            str(trace.get("status") or ""),
-            str(trace.get("reason") or ""),
-        )
-        if key in seen:
-            continue
-        seen.add(key)
-        deduped.append(trace)
-    return deduped
+    return dedupe_tool_traces(raw_traces)
 
-def _analyze_job_image_for_context(image: str | None) -> Dict[str, Any]:
-    if not image:
-        return {
-            "status": "not_provided",
-            "summary": "",
-        }
-
-    image_url = image if image.startswith("data:image") else f"data:image/jpeg;base64,{image}"
-    try:
-        llm = ChatOpenAI(
-            model="gpt-5.4-nano",
-            openai_api_key=settings.OPENAI_API_KEY,
-            max_completion_tokens=900,
-        )
-        response = llm.invoke([
-            HumanMessage(content=[
-                {
-                    "type": "text",
-                    "text": (
-                        "이 이미지는 채용 공고 캡처입니다. 최종 리포트와 면접 질문에 사용할 수 있도록 "
-                        "회사명, 직무명, 주요업무, 자격요건, 우대사항, 기술스택, 채용조건을 한국어로 간결하게 구조화해 주세요. "
-                        "이미지에서 확인되지 않는 항목은 '확인 불가'라고 쓰세요."
-                    ),
-                },
-                {
-                    "type": "image_url",
-                    "image_url": {"url": image_url},
-                },
-            ])
-        ])
-        summary = str(response.content or "").strip()
-        if not summary:
-            raise ValueError("empty image analysis result")
-        return {
-            "status": "image_analyzed",
-            "summary": summary,
-        }
-    except Exception as exc:
-        logger.warning("Job posting image analysis failed: %s", exc)
-        return {
-            "status": "image_analysis_failed",
-            "summary": JOB_IMAGE_PLACEHOLDER,
-            "error": str(exc),
-        }
-
-def _prepare_job_materials(job_title: str, experience: str, education: str) -> tuple[List[Dict[str, str]], List[Dict[str, str]]]:
-    from app.engine.tools.job_search import search_korean_job_postings
-
-    if not settings.TAVILY_API_KEY:
-        logger.warning("Skipping prepared job search because TAVILY_API_KEY is not configured.")
-        return [], []
-
-    executor = ThreadPoolExecutor(max_workers=1)
-    future = executor.submit(
-        search_korean_job_postings.invoke,
-        {
-            "query": f"{job_title} 채용",
-            "experience": experience,
-            "education": education,
-        },
-    )
-    try:
-        result = future.result(timeout=JOB_SEARCH_TIMEOUT_SECONDS)
-    except FutureTimeoutError:
-        future.cancel()
-        logger.warning("Prepared job search timed out after %s seconds for %s", JOB_SEARCH_TIMEOUT_SECONDS, job_title)
-        return [], []
-    except Exception as exc:
-        logger.warning("Prepared job search failed for %s: %s", job_title, exc)
-        return [], []
-    finally:
-        executor.shutdown(wait=False, cancel_futures=True)
-
-    context_jobs = _normalize_job_list(result)
-    recommended_jobs = _normalize_job_list(result, require_active=True)
-    return context_jobs, recommended_jobs
-
-def _format_prepared_job_context(job_desc: str, prepared_jobs: List[Dict[str, str]]) -> str:
-    sections = []
-    if job_desc and job_desc != "맞춤형 채용 공고 정보 없음":
-        sections.append(f"[사용자가 제공한 지원 공고]\n{job_desc}")
-    elif job_desc:
-        sections.append(job_desc)
-
-    if prepared_jobs:
-        job_lines = []
-        for index, job in enumerate(prepared_jobs, start=1):
-            content = str(job.get("content") or "").strip()
-            if len(content) > 500:
-                content = content[:500].rstrip() + "..."
-            job_lines.append(
-                f"{index}. {job.get('company', '회사명 미상')} - {job.get('title', '공고명 미상')}\n"
-                f"   URL: {job.get('url', '')}\n"
-                f"   요약: {content or '상세 요약 없음'}"
-            )
-        sections.append("[면접 시작 전 선별한 모집중 추천 공고]\n" + "\n".join(job_lines))
-
-    return "\n\n".join(section for section in sections if section).strip() or "맞춤형 채용 공고 정보 없음"
-
-def _build_job_posting_analysis(request: StartInterviewRequest) -> Dict[str, Any]:
-    if request.job_description and request.job_description.strip():
-        return {
-            "status": "text_provided",
-            "summary": request.job_description.strip(),
-            "source": "text",
-        }
-    if request.job_image:
-        analysis = _analyze_job_image_for_context(request.job_image)
-        analysis["source"] = "image"
-        return analysis
-    return {
-        "status": "not_provided",
-        "summary": "맞춤형 채용 공고 정보 없음",
-        "source": "none",
-    }
 
 def prepare_interview_context(request: StartInterviewRequest) -> Dict[str, Any]:
-    job_title = _prompt_value(request.job_title)
-    education = _prompt_value(request.education)
-    experience = _prompt_value(request.experience)
-    resume = _prompt_value(request.resume)
-    interview_mode = normalize_interview_mode(request.interview_mode)
-    mode_settings = _interview_mode_settings(interview_mode)
-
-    job_posting_analysis = _build_job_posting_analysis(request)
-    job_desc = str(job_posting_analysis.get("summary") or "").strip() or "맞춤형 채용 공고 정보 없음"
-
-    context_jobs, recommended_jobs = _prepare_job_materials(
-        job_title=job_title,
-        experience=experience,
-        education=education,
-    )
-    interview_job_context = _format_prepared_job_context(job_desc, context_jobs)
-
-    try:
-        guideline_selection = ReflectionService().select_prompt_guidelines(
-            job_title=job_title,
-            experience=experience,
-            education=education,
-            resume=resume,
-            job_context=interview_job_context,
-            interview_mode=interview_mode,
-            limit=5,
-        )
-        reflection_guidelines = guideline_selection.text
-    except Exception as e:
-        logger.warning("Reflection guideline lookup failed: %s", e)
-        reflection_guidelines = ""
-        guideline_selection = None
-
-    selected_voice = random.choice(list(VOICE_INTERVIEWER_NAMES.keys()))
-    interviewer_name = VOICE_INTERVIEWER_NAMES[selected_voice]
-
-    instructions = build_realtime_interviewer_prompt(
-        interview_mode=interview_mode,
-        interviewer_name=interviewer_name,
-        job_title=job_title,
-        education=education,
-        experience=experience,
-        resume=resume,
-        job_description=interview_job_context,
-        reflection_guidelines=reflection_guidelines
-    )
-
-    return {
-        "interview_mode": interview_mode,
-        "prompt_variant": f"realtime_interviewer_{interview_mode}",
-        "job_title": job_title,
-        "education": education,
-        "experience": experience,
-        "resume": resume,
-        "mode_settings": mode_settings,
-        "job_posting_analysis": job_posting_analysis,
-        "job_posting_analysis_status": job_posting_analysis.get("status", ""),
-        "context_jobs": context_jobs,
-        "recommended_jobs": recommended_jobs,
-        "interview_job_context": interview_job_context,
-        "reflection_guidelines": reflection_guidelines,
-        "guideline_selection": (
-            guideline_selection.model_dump()
-            if guideline_selection
-            else {"text": "", "reflection_ids": [], "policy_ids": []}
-        ),
-        "selected_voice": selected_voice,
-        "interviewer_name": interviewer_name,
-        "instructions": instructions,
-    }
+    return build_manager_context({
+        "user_id": request.user_id,
+        "report_email": str(request.report_email),
+        "job_title": request.job_title,
+        "education": request.education,
+        "experience": request.experience,
+        "resume": request.resume,
+        "raw_job_description": request.job_description or "",
+        "job_image": request.job_image,
+        "interview_mode": request.interview_mode,
+        "messages": [],
+        "status": "PREPARING",
+    })
 
 @router.post("/start", response_model=StartInterviewResponse)
 async def start_interview(request: StartInterviewRequest):
     """
     지원자의 프로필을 받아 새로운 면접 세션을 생성하고, 
-    OpenAI Realtime API 연동 토큰 발급 및 LangGraph 상태를 초기화합니다.
+    LangGraph manager로 면접 컨텍스트를 준비한 뒤 OpenAI Realtime API 연동 토큰을 발급합니다.
     """
     session_id = str(uuid.uuid4())
-    context = prepare_interview_context(request)
+    config = {"configurable": {"thread_id": session_id}}
+    initial_state = {
+        "user_id": request.user_id,
+        "report_email": str(request.report_email),
+        "job_title": request.job_title,
+        "field": "",
+        "experience": request.experience,
+        "education": request.education,
+        "resume": request.resume,
+        "major": "",
+        "raw_job_description": request.job_description or "",
+        "job_description": request.job_description or "",
+        "job_image": request.job_image,
+        "interview_mode": request.interview_mode,
+        "messages": [],
+        "saved_jobs": [],
+        "tool_traces": [],
+        "candidate_summary": "",
+        "interview_brief": "",
+        "status": "PREPARING",
+    }
+    context = interview_workflow.invoke(initial_state, config=config)
 
-    # 2. OpenAI Realtime 세션 생성
     headers = {
         "Authorization": f"Bearer {settings.OPENAI_API_KEY}",
         "Content-Type": "application/json"
@@ -339,7 +100,7 @@ async def start_interview(request: StartInterviewRequest):
     payload = {
         "model": "gpt-realtime-mini-2025-12-15",
         "modalities": ["audio", "text"],
-        "instructions": context["instructions"],
+        "instructions": context["realtime_instructions"],
         "voice": context["selected_voice"],
         "input_audio_transcription": {"model": "whisper-1"},
         "turn_detection": None,
@@ -351,35 +112,7 @@ async def start_interview(request: StartInterviewRequest):
         ephemeral_token = response.json()["client_secret"]["value"]
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"OpenAI Session Error: {str(e)}")
-    
-    # 3. LangGraph 초기 상태 설정
-    initial_state = {
-        "user_id": request.user_id,
-        "job_title": context["job_title"],
-        "field": "",  # request에 없음
-        "experience": context["experience"],
-        "education": context["education"],
-        "resume": context["resume"],
-        "job_description": context["interview_job_context"],
-        "job_posting_analysis": context["job_posting_analysis"],
-        "job_posting_analysis_status": context["job_posting_analysis_status"],
-        "reflection_guidelines": context["reflection_guidelines"],
-        "guideline_selection": context["guideline_selection"],
-        "reflection_source_ids": context["guideline_selection"].get("reflection_ids", []),
-        "policy_source_ids": context["guideline_selection"].get("policy_ids", []),
-        "interviewer_name": context["interviewer_name"],
-        "interview_mode": context["interview_mode"],
-        "interview_mode_label": context["mode_settings"]["label"],
-        "interview_mode_guidance": context["mode_settings"]["guidance"],
-        "prompt_variant": context["prompt_variant"],
-        "major": "",  # request에 없음
-        "messages": [],
-        "saved_jobs": context["recommended_jobs"],
-        "tool_traces": [],
-        "status": "IN_PROGRESS"
-    }
-    interview_workflow.update_state({"configurable": {"thread_id": session_id}}, initial_state)
-    
+
     temp_sessions[session_id] = {
         "user_id": request.user_id,
         "report_email": str(request.report_email),
@@ -390,7 +123,7 @@ async def start_interview(request: StartInterviewRequest):
         "experience": context["experience"],
         "education": context["education"],
         "resume": context["resume"],
-        "job_description": context["interview_job_context"],
+        "job_description": context["job_description"],
         "job_posting_analysis": context["job_posting_analysis"],
         "job_posting_analysis_status": context["job_posting_analysis_status"],
         "interview_mode": context["interview_mode"],
@@ -398,7 +131,7 @@ async def start_interview(request: StartInterviewRequest):
         "guideline_selection": context["guideline_selection"],
         "reflection_source_ids": context["guideline_selection"].get("reflection_ids", []),
         "policy_source_ids": context["guideline_selection"].get("policy_ids", []),
-        "prepared_jobs": context["recommended_jobs"],
+        "prepared_jobs": context["prepared_jobs"],
         "context_jobs": context["context_jobs"],
         "tool_traces": [],
     }
@@ -407,32 +140,11 @@ async def start_interview(request: StartInterviewRequest):
         session_id=session_id,
         ephemeral_token=ephemeral_token,
         message="면접 세션이 준비되었습니다.",
-        prepared_jobs=context["recommended_jobs"],
         job_posting_analysis=context["job_posting_analysis"],
         interview_mode=context["interview_mode"],
         prompt_variant=context["prompt_variant"],
         guideline_selection=context["guideline_selection"],
     )
-
-@router.post("/{session_id}/chat", response_model=ChatResponse)
-async def chat(
-    request: ChatRequest,
-    session_id: str = Path(..., description="면접 세션 ID")
-):
-    """
-    LangGraph 워크플로우를 호출하여 AI 면접관의 다음 대화를 생성합니다.
-    """
-    config = {"configurable": {"thread_id": session_id}}
-    input_state = {"messages": [HumanMessage(content=request.message)]}
-    
-    # 그래프 실행
-    final_state = interview_workflow.invoke(input_state, config=config)
-    
-    # 마지막 AI 메시지 추출
-    ai_reply = final_state["messages"][-1].content
-    
-    return ChatResponse(reply=ai_reply)
-
 
 @router.post("/{session_id}/end", response_model=EndInterviewResponse)
 async def end_interview(
@@ -450,9 +162,7 @@ async def end_interview(
         elif t.role == "ai":
             lc_messages.append(AIMessage(content=t.text))
 
-    prepared_jobs = temp_sessions.get(session_id, {}).get("prepared_jobs")
-    source_jobs = prepared_jobs if isinstance(prepared_jobs, list) and prepared_jobs else request.saved_jobs
-    report_jobs = _normalize_job_list(source_jobs)
+
     session_tool_traces = _normalize_tool_traces(temp_sessions.get(session_id, {}).get("tool_traces", []))
     request_tool_traces = _normalize_tool_traces(request.tool_traces)
     tool_traces = _dedupe_tool_traces(session_tool_traces + request_tool_traces)
@@ -462,7 +172,6 @@ async def end_interview(
         generate_report_and_send_email,
         session_id=session_id,
         lc_messages=lc_messages,
-        report_jobs=report_jobs,
         tool_traces=tool_traces,
         transcripts=[item.model_dump() for item in request.transcripts],
         interview_date=request.interview_date,
@@ -479,7 +188,6 @@ def generate_report_and_send_email(
     *,
     session_id: str,
     lc_messages: List[Any],
-    report_jobs: List[Dict[str, Any]],
     tool_traces: List[Dict[str, Any]],
     transcripts: List[Dict[str, str]],
     interview_date: str | None,
@@ -493,7 +201,6 @@ def generate_report_and_send_email(
         interview_workflow.update_state(config, {
             "status": "EVALUATING",
             "messages": lc_messages,
-            "saved_jobs": report_jobs,
             "tool_traces": tool_traces,
         })
 
@@ -506,7 +213,6 @@ def generate_report_and_send_email(
             strengths=evaluation.get("strengths", []),
             weaknesses=evaluation.get("weaknesses", []),
             qa_review=evaluation.get("qa_review", []),
-            job_recommendations=evaluation.get("job_recommendations", []),
             communication_feedback=evaluation.get("communication_feedback", {}),
             self_intro_feedback=evaluation.get("self_intro_feedback", {}),
             role_fit=evaluation.get("role_fit", {}),
@@ -524,7 +230,6 @@ def generate_report_and_send_email(
             education=final_state.get("education", session.get("education", "")),
             messages=final_state.get("messages", lc_messages),
             evaluation=evaluation,
-            saved_jobs=report_jobs,
             interview_mode=final_state.get("interview_mode", session.get("interview_mode", "long")),
             injected_reflection_ids=final_state.get("reflection_source_ids", session.get("reflection_source_ids", [])),
             injected_policy_ids=final_state.get("policy_source_ids", session.get("policy_source_ids", [])),

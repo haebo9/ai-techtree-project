@@ -8,7 +8,10 @@ class InterviewState(TypedDict):
     """
     # 1. 지원자 프로필 정보 (면접 초기화 시 주입)
     user_id: str
+    report_email: str
     interviewer_name: str # 선택된 음성에 매칭된 면접관 이름
+    selected_voice: str
+    voice: str
     interview_mode: str   # short 또는 long
     interview_mode_label: str
     interview_mode_guidance: str
@@ -19,6 +22,8 @@ class InterviewState(TypedDict):
     resume: str          # 이력서 요약 또는 텍스트
     major: str           # 전공 여부
     job_description: str # 채용 공고 텍스트 (옵션)
+    raw_job_description: str
+    job_image: Optional[str]
     job_posting_analysis: Optional[Dict[str, Any]]
     job_posting_analysis_status: str
     reflection_guidelines: str # 이전 면접에서 학습한 운영 지침
@@ -26,6 +31,12 @@ class InterviewState(TypedDict):
     reflection_source_ids: list[str]
     policy_source_ids: list[str]
     prompt_variant: str
+    realtime_instructions: str
+    instructions: str
+    candidate_summary: str
+    interview_brief: str
+    context_jobs: Optional[list[Dict[str, Any]]]
+    prepared_jobs: Optional[list[Dict[str, Any]]]
     
     # 2. 대화 기록 (LangGraph의 add_messages reducer를 통해 누적됨)
     messages: Annotated[list[BaseMessage], add_messages]

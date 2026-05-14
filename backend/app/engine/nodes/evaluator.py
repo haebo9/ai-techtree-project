@@ -6,13 +6,6 @@ from app.engine.graphs.state import InterviewState
 from app.core.llm import get_llm
 from langchain_core.messages import SystemMessage
 
-class JobRecommendation(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    company: str = Field(description="추천 회사명")
-    title: str = Field(description="추천 직무명")
-    url: str = Field(description="해당 채용 공고의 실제 URL (있을 경우에만 작성)", default="")
-
 class QnAReview(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -52,55 +45,9 @@ class EvaluationSchema(BaseModel):
     strengths: List[str] = Field(description="지원자의 주요 강점 목록")
     weaknesses: List[str] = Field(description="보완이 필요한 점 목록")
     qa_review: List[QnAReview] = Field(description="주요 질의응답 내역 및 피드백 (최대 3개)")
-    job_recommendations: List[JobRecommendation] = Field(description="추천 채용 공고 목록")
     communication_feedback: CommunicationFeedback = Field(description="말투와 답변 습관 피드백")
     self_intro_feedback: SelfIntroFeedback = Field(description="이력서 기반 자기소개 피드백")
     role_fit: RoleFit = Field(description="이력서와 목표 직무의 적합도 평가")
-
-def _normalize_saved_jobs(raw_jobs: Any) -> List[Dict[str, str]]:
-    """
-    Convert search results from Tavily/tool calls into the report schema.
-    Handles the current structured list and older string summaries defensively.
-    """
-    if not raw_jobs:
-        return []
-
-    if isinstance(raw_jobs, str):
-        try:
-            raw_jobs = json.loads(raw_jobs)
-        except json.JSONDecodeError:
-            jobs = []
-            for line in raw_jobs.splitlines():
-                match = re.search(r"-\s*(?P<title>.*?)(?:\s*\(링크:\s*(?P<url>.*?)\))?$", line.strip())
-                if not match:
-                    continue
-                title = match.group("title").strip()
-                if title:
-                    jobs.append({
-                        "company": "회사명 미상",
-                        "title": title,
-                        "url": (match.group("url") or "").strip(),
-                        "content": "",
-                    })
-            return jobs
-
-    if isinstance(raw_jobs, dict):
-        raw_jobs = [raw_jobs]
-
-    if not isinstance(raw_jobs, list):
-        return []
-
-    normalized = []
-    for job in raw_jobs:
-        if not isinstance(job, dict):
-            continue
-        normalized.append({
-            "company": str(job.get("company") or "회사명 미상"),
-            "title": str(job.get("title") or "공고명 미상"),
-            "url": str(job.get("url") or ""),
-            "content": str(job.get("content") or ""),
-        })
-    return normalized
 
 def evaluator_node(state: InterviewState):
     """
@@ -134,7 +81,6 @@ def evaluator_node(state: InterviewState):
     - 실제 자기소개 답변이 없거나 너무 짧으면, 'evidence_note'에 "실제 자기소개 답변 근거가 부족하여 이력서 기반으로 작성했습니다."라고 명시하고 이력서 기반 추천 멘트를 작성하세요.
     - 'role_fit'은 최종 면접 점수와 별개입니다. 이력서, 지원 직무, 공고 요건, 면접 답변을 종합해 0-100%로 산정하고, 강점 키워드와 보완 갭을 구체적으로 작성하세요.
     - 이력서가 제공되지 않았거나 "이력서 없음"으로 표시된 경우, 'role_fit.rationale' 첫 문장에 "제출 이력서가 없어 면접 답변을 기반으로 이력사항을 추정해 산정했습니다."라고 명시하세요.
-    - 'job_recommendations' 항목은 항상 빈 배열([])로 반환하세요. 공고 정보는 시스템이 별도로 주입합니다.
     
     [중요] 만약 면접 대화가 너무 짧거나(인사말만 있거나), 답변 내용이 부족하여 평가가 불가능하다면, 
     점수를 0점으로 주고, 강점/약점에 "대화 내용이 부족하여 평가할 수 없습니다."라고 명시하세요.
@@ -145,12 +91,5 @@ def evaluator_node(state: InterviewState):
     result = structured_llm.invoke(messages)
     
     result_dict = result.model_dump()
-    
-    # LLM 환각 방지를 위해, 프론트엔드에서 수집한 실제 검색 결과(saved_jobs)를 강제로 주입
-    saved_jobs = _normalize_saved_jobs(state.get("saved_jobs", []))
-    
-    filtered_jobs = saved_jobs[:3]
-                
-    result_dict["job_recommendations"] = filtered_jobs
     
     return {"evaluation_result": result_dict, "status": "COMPLETED"}

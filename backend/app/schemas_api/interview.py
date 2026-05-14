@@ -19,24 +19,13 @@ class StartInterviewResponse(BaseModel):
     session_id: str = Field(..., description="생성된 면접 고유 세션 ID")
     ephemeral_token: str = Field(..., description="OpenAI Realtime WebRTC 접속을 위한 일회용 토큰")
     message: str = Field(..., description="UI 상태 표시용 메시지")
-    prepared_jobs: List[Dict[str, Any]] = Field(default=[], description="면접 시작 전에 선별한 모집중 추천 채용 공고")
     job_posting_analysis: Dict[str, Any] = Field(default_factory=dict, description="지원 공고 텍스트/이미지 분석 상태 및 요약")
     interview_mode: Optional[str] = Field(default=None, description="정규화된 면접 모드")
     prompt_variant: Optional[str] = Field(default=None, description="Realtime에 주입된 프롬프트 variant")
     guideline_selection: Dict[str, Any] = Field(default_factory=dict, description="주입된 reflection/policy 지침 id와 텍스트 요약")
 
 # ==========================================
-# 2. 면접 대화 (Chat)
-# ==========================================
-class ChatRequest(BaseModel):
-    message: str = Field(..., description="사용자의 답변 텍스트")
-
-class ChatResponse(BaseModel):
-    reply: str = Field(..., description="AI 면접관의 다음 꼬리 질문 또는 리액션")
-    # 추후 STT/TTS를 위한 음성 데이터 URL이나 추가 메타데이터가 들어갈 수 있습니다.
-
-# ==========================================
-# 3. 면접 종료 및 평가 (End & Evaluate)
+# 2. 면접 종료 및 평가 (End & Evaluate)
 # ==========================================
 class TranscriptItem(BaseModel):
     role: str = Field(..., description="발화자 (ai 또는 user)")
@@ -44,7 +33,6 @@ class TranscriptItem(BaseModel):
 
 class EndInterviewRequest(BaseModel):
     transcripts: List[TranscriptItem] = Field(default=[], description="전체 대화 내역")
-    saved_jobs: List[Dict[str, Any]] = Field(default=[], description="면접 시작 전에 선별된 모집중 추천 채용 공고 정보")
     tool_traces: List[Dict[str, Any]] = Field(default=[], description="면접 중 외부 도구 호출 상태와 필터링 사유")
     interview_date: Optional[str] = Field(default=None, description="면접 종료 시각 표시 문자열")
     interview_duration: Optional[str] = Field(default=None, description="면접 소요 시간 표시 문자열")

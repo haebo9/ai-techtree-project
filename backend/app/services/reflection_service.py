@@ -517,7 +517,6 @@ class ReflectionService:
         education: str,
         messages: Iterable[Any],
         evaluation: Dict[str, Any],
-        saved_jobs: List[Dict[str, Any]],
         interview_mode: str = "long",
     ) -> int:
         normalized_mode = _normalize_interview_mode(interview_mode)
@@ -527,7 +526,6 @@ class ReflectionService:
             education=education,
             messages=messages,
             evaluation=evaluation,
-            saved_jobs=saved_jobs,
             interview_mode=normalized_mode,
         )
 
@@ -688,7 +686,6 @@ class ReflectionService:
         education: str,
         messages: Iterable[Any],
         evaluation: Dict[str, Any],
-        saved_jobs: List[Dict[str, Any]],
         interview_mode: str = "long",
     ) -> List[ReflectionCandidate]:
         transcript = _format_messages(messages, max_chars=7000)
@@ -696,7 +693,6 @@ class ReflectionService:
             return []
 
         evaluation_summary = json.dumps(evaluation, ensure_ascii=False, default=str)[:3500]
-        jobs_summary = json.dumps(saved_jobs[:3], ensure_ascii=False, default=str)[:2000]
 
         user_prompt = f"""
 [지원자 조건]
@@ -711,9 +707,6 @@ class ReflectionService:
 
 [평가 결과]
 {evaluation_summary}
-
-[검색/추천된 채용 공고]
-{jobs_summary}
 """
 
         llm = get_llm(temperature=0.1)
@@ -888,7 +881,7 @@ def safe_generate_and_store_reflections(
     education: str,
     messages: Iterable[Any],
     evaluation: Dict[str, Any],
-    saved_jobs: List[Dict[str, Any]],
+
     interview_mode: str = "long",
     injected_reflection_ids: Optional[List[str]] = None,
     injected_policy_ids: Optional[List[str]] = None,
@@ -903,7 +896,7 @@ def safe_generate_and_store_reflections(
             education=education,
             messages=messages,
             evaluation=evaluation,
-            saved_jobs=saved_jobs,
+
             interview_mode=interview_mode,
         )
     except Exception as exc:
