@@ -454,24 +454,6 @@ def _build_report_email_html(request: SendEmailRequest) -> str:
                     </div>
 
                     <div class="section">
-                        <h3 class="section-title">🎯 맞춤 채용 공고</h3>
-                        {"".join([f'''
-                        <div class="job-box">
-                            <p style="color: #2563eb; font-weight: bold; margin: 0 0 4px 0;">{job.get('company', '')}</p>
-                            <p style="margin: 0; font-weight: bold;">
-                                <a href="{job.get('url', '#')}" style="color: #333; text-decoration: none;">{job.get('title', '')}</a>
-                            </p>
-                            {f'<p style="margin: 6px 0 0 0; color: #64748b; font-size: 12px;">마감 여부 확인 필요</p>' if job.get('deadline_status') == 'unknown' else ''}
-                        </div>
-                        ''' for job in request.job_recommendations])}
-                        {'''
-                        <p style="color: #64748b; font-size: 14px; margin: 0;">
-                            ''' + _html(empty_job_message) + '''
-                        </p>
-                        ''' if not request.job_recommendations else ''}
-                    </div>
-
-                    <div class="section">
                         <h3 class="section-title">🗣️ 전체 대화 내역</h3>
                         <div class="transcript-wrap">
                             {transcript_html}

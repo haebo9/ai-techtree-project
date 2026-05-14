@@ -29,7 +29,6 @@ When instructions conflict, follow the current code path: `FastAPI + LangGraph +
 - `backend/app/api/upload.py`: PDF parsing and job posting title extraction from text/image.
 - `backend/app/engine/graphs/`: LangGraph state and workflow.
 - `backend/app/engine/nodes/interviewer.py`: LangGraph interviewer node.
-- `backend/app/engine/nodes/evaluator.py`: final evaluation and `job_recommendations` injection.
 - `backend/app/engine/tools/job_search.py`: Tavily-backed job posting search tool.
 - `backend/app/engine/prompts/api_interview.py`: OpenAI Realtime interviewer system prompt.
 - `backend/app/engine/prompts/reflection_analyzer.py`: reflection generation prompt.
