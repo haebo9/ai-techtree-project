@@ -1,5 +1,4 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path
-from pydantic import BaseModel
 from typing import Dict, Any, List
 from app.schemas_api.email import SendEmailRequest
 from app.schemas_api.interview import (
@@ -52,11 +51,10 @@ INTERVIEW_MODE_GUIDANCE: Dict[str, Dict[str, str]] = {
     "short": {
         "label": "짧은 면접",
         "guidance": (
-            "목표 시간은 약 7분입니다. 너무 길게 끌지 말고, "
-            "아이스브레이킹 후 자기소개와 지원동기를 각각 별도 질문으로 확인한 다음 대표 경험 1개만 다루세요. "
-            "핵심 직무 질문은 최대 3개, 꼬리 질문은 전체 면접에서 최대 1회만 사용하세요. "
-            "대표 경험에 대해 성과, 사용 도구, 팀 피드백 중 하나를 확인했다면 같은 경험에 대한 추가 세부 질문은 하지 말고 마무리로 전환하세요. "
-            "'마지막으로', '마무리로'라고 말한 뒤 지원자가 답변하면 새 질문을 하지 말고 종료 멘트만 하세요. "
+            "목표 시간은 약 7분입니다. "
+            "아이스브레이킹 후 자기소개와 지원동기를 각각 별도 질문으로 확인한 다음, "
+            "대표 경험과 핵심 직무 질문을 짧고 밀도 있게 점검하세요. "
+            "꼬리 질문은 답변 근거가 부족할 때만 적게 사용하고, 같은 경험에 오래 머무르지 마세요. "
             "평가 근거가 어느 정도 확보되면 추가 탐색보다 마지막 발언 기회를 주고 명확한 종료 멘트로 마무리하세요."
         ),
     },
@@ -64,7 +62,9 @@ INTERVIEW_MODE_GUIDANCE: Dict[str, Dict[str, str]] = {
         "label": "긴 면접",
         "guidance": (
             "목표 시간은 약 20분입니다. 아이스브레이킹 이후 자기소개와 지원동기를 각각 별도 질문으로 확인하고, "
-            "이력서 기반 대표 프로젝트 1-2개, 채용 공고 요건 기반 직무 질문, 협업/문제 해결, 실패·개선 경험까지 균형 있게 진행하세요. "
+            "이력서 기반 프로젝트/경험은 가능하면 서로 다른 경험 앵커를 2개 이상 활용하고, "
+            "채용 공고 요건 기반 직무 질문, 협업/문제 해결, 기술 선택 이유, 지원 직무 관련 기술 질문까지 균형 있게 진행하세요. "
+            "핵심 주제가 덜 다뤄졌다면 15분 안팎에서 조기 마무리하지 마세요. "
             "충분한 평가 근거가 확보되면 명확한 종료 멘트로 마무리하세요."
         ),
     },
@@ -341,20 +341,6 @@ async def start_interview(request: StartInterviewRequest):
         "modalities": ["audio", "text"],
         "instructions": context["instructions"],
         "voice": context["selected_voice"],
-        "tools": [
-            {
-                "type": "function",
-                "name": "search_job_postings",
-                "description": "지원자의 직무 관련 실시간 채용 정보를 검색합니다.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "query": {"type": "string"}
-                    }
-                }
-            }
-        ],
-        "tool_choice": "auto",
         "input_audio_transcription": {"model": "whisper-1"},
         "turn_detection": None,
     }
@@ -426,75 +412,6 @@ async def start_interview(request: StartInterviewRequest):
         interview_mode=context["interview_mode"],
         prompt_variant=context["prompt_variant"],
         guideline_selection=context["guideline_selection"],
-    )
-
-class ToolSearchRequest(BaseModel):
-    query: str
-    experience: str = ""
-    education: str = ""
-
-def _execute_search_job_with_context(
-    *,
-    query: str,
-    experience: str,
-    education: str,
-    session_id: str | None = None,
-) -> Dict[str, Any]:
-    from app.engine.tools.job_search import search_korean_job_postings_with_trace
-
-    result = search_korean_job_postings_with_trace(
-        query=query,
-        experience=experience,
-        education=education,
-    )
-    jobs = _normalize_job_list(result.get("jobs", []), require_active=True)
-    trace = dict(result.get("trace", {}))
-    trace["filtered_count"] = len(jobs)
-
-    if session_id:
-        session = temp_sessions.setdefault(session_id, {})
-        session["tool_traces"] = _dedupe_tool_traces(_normalize_tool_traces(session.get("tool_traces", [])) + [trace])
-        session["prepared_jobs"] = _normalize_job_list(session.get("prepared_jobs", [])) + jobs
-        session["prepared_jobs"] = _normalize_job_list(session["prepared_jobs"])[:6]
-        try:
-            interview_workflow.update_state(
-                {"configurable": {"thread_id": session_id}},
-                {
-                    "saved_jobs": session["prepared_jobs"],
-                    "tool_traces": session["tool_traces"],
-                },
-            )
-        except Exception as exc:
-            logger.warning("Failed to update tool trace state for session %s: %s", session_id, exc)
-
-    return {"result": jobs, "trace": trace}
-
-@router.post("/tools/search_job")
-async def execute_search_job(request: ToolSearchRequest):
-    """
-    프론트엔드 WebRTC에서 OpenAI Realtime API가 툴 호출을 요청했을 때,
-    실제 검색 툴을 실행하고 결과를 반환하는 엔드포인트입니다.
-    """
-    return _execute_search_job_with_context(
-        query=request.query,
-        experience=request.experience,
-        education=request.education,
-    )
-
-@router.post("/{session_id}/tools/search_job")
-async def execute_session_search_job(
-    request: ToolSearchRequest,
-    session_id: str = Path(..., description="면접 세션 ID"),
-):
-    session = temp_sessions.get(session_id)
-    if not session:
-        raise HTTPException(status_code=404, detail="면접 세션을 찾을 수 없습니다.")
-
-    return _execute_search_job_with_context(
-        query=request.query,
-        experience=str(session.get("experience") or ""),
-        education=str(session.get("education") or ""),
-        session_id=session_id,
     )
 
 @router.post("/{session_id}/chat", response_model=ChatResponse)

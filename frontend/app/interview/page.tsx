@@ -43,28 +43,15 @@ function isUserEndingTranscript(text: string) {
   return USER_ENDING_PATTERNS.some((pattern) => pattern.test(normalized));
 }
 
-function mergeJobResults(current: JobSearchResult[], next: unknown): JobSearchResult[] {
-  if (!Array.isArray(next)) return current;
-
-  const merged = [...current];
-  const seen = new Set(merged.map((job) => job.url).filter(Boolean));
-
-  next.forEach((item) => {
-    if (!item || typeof item !== "object") return;
-    const job = item as JobSearchResult;
-    const normalized = {
-      company: job.company || "회사명 미상",
-      title: job.title || "공고명 미상",
-      url: job.url || "",
-      content: job.content || "",
-      deadline_status: job.deadline_status,
-    };
-    if (normalized.url && seen.has(normalized.url)) return;
-    if (normalized.url) seen.add(normalized.url);
-    merged.push(normalized);
-  });
-
-  return merged.slice(0, 6);
+async function readApiError(response: Response, fallback: string): Promise<string> {
+  try {
+    const data = await response.json();
+    if (typeof data?.detail === "string") return data.detail;
+    if (typeof data?.message === "string") return data.message;
+  } catch {
+    // Ignore non-JSON error responses.
+  }
+  return fallback;
 }
 
 export default function InterviewPage() {
@@ -96,6 +83,18 @@ export default function InterviewPage() {
   const initialResponseRequestedRef = useRef(false);
   const jobImagePendingRef = useRef(false);
   const jobImageInjectedRef = useRef(false);
+
+  const createTimedResponseEvent = useCallback(() => {
+    const elapsedMs = startTimeRef.current ? Date.now() - startTimeRef.current : 0;
+    const elapsedMinutes = Math.max(0, Math.floor(elapsedMs / 60000));
+
+    return {
+      type: "response.create",
+      response: {
+        instructions: `현재 면접 진행 시간: 약 ${elapsedMinutes}분.`
+      }
+    };
+  }, []);
 
   const cleanupRealtimeSession = useCallback(() => {
     if (autoEndTimerRef.current) {
@@ -245,7 +244,17 @@ export default function InterviewPage() {
           })
         });
 
-        if (!res.ok) throw new Error("토큰 발급 API 오류");
+        if (!res.ok) {
+          const detail = await readApiError(res, "토큰 발급 API 오류");
+          if (res.status === 401) {
+            setStatusText("초대코드 인증이 필요합니다. 메인 화면에서 다시 입장해 주세요.");
+            router.replace("/");
+            return;
+          }
+          setStatusText(`면접 세션을 시작하지 못했습니다. (${res.status}) ${detail}`);
+          console.warn("Interview start API failed:", { status: res.status, detail });
+          return;
+        }
         const data = await res.json();
         if (!isActiveConnection()) return;
 
@@ -323,7 +332,7 @@ export default function InterviewPage() {
           // VAD가 꺼져 있으므로 연결 직후 첫 인사 생성을 수동 요청
           if (!initialResponseRequestedRef.current) {
             initialResponseRequestedRef.current = true;
-            dc.send(JSON.stringify({ type: "response.create" }));
+            dc.send(JSON.stringify(createTimedResponseEvent()));
           }
         });
 
@@ -331,54 +340,6 @@ export default function InterviewPage() {
           if (!isActiveConnection()) return;
 
           const realtimeEvent = JSON.parse(e.data);
-
-          // --- 에이전틱 툴(Function Calling) 처리 ---
-          if (realtimeEvent.type === "response.function_call_arguments.done") {
-            const callId = realtimeEvent.call_id;
-            const name = realtimeEvent.name;
-            const args = JSON.parse(realtimeEvent.arguments);
-
-            if (name === "search_job_postings") {
-              setStatusText("🔍 최신 채용 정보를 검색 중입니다...");
-              console.log("[Tool] 검색 요청:", args.query);
-
-              try {
-                // 백엔드 API 호출하여 검색 실행 (prefix 주의: /api/interview/tools/search_job)
-                const res = await fetch(apiPath(`/interview/${sessionIdRef.current}/tools/search_job`), {
-                  method: "POST",
-                  credentials: "include",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    query: args.query
-                  })
-                });
-                const searchData = await res.json();
-                console.log("[Tool] 검색 결과 수신 완료", searchData.result);
-                savedJobsRef.current = mergeJobResults(savedJobsRef.current, searchData.result);
-                if (searchData.trace && typeof searchData.trace === "object") {
-                  toolTracesRef.current = [...toolTracesRef.current, searchData.trace].slice(-10);
-                }
-                
-                // 검색 결과를 OpenAI Realtime API 컨텍스트에 추가
-                dc.send(JSON.stringify({
-                  type: "conversation.item.create",
-                  item: {
-                    type: "function_call_output",
-                    call_id: callId,
-                    output: JSON.stringify(searchData.result)
-                  }
-                }));
-
-                // 결과를 바탕으로 AI에게 다시 말하도록 트리거
-                dc.send(JSON.stringify({
-                  type: "response.create"
-                }));
-
-              } catch (err) {
-                console.error("검색 툴 실행 에러:", err);
-              }
-            }
-          }
 
           // 텍스트 변환 기록(Transcript) 가로채기 -> 추후 DB 저장을 위해 배열에 푸시
           if (realtimeEvent.type === "response.audio_transcript.done") {
@@ -478,7 +439,7 @@ export default function InterviewPage() {
       jobImageInjectedRef.current = false;
       cleanupRealtimeSession();
     };
-  }, [cleanupRealtimeSession, markInterviewClosingDetected, scheduleAutoEndInterview]);
+  }, [cleanupRealtimeSession, createTimedResponseEvent, markInterviewClosingDetected, scheduleAutoEndInterview]);
 
   // 2. 마이크 Push-To-Talk 핸들러
   const startRecording = useCallback(() => {
@@ -504,10 +465,10 @@ export default function InterviewPage() {
       transcriptRef.current.push({ role: "user", text: "", pending: true });
       pendingUserTranscriptIndexesRef.current.push(pendingIndex);
       dcRef.current.send(JSON.stringify({ type: "input_audio_buffer.commit" }));
-      dcRef.current.send(JSON.stringify({ type: "response.create" }));
+      dcRef.current.send(JSON.stringify(createTimedResponseEvent()));
       setStatusText("면접관 답변을 기다리는 중입니다...");
     }
-  }, [isRecording]);
+  }, [createTimedResponseEvent, isRecording]);
 
   // 스페이스바 단축키 (Push-To-Talk)
   useEffect(() => {

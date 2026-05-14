@@ -11,11 +11,6 @@ interface LogEntry {
   data?: unknown;
 }
 
-interface JobSearchResult {
-  company?: string;
-  title?: string;
-}
-
 type ImageInjectionStatus = "none" | "pending" | "injected";
 type InterviewMode = "short" | "long";
 
@@ -271,61 +266,6 @@ export default function DebugPage() {
         // 너무 많은 오디오 델타는 로그를 덮으므로 필터링 옵션 (여기선 그냥 보여줌)
         if (realtimeEvent.type !== 'response.audio.delta') {
           addLog('IN', realtimeEvent.type, realtimeEvent);
-        }
-
-        if (realtimeEvent.type === "response.function_call_arguments.done") {
-          const callId = realtimeEvent.call_id;
-          const name = realtimeEvent.name;
-          const args = JSON.parse(realtimeEvent.arguments);
-
-          if (name === "search_job_postings") {
-            setStatusText("🔍 툴 실행 중 (채용 검색)...");
-            addLog('TOOL', 'Executing search_job_postings', args);
-
-            try {
-              const t1 = Date.now();
-              const toolRes = await fetch(apiPath(`/interview/${sessionIdRef.current}/tools/search_job`), {
-                method: "POST",
-                credentials: "include",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  query: args.query
-                })
-              });
-              const searchData = await toolRes.json();
-              const t2 = Date.now();
-
-              addLog('TOOL', `Search Tool Completed (${t2 - t1}ms)`, searchData);
-
-              // 검색 결과를 좌측 요약 패널에도 예쁘게 표시
-              const resultText = Array.isArray(searchData.result)
-                ? searchData.result.map((job: JobSearchResult) => `- ${job.company || "회사명 미상"}: ${job.title || "공고명 미상"}`).join("\n")
-                : String(searchData.result || "");
-              setTranscripts(prev => [...prev, {
-                id: `sys-${Date.now()}`,
-                role: "sys",
-                text: `[🔍 Tavily 검색 완료]\n${resultText}`
-              }]);
-
-              const outputEvent = {
-                type: "conversation.item.create",
-                item: {
-                  type: "function_call_output",
-                  call_id: callId,
-                  output: JSON.stringify(searchData.result)
-                }
-              };
-              dc.send(JSON.stringify(outputEvent));
-              addLog('OUT', 'conversation.item.create (function output)', outputEvent);
-
-              const responseCreateEvent = { type: "response.create" };
-              dc.send(JSON.stringify(responseCreateEvent));
-              addLog('OUT', 'response.create', responseCreateEvent);
-
-            } catch (err: unknown) {
-              addLog('TOOL', 'Tool Execution Error', { error: err instanceof Error ? err.message : String(err) });
-            }
-          }
         }
 
         if (realtimeEvent.type === "conversation.item.created") {
