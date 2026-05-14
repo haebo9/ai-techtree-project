@@ -145,10 +145,17 @@ def test_report_email_html_renders_extended_feedback_sections():
                 "matched_keywords": ["서비스 기획", "데이터 분석"],
                 "gaps": ["정량 성과 보완"],
             },
+            transcripts=[
+                {"role": "ai", "text": "자기소개 부탁드립니다."},
+                {"role": "user", "text": "안녕하세요. 저는 서비스 기획 경험이 있습니다."},
+            ],
         )
     )
 
     assert "말투/답변 습관 피드백" in html
     assert "추천 자기소개 멘트" in html
     assert "이력서-직무 적합도" in html
+    assert "82%" in html
+    assert "transcript-ai" in html
+    assert "transcript-user" in html
     assert "안녕하세요. 저는 사용자 문제를 데이터로 정의하고 해결해 온 지원자입니다." in html

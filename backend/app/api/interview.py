@@ -53,7 +53,7 @@ INTERVIEW_MODE_GUIDANCE: Dict[str, Dict[str, str]] = {
         "label": "짧은 면접",
         "guidance": (
             "목표 시간은 약 7분입니다. 너무 길게 끌지 말고, "
-            "아이스브레이킹 후 자기소개/지원동기를 확인한 다음 대표 경험 1개만 다루세요. "
+            "아이스브레이킹 후 자기소개와 지원동기를 각각 별도 질문으로 확인한 다음 대표 경험 1개만 다루세요. "
             "핵심 직무 질문은 최대 3개, 꼬리 질문은 전체 면접에서 최대 1회만 사용하세요. "
             "대표 경험에 대해 성과, 사용 도구, 팀 피드백 중 하나를 확인했다면 같은 경험에 대한 추가 세부 질문은 하지 말고 마무리로 전환하세요. "
             "'마지막으로', '마무리로'라고 말한 뒤 지원자가 답변하면 새 질문을 하지 말고 종료 멘트만 하세요. "
@@ -63,7 +63,7 @@ INTERVIEW_MODE_GUIDANCE: Dict[str, Dict[str, str]] = {
     "long": {
         "label": "긴 면접",
         "guidance": (
-            "목표 시간은 약 20분입니다. 아이스브레이킹과 자기소개/지원동기 이후, "
+            "목표 시간은 약 20분입니다. 아이스브레이킹 이후 자기소개와 지원동기를 각각 별도 질문으로 확인하고, "
             "이력서 기반 대표 프로젝트 1-2개, 채용 공고 요건 기반 직무 질문, 협업/문제 해결, 실패·개선 경험까지 균형 있게 진행하세요. "
             "충분한 평가 근거가 확보되면 명확한 종료 멘트로 마무리하세요."
         ),
@@ -665,6 +665,34 @@ def _render_email_list(items: Any) -> str:
     return '<ul class="item-list">' + "".join(f"<li>{_html(item)}</li>" for item in items) + "</ul>"
 
 
+def _role_fit_percent(role_fit: Dict[str, Any]) -> int:
+    try:
+        return max(0, min(100, int(role_fit.get("score", 0))))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _render_email_transcripts(transcripts: Any) -> str:
+    if not isinstance(transcripts, list) or not transcripts:
+        return '<p style="color: #64748b; font-size: 14px; margin: 0;">제공된 대화 내역이 없습니다.</p>'
+
+    items = []
+    for transcript in transcripts:
+        if not isinstance(transcript, dict):
+            continue
+        role = transcript.get("role")
+        is_ai = role == "ai"
+        label = "면접관" if is_ai else "지원자"
+        bubble_class = "transcript-ai" if is_ai else "transcript-user"
+        items.append(f"""
+                            <div class="transcript-row {bubble_class}">
+                                <p class="transcript-label">{label}</p>
+                                <p class="transcript-text">{_html_multiline(transcript.get('text', ''))}</p>
+                            </div>
+        """)
+    return "".join(items)
+
+
 def _render_extended_feedback_sections(request: SendEmailRequest) -> str:
     communication = request.communication_feedback or {}
     self_intro = request.self_intro_feedback or {}
@@ -702,10 +730,11 @@ def _render_extended_feedback_sections(request: SendEmailRequest) -> str:
         """)
 
     if _has_feedback_content(role_fit):
+        role_fit_percent = _role_fit_percent(role_fit)
         sections.append(f"""
                     <div class="section">
                         <h3 class="section-title">📌 이력서-직무 적합도</h3>
-                        <div class="fit-score">{_html(role_fit.get('score', 0))} / 100 점</div>
+                        <div class="fit-score">{role_fit_percent}%</div>
                         <p>{_html_multiline(role_fit.get('rationale', ''))}</p>
                         <p><strong>매칭 강점 키워드</strong></p>
                         {_render_email_list(role_fit.get('matched_keywords', []))}
@@ -733,6 +762,7 @@ def _empty_job_recommendation_message(tool_traces: List[Dict[str, Any]]) -> str:
 def _build_report_email_html(request: SendEmailRequest) -> str:
     extended_feedback_sections = _render_extended_feedback_sections(request)
     empty_job_message = _empty_job_recommendation_message(request.tool_traces)
+    transcript_html = _render_email_transcripts(request.transcripts)
 
     return f"""
     <html>
@@ -750,6 +780,14 @@ def _build_report_email_html(request: SendEmailRequest) -> str:
                 .job-box {{ border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; margin-bottom: 8px; }}
                 .script-box {{ background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 16px; border-radius: 8px; margin-top: 12px; }}
                 .fit-score {{ font-size: 24px; font-weight: bold; color: #2563eb; margin-bottom: 8px; }}
+                .transcript-wrap {{ background-color: #f8fafc; padding: 14px; border-radius: 10px; font-size: 14px; }}
+                .transcript-row {{ padding: 12px; border-radius: 10px; margin-bottom: 10px; border: 1px solid #e2e8f0; }}
+                .transcript-ai {{ background-color: #eff6ff; border-color: #bfdbfe; }}
+                .transcript-user {{ background-color: #f0fdf4; border-color: #bbf7d0; }}
+                .transcript-label {{ margin: 0 0 6px 0; font-weight: bold; }}
+                .transcript-ai .transcript-label {{ color: #1d4ed8; }}
+                .transcript-user .transcript-label {{ color: #15803d; }}
+                .transcript-text {{ margin: 0; color: #334155; }}
             </style>
         </head>
         <body>
@@ -813,13 +851,8 @@ def _build_report_email_html(request: SendEmailRequest) -> str:
 
                     <div class="section">
                         <h3 class="section-title">🗣️ 전체 대화 내역</h3>
-                        <div style="background-color: #f1f5f9; padding: 15px; border-radius: 8px; font-size: 14px;">
-                            {"".join([f'''
-                            <p style="margin-bottom: 12px;">
-                                <strong>{'면접관' if t.get('role') == 'ai' else '지원자'}:</strong><br/>
-                                {t.get('text', '')}
-                            </p>
-                            ''' for t in request.transcripts])}
+                        <div class="transcript-wrap">
+                            {transcript_html}
                         </div>
                     </div>
                     

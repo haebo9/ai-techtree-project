@@ -397,7 +397,7 @@ export default function ResultPage() {
                       <div className="text-right shrink-0">
                         <div className="text-5xl font-black text-blue-600 tabular-nums">
                           {result.role_fit?.score ?? 0}
-                          <span className="text-xl text-blue-300 ml-1">/100</span>
+                          <span className="text-xl text-blue-300 ml-1">%</span>
                         </div>
                       </div>
                     </div>

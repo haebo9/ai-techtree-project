@@ -25,6 +25,7 @@ def test_common_prompt_keeps_required_realtime_guardrails():
     assert "시스템이 드러나는 표현은 쓰지 마세요" in prompt
     assert "짧은 인사와 가벼운 아이스브레이킹" in prompt
     assert '"어떤 직무에 지원하셨나요?"라고 다시 묻지 말고' in prompt
+    assert "자기소개와 지원동기는 한 질문에 묶지 마세요" in prompt
     assert "지원자가 면접 종료 의사를 명확히 밝히면" in prompt
     assert "평가는 최종 리포트에서만 제공됩니다" in prompt
 
