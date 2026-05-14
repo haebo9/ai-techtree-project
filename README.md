@@ -105,7 +105,11 @@
 
 ### Prerequisites (v2.0 Deployment)
 - **Environment**:
-   - Node.js 20+ / Python 3.11+
+   - **Node.js**: `v25.2.1`
+   - **Next.js**: `16.2.6`
+   - **React**: `19.2.6`
+   - **Python**: `3.12.13`
+
 - **API Keys**(.env):
    - OPENAI_API_KEY (Required)
    - TAVILY_API_KEY (Job Search)
