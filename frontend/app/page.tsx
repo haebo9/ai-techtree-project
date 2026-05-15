@@ -19,6 +19,7 @@ export default function Home() {
   const [inviteCode, setInviteCode] = useState("");
   const [inviteError, setInviteError] = useState("");
   const [isVerifyingInvite, setIsVerifyingInvite] = useState(false);
+  const [isServiceDetailsOpen, setIsServiceDetailsOpen] = useState(false);
 
   // 이력서 관련 상태
   const [resumeMode, setResumeMode] = useState<"none" | "text" | "file">("file");
@@ -396,7 +397,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-neutral-50 py-6 px-4 sm:px-6">
-      <div className="max-w-4xl mx-auto w-full bg-white rounded-[2rem] shadow-xl border border-neutral-100 p-5 sm:p-8 relative overflow-hidden">
+      <div className="max-w-7xl mx-auto w-full bg-white rounded-[2rem] shadow-xl border border-neutral-100 p-5 sm:p-8 relative overflow-hidden">
         {/* Background Decoration */}
         <div className="absolute -top-24 -right-24 w-64 h-64 bg-blue-50 rounded-full opacity-50 blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-emerald-50 rounded-full opacity-50 blur-3xl pointer-events-none" />
@@ -739,6 +740,190 @@ export default function Home() {
           </div>
         </form>
         )}
+
+        <section className="mt-10 border-t border-neutral-100 pt-8">
+          <button
+            type="button"
+            onClick={() => setIsServiceDetailsOpen((open) => !open)}
+            className="group flex w-full items-center justify-between gap-6 rounded-[2rem] border border-neutral-200 bg-neutral-50 px-8 py-6 text-left transition-all hover:border-neutral-300 hover:bg-white hover:shadow-lg"
+            aria-expanded={isServiceDetailsOpen}
+          >
+            <span className="flex items-center gap-4 text-2xl font-black text-neutral-950">
+              <span className={`text-blue-600 transition-transform duration-300 ${isServiceDetailsOpen ? "rotate-90" : ""}`}>{">"}</span>
+              서비스 설명 상세보기
+            </span>
+            <span className="text-sm font-black uppercase tracking-[0.24em] text-neutral-400">
+              Product story
+            </span>
+          </button>
+
+          {isServiceDetailsOpen && (
+            <div className="mt-8 space-y-10">
+              <div className="relative overflow-hidden rounded-[3rem] bg-neutral-950 px-12 py-16 text-white shadow-2xl shadow-neutral-200">
+                <div className="absolute right-0 top-0 h-80 w-80 rounded-full bg-blue-500/20 blur-3xl" />
+                <div className="absolute bottom-0 left-1/3 h-80 w-80 rounded-full bg-emerald-400/10 blur-3xl" />
+                <div className="relative grid min-h-[560px] grid-cols-[0.92fr_1.08fr] gap-14">
+                  <div className="flex flex-col justify-center">
+                    <p className="text-sm font-black uppercase tracking-[0.32em] text-blue-300">TechTree Experience</p>
+                    <h2 className="mt-6 text-7xl font-black leading-[0.95]">
+                      준비부터<br />
+                      피드백까지,<br />
+                      한 번에.
+                    </h2>
+                    <p className="mt-8 max-w-2xl text-xl font-bold leading-relaxed text-neutral-300">
+                      TechTree는 사용자가 입력한 이력서와 채용 공고를 바탕으로 면접 질문을 준비하고,
+                      실제 대화처럼 음성으로 면접을 진행한 뒤, 개선 포인트가 정리된 리포트를 보내주는 서비스입니다.
+                    </p>
+                    <div className="mt-10 flex gap-3 text-sm font-black">
+                      <span className="rounded-full bg-white px-5 py-3 text-neutral-950">공고 기반 질문</span>
+                      <span className="rounded-full border border-white/15 px-5 py-3 text-white">음성 면접</span>
+                      <span className="rounded-full border border-white/15 px-5 py-3 text-white">이메일 리포트</span>
+                    </div>
+                  </div>
+                  <div className="relative flex items-center">
+                    <div className="absolute left-0 top-10 rounded-[2rem] border border-white/10 bg-white/10 px-6 py-5 backdrop-blur">
+                      <p className="text-sm font-black text-blue-200">먼저, 지원 정보를 넣습니다.</p>
+                      <p className="mt-1 text-lg font-black">이력서 · 채용 공고 · 경력</p>
+                    </div>
+                    <div className="ml-auto w-[560px] rounded-[2.5rem] border border-white/10 bg-white/[0.06] p-5 shadow-2xl shadow-black/40">
+                      <div className="aspect-[16/10] overflow-hidden rounded-[2rem] border border-white/10 bg-white">
+                        <div className="flex h-full items-center justify-center bg-gradient-to-br from-white to-blue-50">
+                          <NextImage src="/logo.png" alt="TechTree service preview placeholder" width={260} height={260} className="h-64 w-64 object-contain" />
+                        </div>
+                      </div>
+                      <p className="mt-4 text-right text-xs font-bold text-neutral-500">/images/techtree-main-flow.png 로 교체 예정</p>
+                    </div>
+                    <div className="absolute bottom-12 right-6 rounded-[2rem] border border-white/10 bg-white px-6 py-5 text-neutral-950 shadow-xl">
+                      <p className="text-sm font-black text-neutral-500">면접이 끝나면</p>
+                      <p className="text-3xl font-black">리포트 도착</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-5">
+                <div className="rounded-[2.5rem] bg-neutral-50 p-8">
+                  <p className="text-sm font-black uppercase tracking-[0.28em] text-emerald-600">Step 1</p>
+                  <h3 className="mt-5 text-4xl font-black leading-tight text-neutral-950">나만을 위한 면접</h3>
+                  <p className="mt-6 text-lg font-bold leading-relaxed text-neutral-600">
+                    직무, 경력, 학력, 이력서, 채용 공고를 입력하면 TechTree가 질문의 방향을 잡습니다.
+                    공고가 있다면 그 포지션에 더 가까운 질문으로 시작합니다.
+                  </p>
+                </div>
+                <div className="rounded-[2.5rem] bg-neutral-50 p-8">
+                  <p className="text-sm font-black uppercase tracking-[0.28em] text-blue-600">Step 2</p>
+                  <h3 className="mt-5 text-4xl font-black leading-tight text-neutral-950">음성으로 대화</h3>
+                  <p className="mt-6 text-lg font-bold leading-relaxed text-neutral-600">
+                    화면을 읽는 테스트가 아니라, 질문을 듣고 바로 답하는 연습입니다.
+                    스페이스바를 누르는 동안만 답변해 잡음과 끊김을 줄입니다.
+                  </p>
+                </div>
+                <div className="rounded-[2.5rem] bg-neutral-50 p-8">
+                  <p className="text-sm font-black uppercase tracking-[0.28em] text-rose-600">Step 3</p>
+                  <h3 className="mt-5 text-4xl font-black leading-tight text-neutral-950">종합 피드백</h3>
+                  <p className="mt-6 text-lg font-bold leading-relaxed text-neutral-600">
+                    점수, 강점, 개선점, 주요 Q&A, 말하기 습관, 자기소개 개선 방향이 리포트로 정리되어 이메일로 발송됩니다.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-[0.9fr_1.1fr] gap-6">
+                <div className="rounded-[3rem] bg-[#f5f5f7] p-10">
+                  <p className="text-sm font-black uppercase tracking-[0.28em] text-neutral-500">Interview Mode</p>
+                  <h3 className="mt-5 text-5xl font-black leading-tight text-neutral-950">
+                    지금 필요한 만큼만.<br />
+                    짧게 또는 깊게.
+                  </h3>
+                  <p className="mt-6 text-lg font-bold leading-relaxed text-neutral-600">
+                    시간이 많지 않다면 빠른 연습으로 핵심 질문을 점검하고, 더 깊게 준비하고 싶다면 실전 연습으로 프로젝트와 직무 역량을 넓게 확인합니다.
+                  </p>
+                  <div className="mt-10 grid grid-cols-2 gap-4">
+                    <div className="rounded-[2rem] bg-white p-5 shadow-sm">
+                      <p className="text-4xl font-black text-neutral-950">7m</p>
+                      <p className="mt-2 text-sm font-black text-neutral-500">대표 경험과 핵심 질문</p>
+                    </div>
+                    <div className="rounded-[2rem] bg-white p-5 shadow-sm">
+                      <p className="text-4xl font-black text-neutral-950">20m</p>
+                      <p className="mt-2 text-sm font-black text-neutral-500">프로젝트와 협업까지</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-[3rem] bg-neutral-950 p-6 text-white">
+                  <div className="aspect-[16/9] overflow-hidden rounded-[2.5rem] border border-white/10 bg-white">
+                    <div className="flex h-full items-center justify-center bg-gradient-to-br from-white to-indigo-50">
+                      <NextImage src="/logo.png" alt="TechTree interview screen placeholder" width={240} height={240} className="h-60 w-60 object-contain" />
+                    </div>
+                  </div>
+                  <p className="mt-4 text-right text-xs font-bold text-neutral-500">/images/techtree-interview-screen.png 로 교체 예정</p>
+                </div>
+              </div>
+
+              <div className="rounded-[3rem] bg-gradient-to-b from-white to-neutral-50 p-10 shadow-inner">
+                <p className="text-sm font-black uppercase tracking-[0.3em] text-blue-600">Interview Journey</p>
+                <h3 className="mt-4 text-5xl font-black leading-tight text-neutral-950">면접은 이렇게 진행됩니다.</h3>
+                <div className="mt-6 grid grid-cols-5 gap-3">
+                  {[
+                    ["01", "정보 입력", "직무, 경력, 학력, 이력서와 공고를 넣습니다."],
+                    ["02", "질문 준비", "입력한 내용을 바탕으로 면접 방향이 정해집니다."],
+                    ["03", "음성 면접", "면접관 질문을 듣고 스페이스바로 답합니다."],
+                    ["04", "면접 종료", "대화 내용이 리포트 생성에 사용됩니다."],
+                    ["05", "리포트 수신", "이메일로 피드백을 받아 다음 연습에 활용합니다."],
+                  ].map(([step, title, body]) => (
+                    <div key={step} className="rounded-[2rem] border border-neutral-100 bg-white p-6 shadow-sm">
+                      <p className="text-sm font-black text-blue-600">{step}</p>
+                      <h4 className="mt-6 text-2xl font-black text-neutral-950">{title}</h4>
+                      <p className="mt-4 text-sm font-bold leading-relaxed text-neutral-500">{body}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-[1.15fr_0.85fr] gap-6">
+                <div className="rounded-[3rem] bg-neutral-950 p-10 text-white">
+                  <p className="text-sm font-black uppercase tracking-[0.28em] text-emerald-300">Why TechTree</p>
+                  <h3 className="mt-5 text-5xl font-black leading-tight">
+                    그냥 질문하지 않고,<br />
+                    흐름을 만듭니다.
+                  </h3>
+                  <p className="mt-7 max-w-2xl text-lg font-bold leading-relaxed text-neutral-300">
+                    TechTree는 단순히 질문 목록을 보여주는 도구가 아닙니다.
+                    사용자가 준비한 자료를 읽고, 답변을 듣고, 대화 맥락에 맞춰 꼬리 질문을 이어가며,
+                    마지막에는 다시 연습할 수 있는 피드백으로 정리합니다.
+                  </p>
+                  <div className="mt-10 flex gap-3 text-sm font-black">
+                    <span className="rounded-full bg-white px-5 py-3 text-neutral-950">맞춤 질문</span>
+                    <span className="rounded-full bg-white/10 px-5 py-3 text-white">실전 대화</span>
+                    <span className="rounded-full bg-white/10 px-5 py-3 text-white">행동 가능한 피드백</span>
+                  </div>
+                </div>
+                <div className="rounded-[3rem] border border-neutral-100 bg-white p-6 shadow-sm">
+                  <div className="flex h-full flex-col justify-between rounded-[2.5rem] bg-neutral-100 p-7">
+                    <div>
+                      <p className="text-sm font-black uppercase tracking-[0.28em] text-neutral-500">Report Preview</p>
+                      <h3 className="mt-4 text-4xl font-black leading-tight text-neutral-950">끝나면 바로<br />읽을 수 있는 피드백.</h3>
+                    </div>
+                    <div className="mt-10 overflow-hidden rounded-[2rem] bg-white shadow-sm">
+                      <div className="flex aspect-[4/3] items-center justify-center bg-gradient-to-br from-white to-emerald-50">
+                        <NextImage src="/logo.png" alt="TechTree report preview placeholder" width={200} height={200} className="h-52 w-52 object-contain" />
+                      </div>
+                    </div>
+                    <p className="mt-3 text-right text-xs font-bold text-neutral-500">/images/techtree-report-preview.png 로 교체 예정</p>
+                    <div className="mt-5 grid grid-cols-2 gap-3">
+                      <div className="rounded-2xl bg-white p-4">
+                        <p className="text-3xl font-black text-neutral-950">Score</p>
+                        <p className="text-xs font-bold text-neutral-500">종합 점수</p>
+                      </div>
+                      <div className="rounded-2xl bg-white p-4">
+                        <p className="text-3xl font-black text-neutral-950">Q&A</p>
+                        <p className="text-xs font-bold text-neutral-500">답변 피드백</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
       </div>
 
       <div className="mt-12 flex justify-center opacity-30 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-500">

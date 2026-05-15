@@ -63,6 +63,7 @@ export default function InterviewPage() {
   const [statusText, setStatusText] = useState("마이크 권한을 확인 중입니다...");
   const [isEnding, setIsEnding] = useState(false);
   const [isAutoEnding, setIsAutoEnding] = useState(false);
+  const [isPreparingInterview, setIsPreparingInterview] = useState(true);
 
   // WebRTC 및 Media 참조
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -221,6 +222,7 @@ export default function InterviewPage() {
     initialResponseRequestedRef.current = false;
     jobImagePendingRef.current = false;
     jobImageInjectedRef.current = false;
+    setIsPreparingInterview(true);
 
     const isActiveConnection = () => (
       !isEffectCancelled && activeConnectionIdRef.current === connectionId
@@ -367,6 +369,7 @@ export default function InterviewPage() {
           if (realtimeEvent.type === "response.audio_transcript.done") {
             const aiText = realtimeEvent.transcript || "";
             transcriptRef.current.push({ role: "ai", text: aiText });
+            setIsPreparingInterview(false);
             console.log("[AI 답변]:", aiText);
             if (isInterviewClosingTranscript(aiText)) {
               markInterviewClosingDetected();
@@ -394,11 +397,13 @@ export default function InterviewPage() {
           // 파형 애니메이션을 위한 상태 업데이트
           if (realtimeEvent.type === "response.audio.delta") {
             isSpeakingRef.current = true;
+            setIsPreparingInterview(false);
             setIsSpeaking(true);
             setStatusText("AI가 말하는 중...");
           }
           if (realtimeEvent.type === "response.done") {
             isSpeakingRef.current = false;
+            setIsPreparingInterview(false);
             setIsSpeaking(false);
             injectJobImageContext();
             if (pendingAutoEndRef.current) {
@@ -593,6 +598,25 @@ export default function InterviewPage() {
           </p>
         </div>
       </div>
+
+      {isPreparingInterview && (
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-neutral-950/70 px-5 backdrop-blur-md">
+          <div className="w-full max-w-md rounded-[2rem] border border-white/10 bg-neutral-900/90 px-6 py-8 text-center shadow-2xl shadow-black/40">
+            <div className="relative mx-auto mb-6 flex h-24 w-24 items-center justify-center">
+              <div className="absolute inset-0 rounded-full border border-blue-400/30 animate-ping" />
+              <div className="absolute h-20 w-20 rounded-full border-4 border-blue-500/30 border-t-blue-300 animate-spin" />
+              <div className="relative h-12 w-12 rounded-2xl bg-gradient-to-br from-blue-500 to-emerald-400 shadow-lg shadow-blue-500/30" />
+            </div>
+            <p className="text-xs font-black uppercase tracking-[0.28em] text-blue-300">Preparing</p>
+            <h2 className="mt-3 text-2xl font-black tracking-tight text-white">
+              면접관을 준비하고 있습니다
+            </h2>
+            <p className="mx-auto mt-4 max-w-sm text-sm font-semibold leading-relaxed text-neutral-300">
+              {statusText}
+            </p>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
