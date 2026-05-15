@@ -420,13 +420,13 @@ export default function Home() {
 
         <section className="grid min-h-[620px] grid-cols-[0.82fr_1.18fr] items-center gap-12 py-16">
           <div>
-            <p className="text-sm font-black uppercase tracking-[0.34em] text-[#B88A3A]">AI 가상 면접 서비스</p>
+            <p className="text-sm font-black uppercase tracking-[0.34em] text-[#B88A3A]">AI Mock Interview</p>
             <h1 className="font-display mt-7 text-[88px] font-bold leading-[0.92] tracking-tight text-[#101820]">
               면접 준비를<br />대화로.
             </h1>
             <p className="mt-8 max-w-xl text-xl font-bold leading-relaxed text-[#243844]">
               TechTree는 이력서와 채용 공고를 읽고, 실제 면접처럼 묻고,
-              끝난 뒤에는 다시 연습할 수 있는 리포트로 정리합니다.
+              끝난 뒤에는 맞춤 피드백 리포트를 제공합니다.
             </p>
             <div className="mt-10 flex items-center gap-3">
               <a href="#interview-workspace" className="rounded-full bg-[#101820] px-6 py-3 text-sm font-black text-white shadow-xl shadow-[#4556D6]/20 transition hover:bg-[#243844]">
@@ -462,7 +462,7 @@ export default function Home() {
             </div>
             <div className="absolute bottom-24 right-12 w-[34%] rounded-2xl border border-white/45 bg-[#101820]/88 p-5 text-white shadow-2xl shadow-[#17232B]/30">
               <p className="text-xs font-black uppercase tracking-[0.22em] text-[#D7B56D]">Push to Talk</p>
-              <p className="font-display mt-4 text-3xl font-bold leading-tight">말하고,<br />바로 이어가기.</p>
+              <p className="font-display mt-4 text-3xl font-bold leading-tight">소리로 듣고,<br />눌러서 말하기.</p>
             </div>
           </div>
         </section>
