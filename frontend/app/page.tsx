@@ -19,7 +19,6 @@ export default function Home() {
   const [inviteCode, setInviteCode] = useState("");
   const [inviteError, setInviteError] = useState("");
   const [isVerifyingInvite, setIsVerifyingInvite] = useState(false);
-  const [isServiceDetailsOpen, setIsServiceDetailsOpen] = useState(false);
 
   // 이력서 관련 상태
   const [resumeMode, setResumeMode] = useState<"none" | "text" | "file">("file");
@@ -396,14 +395,14 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-neutral-50 py-6 px-4 sm:px-6">
-      <div className="max-w-7xl mx-auto w-full bg-white rounded-[2rem] shadow-xl border border-neutral-100 p-5 sm:p-8 relative overflow-hidden">
+    <main className="theme-page min-h-screen py-6 px-4 sm:px-6">
+      <div className="theme-shell max-w-7xl mx-auto w-full rounded-2xl border p-5 sm:p-8 relative overflow-hidden">
         {/* Background Decoration */}
-        <div className="absolute -top-24 -right-24 w-64 h-64 bg-blue-50 rounded-full opacity-50 blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-emerald-50 rounded-full opacity-50 blur-3xl pointer-events-none" />
+        <div className="absolute -top-24 -right-24 w-64 h-64 bg-white/50 rounded-full opacity-70 blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-[#B7C3CA]/25 rounded-full opacity-70 blur-3xl pointer-events-none" />
 
         <div className="absolute top-10 left-10 flex items-center gap-4">
-          <Link href="/debug" className="text-neutral-400 hover:text-neutral-600 transition-colors p-2 hover:bg-neutral-50 rounded-full" title="개발자 디버그 페이지">
+          <Link href="/debug" className="text-[#7E8A92] hover:text-[#17232B] transition-colors p-2 hover:bg-white/40 rounded-full" title="개발자 디버그 페이지">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -414,7 +413,7 @@ export default function Home() {
         <div className="absolute top-6 right-6 flex flex-wrap justify-end gap-2">
           <button
             onClick={resetInterviewInputs}
-            className="px-3 py-2 bg-white hover:bg-neutral-100 text-neutral-500 hover:text-neutral-900 text-xs font-bold rounded-full transition-all border border-neutral-200"
+            className="theme-silver-pill px-3 py-2 text-[#243844] hover:text-[#17232B] text-xs font-bold rounded-full transition-all border"
             type="button"
           >
             입력 초기화
@@ -422,34 +421,34 @@ export default function Home() {
         </div>
 
         <div className="flex flex-col items-center text-center mb-8 pt-6">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-emerald-400 p-0.5 mb-4 shadow-lg rotate-3">
-            <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center overflow-hidden">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#E2E8EC] via-[#8390D6] to-[#4556D6] p-0.5 mb-4 shadow-lg shadow-[#7E8A92]/20 rotate-3">
+            <div className="w-full h-full bg-white rounded-xl flex items-center justify-center overflow-hidden">
               <NextImage src="/logo.png" alt="TechTree Logo" width={64} height={64} className="w-4/5 h-4/5 object-contain" priority />
             </div>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-neutral-900 tracking-tight mb-3">
-            AI 가상 면접 서비스 <span className="text-blue-600">: TechTree</span>
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-[#17232B] tracking-tight mb-3">
+            AI 가상 면접 서비스 <span className="text-[#4556D6]">: TechTree</span>
           </h1>
-          <p className="text-neutral-600 text-base sm:text-lg max-w-lg font-medium">
+          <p className="text-[#243844] text-base sm:text-lg max-w-lg font-medium">
             당신만을 위한 맞춤형 질문과 피드백으로<br />
             꿈꾸는 직무에 한 걸음 더 가까이 다가가세요.
           </p>
         </div>
 
         {isCheckingInvite ? (
-          <div className="flex flex-col items-center justify-center rounded-[2rem] border border-neutral-100 bg-neutral-50 px-6 py-14 text-center">
-            <div className="mb-4 h-10 w-10 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
-            <p className="text-sm font-bold text-neutral-600">접속 권한을 확인하고 있습니다.</p>
+          <div className="theme-card flex flex-col items-center justify-center rounded-2xl border px-6 py-14 text-center">
+            <div className="mb-4 h-10 w-10 animate-spin rounded-full border-4 border-[#4556D6] border-t-transparent" />
+            <p className="text-sm font-bold text-[#243844]">접속 권한을 확인하고 있습니다.</p>
           </div>
         ) : !isInviteAuthenticated ? (
-          <form onSubmit={handleInviteSubmit} className="mx-auto max-w-md rounded-[2rem] border border-neutral-100 bg-neutral-50 p-6 shadow-inner">
+          <form onSubmit={handleInviteSubmit} className="theme-card mx-auto max-w-md rounded-2xl border p-6">
             <div className="mb-5 text-center">
-              <h2 className="text-xl font-black text-neutral-900">초대코드 입력</h2>
-              <p className="mt-2 text-sm font-medium leading-relaxed text-neutral-600">
+              <h2 className="text-xl font-black text-[#17232B]">초대코드 입력</h2>
+              <p className="mt-2 text-sm font-medium leading-relaxed text-[#243844]">
                 TechTree는 초대받은 사용자에게만 면접 연습을 제공합니다.
               </p>
             </div>
-            <label htmlFor="inviteCode" className="mb-2 block text-xs font-bold uppercase tracking-widest text-blue-600">
+            <label htmlFor="inviteCode" className="mb-2 block text-xs font-bold uppercase tracking-widest text-[#4556D6]">
               Invite Code
             </label>
             <input
@@ -460,18 +459,18 @@ export default function Home() {
                 setInviteError("");
               }}
               placeholder="초대코드를 입력하세요"
-              className="w-full rounded-2xl border border-neutral-200 bg-white px-5 py-4 text-center text-base font-black tracking-wide text-neutral-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+              className="theme-input w-full rounded-2xl border px-5 py-4 text-center text-base font-black tracking-wide outline-none transition-all focus:border-[#8390D6] focus:ring-4 focus:ring-[#8390D6]/20"
               autoComplete="off"
             />
             {inviteError && (
-              <p className="mt-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-center text-sm font-bold text-red-600">
+              <p className="mt-3 rounded-xl border border-[#B7C3CA]/35 bg-[#E2E8EC]/35 px-4 py-3 text-center text-sm font-bold text-[#7E8A92]">
                 {inviteError}
               </p>
             )}
             <button
               type="submit"
               disabled={isVerifyingInvite}
-              className="mt-5 w-full rounded-2xl bg-blue-600 px-5 py-4 text-sm font-black text-white shadow-lg shadow-blue-100 transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+              className="theme-cta mt-5 w-full rounded-2xl px-5 py-4 text-sm font-black text-white transition-all disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isVerifyingInvite ? "확인 중..." : "입장하기"}
             </button>
@@ -481,19 +480,19 @@ export default function Home() {
           {/* Section 1: JD & Resume Analysis - Two Column Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             {/* Left: Job Description */}
-            <div className="flex flex-col h-full bg-white p-5 sm:p-6 rounded-[2rem] border border-neutral-100 shadow-sm hover:shadow-md transition-shadow relative">
+            <div className="theme-card flex flex-col h-full p-5 sm:p-6 rounded-2xl border transition-shadow relative">
               <div className="flex justify-between items-start mb-4">
                 <div>
-                  <h2 className="text-sm font-bold text-emerald-600 uppercase tracking-widest mb-1 flex items-center gap-2">
-                    <span className="w-2 h-2 bg-emerald-600 rounded-full animate-pulse" />
+                  <h2 className="text-sm font-bold text-[#8390D6] uppercase tracking-widest mb-1 flex items-center gap-2">
+                    <span className="w-2 h-2 bg-[#8390D6] rounded-full animate-pulse" />
                     STEP 1. 공고 분석
                   </h2>
-                  <p className="text-xs text-neutral-600 font-medium ml-4">채용 공고를 기반으로 한 맞춤 면접</p>
+                  <p className="text-xs text-[#243844] font-medium ml-4">채용 공고를 기반으로 한 맞춤 면접</p>
                 </div>
-                <div className="flex bg-neutral-100 p-1 rounded-xl">
-                  <button type="button" onClick={() => setJdMode("none")} className={`px-2.5 py-1 text-[10px] font-bold rounded-lg transition-all ${jdMode === "none" ? "bg-white shadow-sm text-neutral-900" : "text-neutral-500"}`}>없음</button>
-                  <button type="button" onClick={() => setJdMode("text")} className={`px-2.5 py-1 text-[10px] font-bold rounded-lg transition-all ${jdMode === "text" ? "bg-white shadow-sm text-neutral-900" : "text-neutral-500"}`}>텍스트</button>
-                  <button type="button" onClick={() => setJdMode("image")} className={`px-2.5 py-1 text-[10px] font-bold rounded-lg transition-all ${jdMode === "image" ? "bg-white shadow-sm text-neutral-900" : "text-neutral-500"}`}>이미지</button>
+                <div className="flex bg-[#E2E8EC]/60 p-1 rounded-xl border border-[#B7C3CA]/45">
+                  <button type="button" onClick={() => setJdMode("none")} className={`px-2.5 py-1 text-[10px] font-bold rounded-lg transition-all ${jdMode === "none" ? "bg-white/80 shadow-sm text-[#17232B]" : "text-[#243844]"}`}>없음</button>
+                  <button type="button" onClick={() => setJdMode("text")} className={`px-2.5 py-1 text-[10px] font-bold rounded-lg transition-all ${jdMode === "text" ? "bg-white/80 shadow-sm text-[#17232B]" : "text-[#243844]"}`}>텍스트</button>
+                  <button type="button" onClick={() => setJdMode("image")} className={`px-2.5 py-1 text-[10px] font-bold rounded-lg transition-all ${jdMode === "image" ? "bg-white/80 shadow-sm text-[#17232B]" : "text-[#243844]"}`}>이미지</button>
                 </div>
               </div>
 
@@ -503,13 +502,13 @@ export default function Home() {
                     value={jdText}
                     onChange={(e) => setJdText(e.target.value)}
                     placeholder="채용 공고 내용을 붙여넣어 주세요..."
-                    className="flex-grow w-full px-4 py-3 rounded-xl border border-neutral-100 bg-neutral-50 focus:bg-white focus:ring-4 focus:ring-emerald-50 focus:border-emerald-200 outline-none resize-none text-sm leading-relaxed"
+                    className="theme-input flex-grow w-full px-4 py-3 rounded-xl border focus:bg-white/80 focus:ring-4 focus:ring-[#8390D6]/15 focus:border-[#8390D6] outline-none resize-none text-sm leading-relaxed"
                   />
                 )}
 
                 {jdMode === "image" && (
                   <div
-                    className={`flex-grow border-2 border-dashed rounded-xl p-6 text-center flex flex-col items-center justify-center transition-all ${isDraggingJd ? 'border-emerald-500 bg-emerald-50' : 'border-neutral-100 bg-neutral-50'}`}
+                    className={`flex-grow border-2 border-dashed rounded-xl p-6 text-center flex flex-col items-center justify-center transition-all ${isDraggingJd ? 'border-[#8390D6] bg-[#8390D6]/10' : 'border-[#B7C3CA]/50 bg-[#EAF4F7]/45'}`}
                     tabIndex={0}
                     onDragOver={handleDragOver}
                     onDragEnter={(e) => handleDragEnter(e, 'jd')}
@@ -520,39 +519,39 @@ export default function Home() {
                   >
                     <input key={`jd-${inputResetKey}`} type="file" id="jdImageFile" accept="image/*" onChange={handleJdImageChange} className="hidden" />
                     <label htmlFor="jdImageFile" className="cursor-pointer group flex flex-col items-center">
-                      <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm border border-neutral-100 mb-2 group-hover:scale-110 transition-transform">
-                        <svg className="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                      <div className="w-10 h-10 bg-white/75 rounded-full flex items-center justify-center shadow-sm border border-[#B7C3CA]/45 mb-2 group-hover:scale-110 transition-transform">
+                        <svg className="w-5 h-5 text-[#8390D6]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                       </div>
-                      <span className="text-xs font-bold text-emerald-600">Paste, drop, or click to add files</span>
-                      <span className="text-[10px] text-neutral-600 mt-1 font-bold">PNG, JPG, JPEG, HEIC</span>
+                      <span className="text-xs font-bold text-[#8390D6]">Paste, drop, or click to add files</span>
+                      <span className="text-[10px] text-[#243844] mt-1 font-bold">PNG, JPG, JPEG, HEIC</span>
                     </label>
-                    {jdFileName && <p className="text-[11px] font-bold text-emerald-700 mt-3 bg-emerald-100/50 px-2 py-1 rounded-md">✓ {jdFileName}</p>}
+                    {jdFileName && <p className="text-[11px] font-bold text-[#8390D6] mt-3 bg-[#8390D6]/20 px-2 py-1 rounded-md">✓ {jdFileName}</p>}
                   </div>
                 )}
 
                 {jdMode === "none" && (
-                  <div className="flex-grow flex flex-col items-center justify-center p-6 text-center bg-neutral-50/50 rounded-xl border border-dashed border-neutral-100">
-                    <svg className="w-8 h-8 text-neutral-300 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    <p className="text-xs text-neutral-600 font-medium leading-tight">선택한 공고가 없습니다.<br />직무 기반 일반 면접으로 진행합니다.</p>
+                  <div className="flex-grow flex flex-col items-center justify-center p-6 text-center bg-[#EAF4F7]/45 rounded-xl border border-dashed border-[#B7C3CA]/50">
+                    <svg className="w-8 h-8 text-white/80 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    <p className="text-xs text-[#243844] font-medium leading-tight">선택한 공고가 없습니다.<br />직무 기반 일반 면접으로 진행합니다.</p>
                   </div>
                 )}
               </div>
             </div>
 
             {/* Right: Resume */}
-            <div className="flex flex-col h-full bg-white p-5 sm:p-6 rounded-[2rem] border border-neutral-100 shadow-sm hover:shadow-md transition-shadow">
+            <div className="theme-card flex flex-col h-full p-5 sm:p-6 rounded-2xl border transition-shadow">
               <div className="flex justify-between items-start mb-4">
                 <div>
-                  <h2 className="text-sm font-bold text-indigo-600 uppercase tracking-widest mb-1 flex items-center gap-2">
-                    <span className="w-2 h-2 bg-indigo-600 rounded-full" />
+                  <h2 className="text-sm font-bold text-[#4556D6] uppercase tracking-widest mb-1 flex items-center gap-2">
+                    <span className="w-2 h-2 bg-[#4556D6] rounded-full" />
                     STEP 2. 이력서 분석
                   </h2>
-                  <p className="text-xs text-neutral-600 font-medium ml-4">제출하신 이력서를 바탕으로 심층 질문</p>
+                  <p className="text-xs text-[#243844] font-medium ml-4">제출하신 이력서를 바탕으로 심층 질문</p>
                 </div>
-                <div className="flex bg-neutral-100 p-1 rounded-xl">
-                  <button type="button" onClick={() => setResumeMode("none")} className={`px-2.5 py-1 text-[10px] font-bold rounded-lg transition-all ${resumeMode === "none" ? "bg-white shadow-sm text-neutral-900" : "text-neutral-500"}`}>없음</button>
-                  <button type="button" onClick={() => setResumeMode("text")} className={`px-2.5 py-1 text-[10px] font-bold rounded-lg transition-all ${resumeMode === "text" ? "bg-white shadow-sm text-neutral-900" : "text-neutral-500"}`}>입력</button>
-                  <button type="button" onClick={() => setResumeMode("file")} className={`px-2.5 py-1 text-[10px] font-bold rounded-lg transition-all ${resumeMode === "file" ? "bg-white shadow-sm text-neutral-900" : "text-neutral-500"}`}>파일</button>
+                <div className="flex bg-[#E2E8EC]/60 p-1 rounded-xl border border-[#B7C3CA]/45">
+                  <button type="button" onClick={() => setResumeMode("none")} className={`px-2.5 py-1 text-[10px] font-bold rounded-lg transition-all ${resumeMode === "none" ? "bg-white/80 shadow-sm text-[#17232B]" : "text-[#243844]"}`}>없음</button>
+                  <button type="button" onClick={() => setResumeMode("text")} className={`px-2.5 py-1 text-[10px] font-bold rounded-lg transition-all ${resumeMode === "text" ? "bg-white/80 shadow-sm text-[#17232B]" : "text-[#243844]"}`}>입력</button>
+                  <button type="button" onClick={() => setResumeMode("file")} className={`px-2.5 py-1 text-[10px] font-bold rounded-lg transition-all ${resumeMode === "file" ? "bg-white/80 shadow-sm text-[#17232B]" : "text-[#243844]"}`}>파일</button>
                 </div>
               </div>
 
@@ -562,12 +561,12 @@ export default function Home() {
                     value={resumeText}
                     onChange={(e) => setResumeText(e.target.value)}
                     placeholder="자기소개 또는 주요 경력을 입력하세요..."
-                    className="flex-grow w-full px-4 py-3 rounded-xl border border-neutral-100 bg-neutral-50 focus:bg-white focus:ring-4 focus:ring-indigo-50 focus:border-indigo-200 outline-none resize-none text-sm leading-relaxed"
+                    className="theme-input flex-grow w-full px-4 py-3 rounded-xl border focus:bg-white/80 focus:ring-4 focus:ring-[#8390D6]/15 focus:border-[#4556D6] outline-none resize-none text-sm leading-relaxed"
                     required
                   />
                 ) : resumeMode === "file" ? (
                   <div
-                    className={`flex-grow border-2 border-dashed rounded-xl p-6 text-center flex flex-col items-center justify-center transition-all ${isDraggingResume ? 'border-indigo-500 bg-indigo-50' : 'border-neutral-100 bg-neutral-50'}`}
+                    className={`flex-grow border-2 border-dashed rounded-xl p-6 text-center flex flex-col items-center justify-center transition-all ${isDraggingResume ? 'border-[#8390D6] bg-[#8390D6]/10' : 'border-[#B7C3CA]/50 bg-[#EAF4F7]/45'}`}
                     onDragOver={handleDragOver}
                     onDragEnter={(e) => handleDragEnter(e, 'resume')}
                     onDragLeave={(e) => handleDragLeave(e, 'resume')}
@@ -575,19 +574,19 @@ export default function Home() {
                   >
                     <input key={`resume-${inputResetKey}`} type="file" id="resumeFile" accept=".pdf,.txt" onChange={handleResumeFileChange} className="hidden" />
                     <label htmlFor="resumeFile" className="cursor-pointer group flex flex-col items-center">
-                      <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm border border-neutral-100 mb-2 group-hover:scale-110 transition-transform">
-                        <svg className="w-5 h-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                      <div className="w-10 h-10 bg-white/75 rounded-full flex items-center justify-center shadow-sm border border-[#B7C3CA]/45 mb-2 group-hover:scale-110 transition-transform">
+                        <svg className="w-5 h-5 text-[#4556D6]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                       </div>
-                      <span className="text-xs font-bold text-indigo-600">Drop or click to add files</span>
-                      <span className="text-[10px] text-neutral-600 mt-1 font-bold">PDF, TXT</span>
+                      <span className="text-xs font-bold text-[#4556D6]">Drop or click to add files</span>
+                      <span className="text-[10px] text-[#243844] mt-1 font-bold">PDF, TXT</span>
                     </label>
-                    {resumeFile && <p className="text-[11px] font-bold text-indigo-700 mt-3 bg-indigo-100/50 px-2 py-1 rounded-md truncate max-w-full">✓ {resumeFile.name}</p>}
-                    {isParsingResume && <p className="text-[10px] text-indigo-600 mt-2 animate-pulse font-bold">분석 중...</p>}
+                    {resumeFile && <p className="text-[11px] font-bold text-[#4556D6] mt-3 bg-[#8390D6]/20 px-2 py-1 rounded-md truncate max-w-full">✓ {resumeFile.name}</p>}
+                    {isParsingResume && <p className="text-[10px] text-[#4556D6] mt-2 animate-pulse font-bold">분석 중...</p>}
                   </div>
                 ) : (
-                  <div className="flex-grow flex flex-col items-center justify-center p-6 text-center bg-neutral-50/50 rounded-xl border border-dashed border-neutral-100">
-                    <svg className="w-8 h-8 text-neutral-300 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                    <p className="text-xs text-neutral-600 font-medium leading-tight">이력서 없이 진행합니다.<br />일반적인 지원자 수준에 맞춰 질문합니다.</p>
+                  <div className="flex-grow flex flex-col items-center justify-center p-6 text-center bg-[#EAF4F7]/45 rounded-xl border border-dashed border-[#B7C3CA]/50">
+                    <svg className="w-8 h-8 text-white/80 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                    <p className="text-xs text-[#243844] font-medium leading-tight">이력서 없이 진행합니다.<br />일반적인 지원자 수준에 맞춰 질문합니다.</p>
                   </div>
                 )}
               </div>
@@ -595,22 +594,22 @@ export default function Home() {
           </div>
 
           {/* Section 3: Basic Info - Now at the Bottom */}
-          <div className="bg-neutral-50/50 p-5 sm:p-6 rounded-[2rem] border border-neutral-100 shadow-inner relative overflow-hidden">
+          <div className="theme-card-soft p-5 sm:p-6 rounded-2xl border relative overflow-hidden">
             {isAnalyzingJd && (
-              <div className="absolute inset-0 bg-white/40 backdrop-blur-[2px] flex items-center justify-center z-10 transition-all">
-                <div className="bg-white px-4 py-2 rounded-full shadow-lg border border-neutral-100 flex items-center gap-3">
-                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                  <span className="text-xs font-bold text-blue-600">공고에서 직무 탐지 중...</span>
+              <div className="absolute inset-0 bg-white/45 backdrop-blur-[2px] flex items-center justify-center z-10 transition-all">
+                <div className="bg-white/85 px-4 py-2 rounded-full shadow-lg border border-[#B7C3CA]/45 flex items-center gap-3">
+                  <div className="w-4 h-4 border-2 border-[#4556D6] border-t-transparent rounded-full animate-spin" />
+                  <span className="text-xs font-bold text-[#4556D6]">공고에서 직무 탐지 중...</span>
                 </div>
               </div>
             )}
-            <h2 className="text-sm font-bold text-blue-600 uppercase tracking-widest mb-4 flex items-center gap-2">
-              <span className="w-2 h-2 bg-blue-600 rounded-full" />
+            <h2 className="text-sm font-bold text-[#4556D6] uppercase tracking-widest mb-4 flex items-center gap-2">
+              <span className="w-2 h-2 bg-[#4556D6] rounded-full" />
               STEP 3. 기본 프로필
             </h2>
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
               <div className="lg:col-span-2">
-                <label htmlFor="jobTitle" className="block text-xs font-bold text-neutral-600 mb-2 ml-1">지원 직무</label>
+                <label htmlFor="jobTitle" className="block text-xs font-bold text-[#243844] mb-2 ml-1">지원 직무</label>
                 <div className="relative">
                   <input
                     type="text"
@@ -621,20 +620,20 @@ export default function Home() {
                       setIsAutoFilled(false);
                     }}
                     placeholder="공고 분석 시 자동으로 입력됩니다"
-                    className={`w-full px-5 py-3.5 rounded-2xl border ${!jobTitle ? 'border-red-200 bg-red-50/30' : 'border-neutral-200 bg-white'} focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none text-base font-semibold transition-all`}
+                    className={`theme-input w-full px-5 py-3.5 rounded-2xl border ${!jobTitle ? 'border-[#B7C3CA] bg-[#EAF4F7]/55' : ''} focus:ring-4 focus:ring-[#8390D6]/20 focus:border-[#8390D6] outline-none text-base font-semibold transition-all`}
                     required
                   />
                   {jobTitle && isAutoFilled && !isAnalyzingJd && (
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1.5 px-2 py-1 bg-emerald-50 rounded-lg border border-emerald-100">
-                      <span className="text-[10px] font-black text-emerald-600">AUTO</span>
-                      <svg className="w-3 h-3 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1.5 px-2 py-1 bg-[#8390D6]/10 rounded-lg border border-[#8390D6]/20">
+                      <span className="text-[10px] font-black text-[#8390D6]">AUTO</span>
+                      <svg className="w-3 h-3 text-[#8390D6]" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
                     </div>
                   )}
                 </div>
               </div>
               <div>
-                <label htmlFor="experience" className="block text-xs font-bold text-neutral-600 mb-2 ml-1">경력</label>
-                <select id="experience" value={experience} onChange={(e) => setExperience(e.target.value)} className={`w-full px-5 py-3.5 rounded-2xl border ${!experience ? 'border-red-200 bg-red-50/30' : 'border-neutral-200 bg-white'} outline-none cursor-pointer focus:ring-4 focus:ring-blue-100 transition-all appearance-none font-bold`}>
+                <label htmlFor="experience" className="block text-xs font-bold text-[#243844] mb-2 ml-1">경력</label>
+                <select id="experience" value={experience} onChange={(e) => setExperience(e.target.value)} className={`theme-input w-full px-5 py-3.5 rounded-2xl border ${!experience ? 'border-[#B7C3CA] bg-[#EAF4F7]/55' : ''} outline-none cursor-pointer focus:ring-4 focus:ring-[#8390D6]/20 transition-all appearance-none font-bold`}>
                   <option value="" disabled>선택하기</option>
                   <option value="신입">신입 (0년)</option>
                   <option value="1~3년차">1~3년차</option>
@@ -643,8 +642,8 @@ export default function Home() {
                 </select>
               </div>
               <div>
-                <label htmlFor="education" className="block text-xs font-bold text-neutral-600 mb-2 ml-1">최종 학력</label>
-                <select id="education" value={education} onChange={(e) => setEducation(e.target.value)} className={`w-full px-5 py-3.5 rounded-2xl border ${!education ? 'border-red-200 bg-red-50/30' : 'border-neutral-200 bg-white'} outline-none cursor-pointer focus:ring-4 focus:ring-blue-100 transition-all appearance-none font-bold`}>
+                <label htmlFor="education" className="block text-xs font-bold text-[#243844] mb-2 ml-1">최종 학력</label>
+                <select id="education" value={education} onChange={(e) => setEducation(e.target.value)} className={`theme-input w-full px-5 py-3.5 rounded-2xl border ${!education ? 'border-[#B7C3CA] bg-[#EAF4F7]/55' : ''} outline-none cursor-pointer focus:ring-4 focus:ring-[#8390D6]/20 transition-all appearance-none font-bold`}>
                   <option value="" disabled>선택하기</option>
                   <option value="고졸">고졸</option>
                   <option value="전문학사">전문학사</option>
@@ -656,30 +655,30 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="bg-white p-5 sm:p-6 rounded-[2rem] border border-neutral-100 shadow-sm">
-            <h2 className="text-sm font-bold text-rose-600 uppercase tracking-widest mb-4 flex items-center gap-2">
-              <span className="w-2 h-2 bg-rose-600 rounded-full" />
+          <div className="theme-card p-5 sm:p-6 rounded-2xl border">
+            <h2 className="text-sm font-bold text-[#7E8A92] uppercase tracking-widest mb-4 flex items-center gap-2">
+              <span className="w-2 h-2 bg-[#7E8A92] rounded-full" />
               STEP 4. 리포트 이메일
             </h2>
             <div>
-              <label htmlFor="reportEmail" className="block text-xs font-bold text-neutral-600 mb-2 ml-1">리포트 받을 이메일</label>
+              <label htmlFor="reportEmail" className="block text-xs font-bold text-[#243844] mb-2 ml-1">리포트 받을 이메일</label>
               <input
                 type="email"
                 id="reportEmail"
                 value={reportEmail}
                 onChange={(e) => setReportEmail(e.target.value)}
                 placeholder="example@email.com"
-                className={`w-full px-5 py-3.5 rounded-2xl border ${!reportEmail ? 'border-red-200 bg-red-50/30' : 'border-neutral-200 bg-white'} focus:ring-4 focus:ring-rose-100 focus:border-rose-500 outline-none text-base font-semibold transition-all`}
+                className={`theme-input w-full px-5 py-3.5 rounded-2xl border ${!reportEmail ? 'border-[#B7C3CA] bg-[#EAF4F7]/55' : ''} focus:ring-4 focus:ring-[#B7C3CA]/30 focus:border-[#7E8A92] outline-none text-base font-semibold transition-all`}
                 required
               />
-              <p className="mt-2 text-xs font-medium text-neutral-500">
+              <p className="mt-2 text-xs font-medium text-[#243844]">
                 면접 종료 후 분석 리포트와 전체 대화 내용이 이 주소로 자동 발송됩니다.
               </p>
             </div>
           </div>
 
           {/* Action Footer */}
-          <div className="pt-5 border-t border-neutral-100 flex flex-col items-center gap-5">
+          <div className="pt-5 border-t border-[#B7C3CA]/40 flex flex-col items-center gap-5">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-3xl">
               <button
                 type="button"
@@ -688,7 +687,7 @@ export default function Home() {
                   setInterviewMode("short");
                   startInterview("short");
                 }}
-                className="group relative min-h-[112px] overflow-hidden rounded-[2rem] bg-gradient-to-r from-violet-600 to-fuchsia-600 px-6 py-5 text-left text-white shadow-2xl shadow-violet-200 transition-all hover:from-violet-700 hover:to-fuchsia-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                className="theme-cta group relative min-h-[112px] overflow-hidden rounded-2xl px-6 py-5 text-left text-white transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <div className="absolute inset-0 bg-white/15 translate-y-full transition-transform duration-300 group-hover:translate-y-0" />
                 <div className="relative flex h-full flex-col justify-between gap-4">
@@ -710,7 +709,7 @@ export default function Home() {
                   setInterviewMode("long");
                   startInterview("long");
                 }}
-                className="group relative min-h-[112px] overflow-hidden rounded-[2rem] bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-5 text-left text-white shadow-2xl shadow-blue-200 transition-all hover:from-blue-700 hover:to-indigo-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                className="theme-cta group relative min-h-[112px] overflow-hidden rounded-2xl px-6 py-5 text-left text-white transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <div className="absolute inset-0 bg-white/15 translate-y-full transition-transform duration-300 group-hover:translate-y-0" />
                 <div className="relative flex h-full flex-col justify-between gap-4">
@@ -727,13 +726,13 @@ export default function Home() {
               </button>
             </div>
             <div className="text-center space-y-2">
-              <p className="text-[12px] text-neutral-700 font-black">
+              <p className="text-[12px] text-[#17232B] font-black">
                 원하는 연습 방식을 누르면 바로 AI 면접이 시작됩니다.
               </p>
-              <p className="text-[12px] text-neutral-700 font-bold">
+              <p className="text-[12px] text-[#17232B] font-bold">
                 🛡️ 데이터는 개인정보 보호를 위해 현재 세션 중에만 임시로 유지되며, 창을 닫는 즉시 모든 기록이 사라집니다.
               </p>
-              <p className="text-[11px] text-neutral-600 font-medium">
+              <p className="text-[11px] text-[#243844] font-medium">
                 면접 대화 원문은 저장하지 않으며, 종료 후 AI 면접관 개선을 위한 익명화된 운영 지침만 생성될 수 있습니다.
               </p>
             </div>
@@ -741,188 +740,112 @@ export default function Home() {
         </form>
         )}
 
-        <section className="mt-10 border-t border-neutral-100 pt-8">
-          <button
-            type="button"
-            onClick={() => setIsServiceDetailsOpen((open) => !open)}
-            className="group flex w-full items-center justify-between gap-6 rounded-[2rem] border border-neutral-200 bg-neutral-50 px-8 py-6 text-left transition-all hover:border-neutral-300 hover:bg-white hover:shadow-lg"
-            aria-expanded={isServiceDetailsOpen}
-          >
-            <span className="flex items-center gap-4 text-2xl font-black text-neutral-950">
-              <span className={`text-blue-600 transition-transform duration-300 ${isServiceDetailsOpen ? "rotate-90" : ""}`}>{">"}</span>
-              서비스 설명 상세보기
-            </span>
-            <span className="text-sm font-black uppercase tracking-[0.24em] text-neutral-400">
-              Product story
-            </span>
-          </button>
-
-          {isServiceDetailsOpen && (
-            <div className="mt-8 space-y-10">
-              <div className="relative overflow-hidden rounded-[3rem] bg-neutral-950 px-12 py-16 text-white shadow-2xl shadow-neutral-200">
-                <div className="absolute right-0 top-0 h-80 w-80 rounded-full bg-blue-500/20 blur-3xl" />
-                <div className="absolute bottom-0 left-1/3 h-80 w-80 rounded-full bg-emerald-400/10 blur-3xl" />
-                <div className="relative grid min-h-[560px] grid-cols-[0.92fr_1.08fr] gap-14">
-                  <div className="flex flex-col justify-center">
-                    <p className="text-sm font-black uppercase tracking-[0.32em] text-blue-300">TechTree Experience</p>
-                    <h2 className="mt-6 text-7xl font-black leading-[0.95]">
-                      준비부터<br />
-                      피드백까지,<br />
-                      한 번에.
-                    </h2>
-                    <p className="mt-8 max-w-2xl text-xl font-bold leading-relaxed text-neutral-300">
-                      TechTree는 사용자가 입력한 이력서와 채용 공고를 바탕으로 면접 질문을 준비하고,
-                      실제 대화처럼 음성으로 면접을 진행한 뒤, 개선 포인트가 정리된 리포트를 보내주는 서비스입니다.
-                    </p>
-                    <div className="mt-10 flex gap-3 text-sm font-black">
-                      <span className="rounded-full bg-white px-5 py-3 text-neutral-950">공고 기반 질문</span>
-                      <span className="rounded-full border border-white/15 px-5 py-3 text-white">음성 면접</span>
-                      <span className="rounded-full border border-white/15 px-5 py-3 text-white">이메일 리포트</span>
-                    </div>
-                  </div>
-                  <div className="relative flex items-center">
-                    <div className="absolute left-0 top-10 rounded-[2rem] border border-white/10 bg-white/10 px-6 py-5 backdrop-blur">
-                      <p className="text-sm font-black text-blue-200">먼저, 지원 정보를 넣습니다.</p>
-                      <p className="mt-1 text-lg font-black">이력서 · 채용 공고 · 경력</p>
-                    </div>
-                    <div className="ml-auto w-[560px] rounded-[2.5rem] border border-white/10 bg-white/[0.06] p-5 shadow-2xl shadow-black/40">
-                      <div className="aspect-[16/10] overflow-hidden rounded-[2rem] border border-white/10 bg-white">
-                        <div className="flex h-full items-center justify-center bg-gradient-to-br from-white to-blue-50">
-                          <NextImage src="/logo.png" alt="TechTree service preview placeholder" width={260} height={260} className="h-64 w-64 object-contain" />
-                        </div>
-                      </div>
-                      <p className="mt-4 text-right text-xs font-bold text-neutral-500">/images/techtree-main-flow.png 로 교체 예정</p>
-                    </div>
-                    <div className="absolute bottom-12 right-6 rounded-[2rem] border border-white/10 bg-white px-6 py-5 text-neutral-950 shadow-xl">
-                      <p className="text-sm font-black text-neutral-500">면접이 끝나면</p>
-                      <p className="text-3xl font-black">리포트 도착</p>
-                    </div>
-                  </div>
-                </div>
+        <section className="mt-14 space-y-8 border-t border-[#B7C3CA]/45 pt-12">
+          <div className="grid grid-cols-[0.92fr_1.08fr] gap-8">
+            <div className="theme-hero rounded-2xl px-10 py-12">
+              <p className="text-sm font-black uppercase tracking-[0.3em] text-[#B88A3A]">Service Value</p>
+              <h2 className="mt-6 text-6xl font-black leading-[0.96] text-[#17232B]">
+                면접 준비를<br />대화로 바꾸다.
+              </h2>
+              <p className="mt-7 max-w-xl text-lg font-bold leading-relaxed text-[#243844]">
+                TechTree는 이력서와 채용 공고를 읽고, 실제 면접관처럼 질문하고,
+                대화가 끝나면 다시 연습할 수 있는 피드백으로 정리합니다.
+              </p>
+              <div className="mt-9 flex gap-3 text-sm font-black">
+                <span className="rounded-xl border border-[#D7B56D]/70 bg-[#D7B56D]/18 px-4 py-2 text-[#17232B]">맞춤 질문</span>
+                <span className="rounded-xl border border-[#B7C3CA]/70 bg-white/70 px-4 py-2 text-[#17232B]">음성 면접</span>
+                <span className="rounded-xl border border-[#B7C3CA]/70 bg-white/70 px-4 py-2 text-[#17232B]">리포트</span>
               </div>
+            </div>
 
-              <div className="grid grid-cols-3 gap-5">
-                <div className="rounded-[2.5rem] bg-neutral-50 p-8">
-                  <p className="text-sm font-black uppercase tracking-[0.28em] text-emerald-600">Step 1</p>
-                  <h3 className="mt-5 text-4xl font-black leading-tight text-neutral-950">나만을 위한 면접</h3>
-                  <p className="mt-6 text-lg font-bold leading-relaxed text-neutral-600">
-                    직무, 경력, 학력, 이력서, 채용 공고를 입력하면 TechTree가 질문의 방향을 잡습니다.
-                    공고가 있다면 그 포지션에 더 가까운 질문으로 시작합니다.
-                  </p>
+            <div className="theme-deep rounded-2xl p-6 text-white">
+              <div className="flex h-full min-h-[420px] flex-col justify-between rounded-xl border border-white/15 bg-white/8 p-7">
+                <div>
+                  <p className="text-sm font-black uppercase tracking-[0.3em] text-[#D7B56D]">Product Flow</p>
+                  <h3 className="mt-5 text-4xl font-black leading-tight">입력하고, 말하고,<br />바로 개선합니다.</h3>
                 </div>
-                <div className="rounded-[2.5rem] bg-neutral-50 p-8">
-                  <p className="text-sm font-black uppercase tracking-[0.28em] text-blue-600">Step 2</p>
-                  <h3 className="mt-5 text-4xl font-black leading-tight text-neutral-950">음성으로 대화</h3>
-                  <p className="mt-6 text-lg font-bold leading-relaxed text-neutral-600">
-                    화면을 읽는 테스트가 아니라, 질문을 듣고 바로 답하는 연습입니다.
-                    스페이스바를 누르는 동안만 답변해 잡음과 끊김을 줄입니다.
-                  </p>
+                <div className="overflow-hidden rounded-xl border border-white/15 bg-white/85">
+                  <div className="flex aspect-[16/9] items-center justify-center bg-gradient-to-br from-white to-[#DCEBF1]">
+                    <NextImage src="/logo.png" alt="TechTree product flow placeholder" width={220} height={220} className="h-56 w-56 object-contain" />
+                  </div>
                 </div>
-                <div className="rounded-[2.5rem] bg-neutral-50 p-8">
-                  <p className="text-sm font-black uppercase tracking-[0.28em] text-rose-600">Step 3</p>
-                  <h3 className="mt-5 text-4xl font-black leading-tight text-neutral-950">종합 피드백</h3>
-                  <p className="mt-6 text-lg font-bold leading-relaxed text-neutral-600">
-                    점수, 강점, 개선점, 주요 Q&A, 말하기 습관, 자기소개 개선 방향이 리포트로 정리되어 이메일로 발송됩니다.
-                  </p>
-                </div>
+                <p className="text-right text-xs font-bold text-white/70">/images/techtree-main-flow.png 로 교체 예정</p>
               </div>
+            </div>
+          </div>
 
-              <div className="grid grid-cols-[0.9fr_1.1fr] gap-6">
-                <div className="rounded-[3rem] bg-[#f5f5f7] p-10">
-                  <p className="text-sm font-black uppercase tracking-[0.28em] text-neutral-500">Interview Mode</p>
-                  <h3 className="mt-5 text-5xl font-black leading-tight text-neutral-950">
-                    지금 필요한 만큼만.<br />
-                    짧게 또는 깊게.
-                  </h3>
-                  <p className="mt-6 text-lg font-bold leading-relaxed text-neutral-600">
-                    시간이 많지 않다면 빠른 연습으로 핵심 질문을 점검하고, 더 깊게 준비하고 싶다면 실전 연습으로 프로젝트와 직무 역량을 넓게 확인합니다.
-                  </p>
-                  <div className="mt-10 grid grid-cols-2 gap-4">
-                    <div className="rounded-[2rem] bg-white p-5 shadow-sm">
-                      <p className="text-4xl font-black text-neutral-950">7m</p>
-                      <p className="mt-2 text-sm font-black text-neutral-500">대표 경험과 핵심 질문</p>
-                    </div>
-                    <div className="rounded-[2rem] bg-white p-5 shadow-sm">
-                      <p className="text-4xl font-black text-neutral-950">20m</p>
-                      <p className="mt-2 text-sm font-black text-neutral-500">프로젝트와 협업까지</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="rounded-[3rem] bg-neutral-950 p-6 text-white">
-                  <div className="aspect-[16/9] overflow-hidden rounded-[2.5rem] border border-white/10 bg-white">
-                    <div className="flex h-full items-center justify-center bg-gradient-to-br from-white to-indigo-50">
-                      <NextImage src="/logo.png" alt="TechTree interview screen placeholder" width={240} height={240} className="h-60 w-60 object-contain" />
-                    </div>
-                  </div>
-                  <p className="mt-4 text-right text-xs font-bold text-neutral-500">/images/techtree-interview-screen.png 로 교체 예정</p>
-                </div>
+          <div className="grid grid-cols-4 gap-4">
+            {[
+              ["01", "정보 입력", "직무, 경력, 학력, 이력서와 공고를 넣습니다."],
+              ["02", "질문 준비", "입력한 내용을 바탕으로 면접 방향이 정해집니다."],
+              ["03", "음성 면접", "면접관 질문을 듣고 스페이스바로 답합니다."],
+              ["04", "리포트 수신", "점수와 개선점을 이메일로 받아 다음 연습에 활용합니다."],
+            ].map(([step, title, body]) => (
+              <div key={step} className="theme-card rounded-2xl border p-6">
+                <p className="text-sm font-black text-[#B88A3A]">{step}</p>
+                <h3 className="mt-6 text-2xl font-black text-[#17232B]">{title}</h3>
+                <p className="mt-4 text-sm font-bold leading-relaxed text-[#243844]">{body}</p>
               </div>
+            ))}
+          </div>
 
-              <div className="rounded-[3rem] bg-gradient-to-b from-white to-neutral-50 p-10 shadow-inner">
-                <p className="text-sm font-black uppercase tracking-[0.3em] text-blue-600">Interview Journey</p>
-                <h3 className="mt-4 text-5xl font-black leading-tight text-neutral-950">면접은 이렇게 진행됩니다.</h3>
-                <div className="mt-6 grid grid-cols-5 gap-3">
-                  {[
-                    ["01", "정보 입력", "직무, 경력, 학력, 이력서와 공고를 넣습니다."],
-                    ["02", "질문 준비", "입력한 내용을 바탕으로 면접 방향이 정해집니다."],
-                    ["03", "음성 면접", "면접관 질문을 듣고 스페이스바로 답합니다."],
-                    ["04", "면접 종료", "대화 내용이 리포트 생성에 사용됩니다."],
-                    ["05", "리포트 수신", "이메일로 피드백을 받아 다음 연습에 활용합니다."],
-                  ].map(([step, title, body]) => (
-                    <div key={step} className="rounded-[2rem] border border-neutral-100 bg-white p-6 shadow-sm">
-                      <p className="text-sm font-black text-blue-600">{step}</p>
-                      <h4 className="mt-6 text-2xl font-black text-neutral-950">{title}</h4>
-                      <p className="mt-4 text-sm font-bold leading-relaxed text-neutral-500">{body}</p>
-                    </div>
-                  ))}
+          <div className="grid grid-cols-[1fr_1fr] gap-6">
+            <div className="theme-card rounded-2xl border p-8">
+              <p className="text-sm font-black uppercase tracking-[0.28em] text-[#4556D6]">Interview Modes</p>
+              <h3 className="mt-5 text-4xl font-black leading-tight text-[#17232B]">짧게 점검하거나,<br />깊게 들어가거나.</h3>
+              <div className="mt-8 grid grid-cols-2 gap-4">
+                <div className="rounded-xl border border-[#B7C3CA]/45 bg-white/80 p-5">
+                  <p className="text-4xl font-black text-[#17232B]">7m</p>
+                  <p className="mt-2 text-sm font-black text-[#243844]">대표 경험과 핵심 질문</p>
                 </div>
-              </div>
-
-              <div className="grid grid-cols-[1.15fr_0.85fr] gap-6">
-                <div className="rounded-[3rem] bg-neutral-950 p-10 text-white">
-                  <p className="text-sm font-black uppercase tracking-[0.28em] text-emerald-300">Why TechTree</p>
-                  <h3 className="mt-5 text-5xl font-black leading-tight">
-                    그냥 질문하지 않고,<br />
-                    흐름을 만듭니다.
-                  </h3>
-                  <p className="mt-7 max-w-2xl text-lg font-bold leading-relaxed text-neutral-300">
-                    TechTree는 단순히 질문 목록을 보여주는 도구가 아닙니다.
-                    사용자가 준비한 자료를 읽고, 답변을 듣고, 대화 맥락에 맞춰 꼬리 질문을 이어가며,
-                    마지막에는 다시 연습할 수 있는 피드백으로 정리합니다.
-                  </p>
-                  <div className="mt-10 flex gap-3 text-sm font-black">
-                    <span className="rounded-full bg-white px-5 py-3 text-neutral-950">맞춤 질문</span>
-                    <span className="rounded-full bg-white/10 px-5 py-3 text-white">실전 대화</span>
-                    <span className="rounded-full bg-white/10 px-5 py-3 text-white">행동 가능한 피드백</span>
-                  </div>
-                </div>
-                <div className="rounded-[3rem] border border-neutral-100 bg-white p-6 shadow-sm">
-                  <div className="flex h-full flex-col justify-between rounded-[2.5rem] bg-neutral-100 p-7">
-                    <div>
-                      <p className="text-sm font-black uppercase tracking-[0.28em] text-neutral-500">Report Preview</p>
-                      <h3 className="mt-4 text-4xl font-black leading-tight text-neutral-950">끝나면 바로<br />읽을 수 있는 피드백.</h3>
-                    </div>
-                    <div className="mt-10 overflow-hidden rounded-[2rem] bg-white shadow-sm">
-                      <div className="flex aspect-[4/3] items-center justify-center bg-gradient-to-br from-white to-emerald-50">
-                        <NextImage src="/logo.png" alt="TechTree report preview placeholder" width={200} height={200} className="h-52 w-52 object-contain" />
-                      </div>
-                    </div>
-                    <p className="mt-3 text-right text-xs font-bold text-neutral-500">/images/techtree-report-preview.png 로 교체 예정</p>
-                    <div className="mt-5 grid grid-cols-2 gap-3">
-                      <div className="rounded-2xl bg-white p-4">
-                        <p className="text-3xl font-black text-neutral-950">Score</p>
-                        <p className="text-xs font-bold text-neutral-500">종합 점수</p>
-                      </div>
-                      <div className="rounded-2xl bg-white p-4">
-                        <p className="text-3xl font-black text-neutral-950">Q&A</p>
-                        <p className="text-xs font-bold text-neutral-500">답변 피드백</p>
-                      </div>
-                    </div>
-                  </div>
+                <div className="rounded-xl border border-[#D7B56D]/55 bg-[#D7B56D]/12 p-5">
+                  <p className="text-4xl font-black text-[#17232B]">20m</p>
+                  <p className="mt-2 text-sm font-black text-[#243844]">프로젝트와 협업까지</p>
                 </div>
               </div>
             </div>
-          )}
+
+            <div className="theme-card rounded-2xl border p-8">
+              <p className="text-sm font-black uppercase tracking-[0.28em] text-[#B88A3A]">Report Preview</p>
+              <h3 className="mt-5 text-4xl font-black leading-tight text-[#17232B]">면접이 끝난 뒤에도<br />연습은 이어집니다.</h3>
+              <p className="mt-6 text-base font-bold leading-relaxed text-[#243844]">
+                점수, 강점, 개선점, 주요 Q&A, 말하기 습관, 자기소개 개선 방향을 한 번에 확인합니다.
+              </p>
+              <div className="mt-8 overflow-hidden rounded-xl border border-[#B7C3CA]/45 bg-white/80">
+                <div className="flex aspect-[16/7] items-center justify-center bg-gradient-to-br from-white to-[#DCEBF1]">
+                  <NextImage src="/logo.png" alt="TechTree report preview placeholder" width={160} height={160} className="h-40 w-40 object-contain" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="theme-deep rounded-2xl p-10 text-white">
+            <div className="grid grid-cols-[0.85fr_1.15fr] gap-10">
+              <div>
+                <p className="text-sm font-black uppercase tracking-[0.3em] text-[#D7B56D]">Builder Note</p>
+                <h3 className="mt-5 text-5xl font-black leading-tight">제작자의 말</h3>
+              </div>
+              <div className="space-y-5 text-lg font-bold leading-relaxed text-white/88">
+                <p>
+                  면접 준비에서 가장 어려운 순간은 무엇을 더 연습해야 하는지 모를 때라고 생각했습니다.
+                  TechTree는 질문 목록을 보여주는 도구가 아니라, 실제로 말해보고 곧바로 고칠 수 있는 연습 환경을 목표로 만들었습니다.
+                </p>
+                <p>
+                  이 서비스가 답변을 대신 만들어주기보다, 사용자가 자신의 경험을 더 선명하게 말하도록 돕는 도구가 되기를 바랍니다.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="theme-card flex items-center justify-between rounded-2xl border p-8">
+            <div>
+              <p className="text-sm font-black uppercase tracking-[0.28em] text-[#B88A3A]">Ready</p>
+              <h3 className="mt-3 text-4xl font-black text-[#17232B]">지금 입력한 정보로 바로 시작하세요.</h3>
+            </div>
+            <div className="text-right text-sm font-bold leading-relaxed text-[#243844]">
+              위의 빠른 연습 또는 실전 연습 버튼을 누르면<br />AI 면접관이 준비됩니다.
+            </div>
+          </div>
         </section>
       </div>
 

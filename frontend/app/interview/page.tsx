@@ -421,11 +421,7 @@ export default function InterviewPage() {
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
 
-        const baseUrl = "https://api.openai.com/v1/realtime";
-        // 백엔드에서 생성한 토큰의 모델과 프론트엔드의 요청 모델이 일치해야 합니다.
-        const model = "gpt-realtime-mini-2025-12-15";
-
-        const sdpResponse = await fetch(`${baseUrl}?model=${model}`, {
+        const sdpResponse = await fetch("https://api.openai.com/v1/realtime/calls", {
           method: "POST",
           body: offer.sdp,
           headers: {
@@ -525,19 +521,20 @@ export default function InterviewPage() {
     }
   }, [startRecording, stopRecording]);
 
-  const visualizerScale = isSpeaking ? "scale-110 animate-pulse bg-gradient-to-tr from-purple-600 to-indigo-500"
-    : isRecording ? "scale-100 animate-pulse bg-gradient-to-tr from-red-500 to-pink-500"
-      : "scale-100 bg-gradient-to-tr from-blue-600 to-indigo-500 hover:scale-105";
+  const visualizerScale = isSpeaking ? "scale-110 animate-pulse bg-gradient-to-tr from-[#DCEBF1] via-[#8390D6] to-[#4556D6]"
+    : isRecording ? "scale-100 animate-pulse bg-gradient-to-tr from-[#B7C3CA] to-[#4556D6]"
+      : "scale-100 bg-gradient-to-tr from-[#DCEBF1] via-[#8390D6] to-[#4556D6] hover:scale-105";
 
   return (
-    <main className="min-h-screen bg-neutral-900 flex flex-col items-center justify-center p-4 relative">
+    <main className="theme-deep min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden">
+      <div className="absolute -top-32 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-[#DCEBF1]/10 blur-3xl" />
       <div className="absolute top-0 w-full p-6 flex justify-between items-center z-10 max-w-5xl">
         <div className="flex items-center space-x-4">
-          <div className="w-8 h-8 rounded-lg overflow-hidden border border-neutral-700">
+          <div className="w-8 h-8 rounded-lg overflow-hidden border border-[#B7C3CA]/40 bg-white/10">
             <Image src="/logo.png" alt="Logo" width={32} height={32} className="w-full h-full object-cover" priority />
           </div>
           <div className="flex items-center space-x-2 text-white">
-            <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+            <div className="w-2 h-2 bg-[#D7B56D] rounded-full animate-pulse"></div>
             <span className="text-sm font-medium opacity-80">면접 진행 중</span>
           </div>
         </div>
@@ -546,10 +543,10 @@ export default function InterviewPage() {
           disabled={isEnding}
           className={`px-4 py-2 text-white rounded-lg text-sm font-medium transition-colors border ${
             isEnding
-              ? "bg-neutral-800 border-neutral-700 opacity-50 cursor-not-allowed"
+              ? "bg-[#17232B]/80 border-[#7E8A92]/40 opacity-50 cursor-not-allowed"
               : isAutoEnding
-                ? "bg-red-600 hover:bg-red-500 border-red-500"
-                : "bg-neutral-800 hover:bg-neutral-700 border-neutral-700"
+                ? "bg-[#B88A3A] hover:bg-[#D7B56D] border-[#D7B56D]"
+                : "bg-[#17232B]/70 hover:bg-[#243844] border-[#B7C3CA]/35"
           }`}
         >
           {isEnding ? "종료중" : "면접 종료하기"}
@@ -558,8 +555,8 @@ export default function InterviewPage() {
 
       <div className="flex-1 w-full max-w-5xl flex flex-col items-center justify-center">
         <div className="relative w-64 h-64 mb-16 flex items-center justify-center">
-          <div className={`absolute inset-0 rounded-full blur-3xl opacity-30 transition-all duration-700 ${isSpeaking ? 'bg-purple-500 scale-125' : isRecording ? 'bg-red-500 scale-110' : 'bg-blue-500 scale-100'}`}></div>
-          <div className={`w-40 h-40 rounded-full flex items-center justify-center relative z-10 transition-all duration-300 shadow-[0_0_50px_rgba(0,0,0,0.3)] ${visualizerScale}`}>
+          <div className={`absolute inset-0 rounded-full blur-3xl opacity-40 transition-all duration-700 ${isSpeaking ? 'bg-[#DCEBF1] scale-125' : isRecording ? 'bg-[#B7C3CA] scale-110' : 'bg-[#8390D6] scale-100'}`}></div>
+          <div className={`w-40 h-40 rounded-full flex items-center justify-center relative z-10 transition-all duration-300 shadow-[0_0_58px_rgba(220,235,241,0.22)] ring-1 ring-[#B7C3CA]/40 ${visualizerScale}`}>
             <svg className="w-16 h-16 text-white/90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               {isSpeaking ? (
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
@@ -572,15 +569,15 @@ export default function InterviewPage() {
       </div>
 
       <div className="w-full max-w-3xl pb-10">
-        <div className="bg-neutral-800/50 backdrop-blur-md border border-neutral-700 rounded-3xl p-6 flex flex-col items-center">
+        <div className="bg-[#17232B]/52 backdrop-blur-md border border-[#B7C3CA]/30 rounded-2xl p-6 flex flex-col items-center shadow-2xl shadow-black/20">
           <button
             onMouseDown={startRecording}
             onMouseUp={stopRecording}
             onTouchStart={startRecording}
             onTouchEnd={stopRecording}
             className={`w-20 h-20 rounded-full flex items-center justify-center transition-all shadow-lg select-none ${isRecording
-              ? 'bg-red-500 shadow-red-500/50 scale-110'
-              : 'bg-white hover:bg-gray-100 text-neutral-900'
+              ? 'bg-[#B7C3CA] shadow-[#B7C3CA]/40 scale-110'
+              : 'bg-[#F7FBFC] hover:bg-[#EAF4F7] text-[#17232B]'
               }`}
           >
             {isRecording ? (
@@ -593,25 +590,25 @@ export default function InterviewPage() {
               </svg>
             )}
           </button>
-          <p className="mt-6 text-neutral-400 text-sm font-medium tracking-wide">
+          <p className="mt-6 text-[#E2E8EC] text-sm font-medium tracking-wide">
             {statusText}
           </p>
         </div>
       </div>
 
       {isPreparingInterview && (
-        <div className="absolute inset-0 z-40 flex items-center justify-center bg-neutral-950/70 px-5 backdrop-blur-md">
-          <div className="w-full max-w-md rounded-[2rem] border border-white/10 bg-neutral-900/90 px-6 py-8 text-center shadow-2xl shadow-black/40">
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-[#17232B]/72 px-5 backdrop-blur-md">
+          <div className="w-full max-w-md rounded-2xl border border-[#B7C3CA]/35 bg-[#F7FBFC]/88 px-6 py-8 text-center shadow-2xl shadow-black/30">
             <div className="relative mx-auto mb-6 flex h-24 w-24 items-center justify-center">
-              <div className="absolute inset-0 rounded-full border border-blue-400/30 animate-ping" />
-              <div className="absolute h-20 w-20 rounded-full border-4 border-blue-500/30 border-t-blue-300 animate-spin" />
-              <div className="relative h-12 w-12 rounded-2xl bg-gradient-to-br from-blue-500 to-emerald-400 shadow-lg shadow-blue-500/30" />
+              <div className="absolute inset-0 rounded-full border border-[#D7B56D]/45 animate-ping" />
+              <div className="absolute h-20 w-20 rounded-full border-4 border-[#B7C3CA]/45 border-t-[#4556D6] animate-spin" />
+              <div className="relative h-12 w-12 rounded-2xl bg-gradient-to-br from-[#DCEBF1] via-[#8390D6] to-[#4556D6] shadow-lg shadow-[#8390D6]/30 ring-1 ring-[#D7B56D]/50" />
             </div>
-            <p className="text-xs font-black uppercase tracking-[0.28em] text-blue-300">Preparing</p>
-            <h2 className="mt-3 text-2xl font-black tracking-tight text-white">
+            <p className="text-xs font-black uppercase tracking-[0.28em] text-[#B88A3A]">Preparing</p>
+            <h2 className="mt-3 text-2xl font-black tracking-tight text-[#17232B]">
               면접관을 준비하고 있습니다
             </h2>
-            <p className="mx-auto mt-4 max-w-sm text-sm font-semibold leading-relaxed text-neutral-300">
+            <p className="mx-auto mt-4 max-w-sm text-sm font-semibold leading-relaxed text-[#243844]">
               {statusText}
             </p>
           </div>

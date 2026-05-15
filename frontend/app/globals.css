@@ -1,8 +1,23 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #dcebf1;
+  --foreground: #17232b;
+  --bleu-brume: #c8dce6;
+  --bleu-brume-light: #dcebf1;
+  --bleu-brume-mist: #eef7f9;
+  --surface-glass: rgba(255, 255, 255, 0.82);
+  --surface-soft: #f6fbfc;
+  --brand-primary: #8390d6;
+  --brand-accent: #4556d6;
+  --brand-muted: #888894;
+  --text-deep: #17232b;
+  --text-soft: #64727c;
+  --silver: #b7c3ca;
+  --silver-light: #e2e8ec;
+  --silver-deep: #7e8a92;
+  --gold: #b88a3a;
+  --gold-light: #d7b56d;
 }
 
 @theme inline {
@@ -14,8 +29,8 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #eaf4f7;
+    --foreground: #17232b;
   }
 }
 
@@ -23,4 +38,68 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+.theme-page {
+  background:
+    radial-gradient(circle at 18% 8%, rgba(255, 255, 255, 0.72), transparent 23rem),
+    radial-gradient(circle at 88% 14%, rgba(215, 181, 109, 0.22), transparent 22rem),
+    linear-gradient(135deg, #eef7f9 0%, #dcebf1 38%, #b8d1de 100%);
+  color: var(--text-deep);
+}
+
+.theme-shell {
+  background: rgba(246, 251, 252, 0.9);
+  border-color: rgba(126, 138, 146, 0.34);
+  box-shadow: 0 30px 90px rgba(36, 56, 68, 0.18);
+  backdrop-filter: blur(16px);
+}
+
+.theme-card {
+  background: rgba(248, 251, 252, 0.92);
+  border-color: rgba(126, 138, 146, 0.32);
+  box-shadow: 0 18px 42px rgba(36, 56, 68, 0.12);
+  backdrop-filter: blur(10px);
+}
+
+.theme-card-soft {
+  background: rgba(220, 235, 241, 0.68);
+  border-color: rgba(126, 138, 146, 0.34);
+}
+
+.theme-input {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(126, 138, 146, 0.46);
+  color: var(--text-deep);
+}
+
+.theme-cta {
+  background:
+    linear-gradient(90deg, rgba(215, 181, 109, 0.28), rgba(215, 181, 109, 0) 18%),
+    linear-gradient(135deg, #8390d6 0%, #4556d6 100%);
+  border: 1px solid rgba(215, 181, 109, 0.58);
+  box-shadow: 0 24px 58px rgba(69, 86, 214, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+
+.theme-silver-pill {
+  background: rgba(226, 232, 236, 0.86);
+  border-color: rgba(126, 138, 146, 0.44);
+}
+
+.theme-hero {
+  background:
+    radial-gradient(circle at 82% 18%, rgba(215, 181, 109, 0.28), transparent 18rem),
+    linear-gradient(135deg, rgba(248, 251, 252, 0.98), rgba(220, 235, 241, 0.98) 50%, rgba(184, 209, 222, 0.96));
+  border: 1px solid rgba(126, 138, 146, 0.34);
+  color: var(--text-deep);
+}
+
+.theme-deep {
+  background:
+    radial-gradient(circle at 50% 20%, rgba(131, 144, 214, 0.28), transparent 25rem),
+    linear-gradient(135deg, #17232b, #243844 58%, #324c58);
+}
+
+.theme-gold-text {
+  color: var(--gold);
 }
