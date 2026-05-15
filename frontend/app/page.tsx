@@ -395,45 +395,79 @@ export default function Home() {
   };
 
   return (
-    <main className="theme-page min-h-screen py-6 px-4 sm:px-6">
-      <div className="theme-shell max-w-7xl mx-auto w-full rounded-2xl border p-5 sm:p-8 relative overflow-hidden">
-        {/* Background Decoration */}
-        <div className="absolute -top-24 -right-24 w-64 h-64 bg-white/50 rounded-full opacity-70 blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-[#B7C3CA]/25 rounded-full opacity-70 blur-3xl pointer-events-none" />
+    <main className="theme-page min-h-screen overflow-hidden">
+      <div className="mx-auto w-full max-w-[1500px] px-8 py-7">
+        <nav className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="h-11 w-11 overflow-hidden rounded-xl border border-[#4556D6]/25 bg-white shadow-sm">
+              <NextImage src="/logo.png" alt="TechTree Logo" width={44} height={44} className="h-full w-full object-contain" priority />
+            </div>
+            <span className="text-lg font-black tracking-tight text-[#17232B]">TechTree</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link href="/debug" className="theme-silver-pill rounded-full border px-4 py-2 text-xs font-black text-[#243844] transition hover:text-[#17232B]" title="개발자 디버그 페이지">
+              Debug
+            </Link>
+            <button
+              onClick={resetInterviewInputs}
+              className="theme-silver-pill rounded-full border px-4 py-2 text-xs font-black text-[#243844] transition hover:text-[#17232B]"
+              type="button"
+            >
+              입력 초기화
+            </button>
+          </div>
+        </nav>
 
-        <div className="absolute top-10 left-10 flex items-center gap-4">
-          <Link href="/debug" className="text-[#7E8A92] hover:text-[#17232B] transition-colors p-2 hover:bg-white/40 rounded-full" title="개발자 디버그 페이지">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </Link>
-        </div>
-
-        <div className="absolute top-6 right-6 flex flex-wrap justify-end gap-2">
-          <button
-            onClick={resetInterviewInputs}
-            className="theme-silver-pill px-3 py-2 text-[#243844] hover:text-[#17232B] text-xs font-bold rounded-full transition-all border"
-            type="button"
-          >
-            입력 초기화
-          </button>
-        </div>
-
-        <div className="flex flex-col items-center text-center mb-8 pt-6">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#E2E8EC] via-[#8390D6] to-[#4556D6] p-0.5 mb-4 shadow-lg shadow-[#7E8A92]/20 rotate-3">
-            <div className="w-full h-full bg-white rounded-xl flex items-center justify-center overflow-hidden">
-              <NextImage src="/logo.png" alt="TechTree Logo" width={64} height={64} className="w-4/5 h-4/5 object-contain" priority />
+        <section className="grid min-h-[620px] grid-cols-[0.82fr_1.18fr] items-center gap-12 py-16">
+          <div>
+            <p className="text-sm font-black uppercase tracking-[0.34em] text-[#B88A3A]">AI Mock Interview</p>
+            <h1 className="mt-7 text-[88px] font-black leading-[0.92] tracking-tight text-[#101820]">
+              면접 준비를<br />대화로.
+            </h1>
+            <p className="mt-8 max-w-xl text-xl font-bold leading-relaxed text-[#243844]">
+              TechTree는 이력서와 채용 공고를 읽고, 실제 면접처럼 묻고,
+              끝난 뒤에는 다시 연습할 수 있는 리포트로 정리합니다.
+            </p>
+            <div className="mt-10 flex items-center gap-3">
+              <a href="#interview-workspace" className="rounded-full bg-[#101820] px-6 py-3 text-sm font-black text-white shadow-xl shadow-[#4556D6]/20 transition hover:bg-[#243844]">
+                면접 준비하기
+              </a>
+              <a href="#product-story" className="rounded-full border border-[#B7C3CA]/70 bg-white/62 px-6 py-3 text-sm font-black text-[#17232B] transition hover:border-[#B88A3A]/70">
+                서비스 보기
+              </a>
             </div>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-[#17232B] tracking-tight mb-3">
-            AI 가상 면접 서비스 <span className="text-[#4556D6]">: TechTree</span>
-          </h1>
-          <p className="text-[#243844] text-base sm:text-lg max-w-lg font-medium">
-            당신만을 위한 맞춤형 질문과 피드백으로<br />
-            꿈꾸는 직무에 한 걸음 더 가까이 다가가세요.
-          </p>
-        </div>
+
+          <div className="home-art-panel relative min-h-[560px] overflow-hidden rounded-2xl">
+            <div className="absolute left-10 top-10 rounded-full border border-white/40 bg-white/35 px-4 py-2 text-xs font-black text-[#17232B] backdrop-blur">
+              Realtime Voice Interview
+            </div>
+            <div className="absolute left-1/2 top-20 h-24 w-24 -translate-x-1/2 overflow-hidden rounded-2xl border border-white/60 bg-white p-3 shadow-2xl shadow-[#4556D6]/20">
+              <NextImage src="/logo.png" alt="TechTree visual placeholder" width={96} height={96} className="h-full w-full object-contain" priority />
+            </div>
+            <div className="absolute bottom-14 left-14 w-[58%] rounded-2xl border border-white/50 bg-white/90 p-6 shadow-2xl shadow-[#17232B]/20">
+              <div className="mb-5 flex gap-2">
+                <span className="h-3 w-3 rounded-full bg-red-500" />
+                <span className="h-3 w-3 rounded-full bg-[#D7B56D]" />
+                <span className="h-3 w-3 rounded-full bg-[#4556D6]" />
+              </div>
+              <div className="space-y-3">
+                <div className="h-4 w-2/3 rounded-full bg-[#17232B]/80" />
+                <div className="h-3 w-full rounded-full bg-[#B7C3CA]/70" />
+                <div className="h-3 w-5/6 rounded-full bg-[#B7C3CA]/55" />
+                <div className="mt-6 rounded-xl border border-[#D7B56D]/45 bg-[#D7B56D]/12 px-4 py-3 text-sm font-black text-[#17232B]">
+                  점수, 강점, 개선점, Q&A 피드백
+                </div>
+              </div>
+            </div>
+            <div className="absolute bottom-24 right-12 w-[34%] rounded-2xl border border-white/45 bg-[#101820]/88 p-5 text-white shadow-2xl shadow-[#17232B]/30">
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-[#D7B56D]">Push to Talk</p>
+              <p className="mt-4 text-3xl font-black leading-tight">말하고,<br />바로 이어가기.</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="interview-workspace" className="theme-shell rounded-2xl border p-5 sm:p-8">
 
         {isCheckingInvite ? (
           <div className="theme-card flex flex-col items-center justify-center rounded-2xl border px-6 py-14 text-center">
@@ -740,111 +774,112 @@ export default function Home() {
         </form>
         )}
 
-        <section className="mt-14 space-y-8 border-t border-[#B7C3CA]/45 pt-12">
-          <div className="grid grid-cols-[0.92fr_1.08fr] gap-8">
-            <div className="theme-hero rounded-2xl px-10 py-12">
-              <p className="text-sm font-black uppercase tracking-[0.3em] text-[#B88A3A]">Service Value</p>
-              <h2 className="mt-6 text-6xl font-black leading-[0.96] text-[#17232B]">
-                면접 준비를<br />대화로 바꾸다.
+        </section>
+
+        <section id="product-story" className="home-section mt-24 space-y-28 pt-20">
+          <div className="grid grid-cols-[0.72fr_1.28fr] items-center gap-16">
+            <div className="home-copy">
+              <p className="text-sm font-black uppercase tracking-[0.32em] text-[#4556D6]">Designed for Practice</p>
+              <h2 className="mt-5 text-5xl font-black leading-tight tracking-tight">
+                실제로 말해봐야<br />보이는 것들.
               </h2>
-              <p className="mt-7 max-w-xl text-lg font-bold leading-relaxed text-[#243844]">
-                TechTree는 이력서와 채용 공고를 읽고, 실제 면접관처럼 질문하고,
-                대화가 끝나면 다시 연습할 수 있는 피드백으로 정리합니다.
+              <p className="mt-7 text-lg font-bold leading-relaxed text-[#243844]">
+                글로 정리한 답변은 괜찮아 보여도, 면접 자리에서는 흐름과 속도, 근거가 함께 드러납니다.
+                TechTree는 사용자가 준비한 자료를 질문으로 바꾸고, 음성 대화 속에서 답변의 구조를 점검합니다.
               </p>
-              <div className="mt-9 flex gap-3 text-sm font-black">
-                <span className="rounded-xl border border-[#D7B56D]/70 bg-[#D7B56D]/18 px-4 py-2 text-[#17232B]">맞춤 질문</span>
-                <span className="rounded-xl border border-[#B7C3CA]/70 bg-white/70 px-4 py-2 text-[#17232B]">음성 면접</span>
-                <span className="rounded-xl border border-[#B7C3CA]/70 bg-white/70 px-4 py-2 text-[#17232B]">리포트</span>
-              </div>
             </div>
-
-            <div className="theme-deep rounded-2xl p-6 text-white">
-              <div className="flex h-full min-h-[420px] flex-col justify-between rounded-xl border border-white/15 bg-white/8 p-7">
-                <div>
-                  <p className="text-sm font-black uppercase tracking-[0.3em] text-[#D7B56D]">Product Flow</p>
-                  <h3 className="mt-5 text-4xl font-black leading-tight">입력하고, 말하고,<br />바로 개선합니다.</h3>
-                </div>
-                <div className="overflow-hidden rounded-xl border border-white/15 bg-white/85">
-                  <div className="flex aspect-[16/9] items-center justify-center bg-gradient-to-br from-white to-[#DCEBF1]">
-                    <NextImage src="/logo.png" alt="TechTree product flow placeholder" width={220} height={220} className="h-56 w-56 object-contain" />
-                  </div>
-                </div>
-                <p className="text-right text-xs font-bold text-white/70">/images/techtree-main-flow.png 로 교체 예정</p>
+            <div className="home-art-panel relative min-h-[470px] overflow-hidden rounded-2xl">
+              <div className="absolute left-12 top-12 rounded-2xl border border-white/45 bg-white/88 p-6 shadow-2xl shadow-[#4556D6]/18">
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-[#B88A3A]">Input</p>
+                <p className="mt-4 text-3xl font-black text-[#17232B]">공고와 이력서를<br />면접 맥락으로</p>
+              </div>
+              <div className="absolute bottom-10 right-12 w-[58%] overflow-hidden rounded-2xl border border-white/55 bg-white/90 p-10 shadow-2xl shadow-[#17232B]/20">
+                <NextImage src="/logo.png" alt="TechTree service screen placeholder" width={260} height={260} className="mx-auto h-64 w-64 object-contain" />
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-4 gap-4">
-            {[
-              ["01", "정보 입력", "직무, 경력, 학력, 이력서와 공고를 넣습니다."],
-              ["02", "질문 준비", "입력한 내용을 바탕으로 면접 방향이 정해집니다."],
-              ["03", "음성 면접", "면접관 질문을 듣고 스페이스바로 답합니다."],
-              ["04", "리포트 수신", "점수와 개선점을 이메일로 받아 다음 연습에 활용합니다."],
-            ].map(([step, title, body]) => (
-              <div key={step} className="theme-card rounded-2xl border p-6">
-                <p className="text-sm font-black text-[#B88A3A]">{step}</p>
-                <h3 className="mt-6 text-2xl font-black text-[#17232B]">{title}</h3>
-                <p className="mt-4 text-sm font-bold leading-relaxed text-[#243844]">{body}</p>
+          <div className="grid grid-cols-[1.22fr_0.78fr] items-center gap-16">
+            <div className="home-art-panel relative min-h-[540px] overflow-hidden rounded-2xl">
+              <div className="absolute left-1/2 top-12 h-24 w-24 -translate-x-1/2 overflow-hidden rounded-2xl border border-white/55 bg-white p-3 shadow-2xl">
+                <NextImage src="/logo.png" alt="TechTree interview placeholder" width={96} height={96} className="h-full w-full object-contain" />
               </div>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-[1fr_1fr] gap-6">
-            <div className="theme-card rounded-2xl border p-8">
-              <p className="text-sm font-black uppercase tracking-[0.28em] text-[#4556D6]">Interview Modes</p>
-              <h3 className="mt-5 text-4xl font-black leading-tight text-[#17232B]">짧게 점검하거나,<br />깊게 들어가거나.</h3>
-              <div className="mt-8 grid grid-cols-2 gap-4">
-                <div className="rounded-xl border border-[#B7C3CA]/45 bg-white/80 p-5">
-                  <p className="text-4xl font-black text-[#17232B]">7m</p>
-                  <p className="mt-2 text-sm font-black text-[#243844]">대표 경험과 핵심 질문</p>
+              <div className="absolute bottom-16 left-1/2 w-[72%] -translate-x-1/2 rounded-2xl border border-white/45 bg-[#101820]/90 p-7 text-white shadow-2xl shadow-[#17232B]/25">
+                <div className="mb-6 flex items-center justify-between">
+                  <span className="text-xs font-black uppercase tracking-[0.24em] text-[#D7B56D]">Interview Flow</span>
+                  <span className="interview-live-dot h-2.5 w-2.5 rounded-full" />
                 </div>
-                <div className="rounded-xl border border-[#D7B56D]/55 bg-[#D7B56D]/12 p-5">
-                  <p className="text-4xl font-black text-[#17232B]">20m</p>
-                  <p className="mt-2 text-sm font-black text-[#243844]">프로젝트와 협업까지</p>
+                <div className="grid grid-cols-4 gap-3">
+                  {["정보 입력", "질문 준비", "음성 답변", "리포트"].map((item, index) => (
+                    <div key={item} className="rounded-xl border border-white/12 bg-white/8 p-4">
+                      <p className="text-xs font-black text-[#D7B56D]">0{index + 1}</p>
+                      <p className="mt-5 text-sm font-black">{item}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
-
-            <div className="theme-card rounded-2xl border p-8">
-              <p className="text-sm font-black uppercase tracking-[0.28em] text-[#B88A3A]">Report Preview</p>
-              <h3 className="mt-5 text-4xl font-black leading-tight text-[#17232B]">면접이 끝난 뒤에도<br />연습은 이어집니다.</h3>
-              <p className="mt-6 text-base font-bold leading-relaxed text-[#243844]">
-                점수, 강점, 개선점, 주요 Q&A, 말하기 습관, 자기소개 개선 방향을 한 번에 확인합니다.
+            <div className="home-copy">
+              <p className="text-sm font-black uppercase tracking-[0.32em] text-[#B88A3A]">Voice First</p>
+              <h2 className="mt-5 text-5xl font-black leading-tight tracking-tight">
+                읽는 연습이 아니라,<br />대화하는 연습.
+              </h2>
+              <p className="mt-7 text-lg font-bold leading-relaxed text-[#243844]">
+                Push-to-Talk 방식으로 답변 타이밍을 직접 제어합니다.
+                잡음 유입을 줄이고, 질문을 듣고 생각한 뒤 말하는 실제 면접 흐름에 집중할 수 있습니다.
               </p>
-              <div className="mt-8 overflow-hidden rounded-xl border border-[#B7C3CA]/45 bg-white/80">
-                <div className="flex aspect-[16/7] items-center justify-center bg-gradient-to-br from-white to-[#DCEBF1]">
-                  <NextImage src="/logo.png" alt="TechTree report preview placeholder" width={160} height={160} className="h-40 w-40 object-contain" />
-                </div>
-              </div>
             </div>
           </div>
 
-          <div className="theme-deep rounded-2xl p-10 text-white">
-            <div className="grid grid-cols-[0.85fr_1.15fr] gap-10">
+          <div className="grid grid-cols-[0.8fr_1.2fr] items-start gap-12">
+            <div>
+              <p className="text-sm font-black uppercase tracking-[0.32em] text-[#4556D6]">What You Get</p>
+              <h2 className="mt-5 text-6xl font-black leading-[0.98] tracking-tight text-[#101820]">
+                끝나면,<br />다음 연습이<br />보입니다.
+              </h2>
+            </div>
+            <div className="grid grid-cols-2 gap-5">
+              {[
+                ["종합 점수", "면접 전체 흐름을 한눈에 파악합니다."],
+                ["강점", "잘 전달된 경험과 역량을 분리해 보여줍니다."],
+                ["개선점", "답변 구조, 근거, 말하기 습관을 다시 볼 수 있습니다."],
+                ["Q&A 피드백", "주요 질문과 답변을 기준으로 다음 답변을 준비합니다."],
+              ].map(([title, body]) => (
+                <div key={title} className="rounded-2xl border border-[#B7C3CA]/45 bg-white/72 p-7 shadow-sm">
+                  <p className="text-2xl font-black text-[#17232B]">{title}</p>
+                  <p className="mt-5 text-base font-bold leading-relaxed text-[#243844]">{body}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="theme-deep rounded-2xl p-12 text-white">
+            <div className="grid grid-cols-[0.88fr_1.12fr] gap-14">
               <div>
                 <p className="text-sm font-black uppercase tracking-[0.3em] text-[#D7B56D]">Builder Note</p>
-                <h3 className="mt-5 text-5xl font-black leading-tight">제작자의 말</h3>
+                <h3 className="mt-5 text-6xl font-black leading-tight">제작자의 말</h3>
               </div>
-              <div className="space-y-5 text-lg font-bold leading-relaxed text-white/88">
+              <div className="space-y-5 text-xl font-bold leading-relaxed text-white/90">
                 <p>
-                  면접 준비에서 가장 어려운 순간은 무엇을 더 연습해야 하는지 모를 때라고 생각했습니다.
-                  TechTree는 질문 목록을 보여주는 도구가 아니라, 실제로 말해보고 곧바로 고칠 수 있는 연습 환경을 목표로 만들었습니다.
+                  면접 준비에서 가장 답답한 순간은 무엇을 더 고쳐야 하는지 모를 때라고 생각했습니다.
+                  그래서 TechTree는 질문 목록보다 실제 대화와 이후의 피드백에 더 집중했습니다.
                 </p>
                 <p>
-                  이 서비스가 답변을 대신 만들어주기보다, 사용자가 자신의 경험을 더 선명하게 말하도록 돕는 도구가 되기를 바랍니다.
+                  답변을 대신 만들어주는 서비스가 아니라, 사용자가 자신의 경험을 더 정확하고 설득력 있게 말하도록 돕는 연습 도구를 목표로 합니다.
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="theme-card flex items-center justify-between rounded-2xl border p-8">
-            <div>
-              <p className="text-sm font-black uppercase tracking-[0.28em] text-[#B88A3A]">Ready</p>
-              <h3 className="mt-3 text-4xl font-black text-[#17232B]">지금 입력한 정보로 바로 시작하세요.</h3>
-            </div>
-            <div className="text-right text-sm font-bold leading-relaxed text-[#243844]">
-              위의 빠른 연습 또는 실전 연습 버튼을 누르면<br />AI 면접관이 준비됩니다.
-            </div>
+          <div className="rounded-2xl bg-gradient-to-br from-[#DCEBF1] via-[#A9BBFF] to-[#4556D6] px-12 py-20 text-center shadow-2xl shadow-[#4556D6]/18">
+            <h3 className="text-6xl font-black tracking-tight text-[#101820]">지금 바로 면접을 시작하세요</h3>
+            <p className="mx-auto mt-6 max-w-2xl text-lg font-bold leading-relaxed text-[#17232B]">
+              위 입력 영역에 준비한 자료를 넣고 빠른 연습 또는 실전 연습을 선택하면,
+              AI 면접관이 당신의 맥락에 맞춰 대화를 시작합니다.
+            </p>
+            <a href="#interview-workspace" className="mt-9 inline-flex rounded-full bg-[#101820] px-7 py-3 text-sm font-black text-white transition hover:bg-[#243844]">
+              입력 영역으로 이동
+            </a>
           </div>
         </section>
       </div>

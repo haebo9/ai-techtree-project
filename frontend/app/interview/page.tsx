@@ -522,7 +522,7 @@ export default function InterviewPage() {
   }, [startRecording, stopRecording]);
 
   const visualizerScale = isSpeaking ? "scale-110 animate-pulse bg-gradient-to-tr from-[#DCEBF1] via-[#8390D6] to-[#4556D6]"
-    : isRecording ? "scale-100 animate-pulse bg-gradient-to-tr from-[#B7C3CA] to-[#4556D6]"
+    : isRecording ? "scale-100 animate-pulse bg-gradient-to-tr from-red-500 to-rose-600"
       : "scale-100 bg-gradient-to-tr from-[#DCEBF1] via-[#8390D6] to-[#4556D6] hover:scale-105";
 
   return (
@@ -534,8 +534,8 @@ export default function InterviewPage() {
             <Image src="/logo.png" alt="Logo" width={32} height={32} className="w-full h-full object-cover" priority />
           </div>
           <div className="flex items-center space-x-2 text-white">
-            <div className="w-2 h-2 bg-[#D7B56D] rounded-full animate-pulse"></div>
-            <span className="text-sm font-medium opacity-80">면접 진행 중</span>
+            <div className="interview-live-dot h-2.5 w-2.5 rounded-full animate-pulse"></div>
+            <span className="text-sm font-bold opacity-90">면접 진행 중</span>
           </div>
         </div>
         <button 
@@ -555,7 +555,7 @@ export default function InterviewPage() {
 
       <div className="flex-1 w-full max-w-5xl flex flex-col items-center justify-center">
         <div className="relative w-64 h-64 mb-16 flex items-center justify-center">
-          <div className={`absolute inset-0 rounded-full blur-3xl opacity-40 transition-all duration-700 ${isSpeaking ? 'bg-[#DCEBF1] scale-125' : isRecording ? 'bg-[#B7C3CA] scale-110' : 'bg-[#8390D6] scale-100'}`}></div>
+          <div className={`absolute inset-0 rounded-full blur-3xl opacity-40 transition-all duration-700 ${isSpeaking ? 'bg-[#DCEBF1] scale-125' : isRecording ? 'bg-red-500 scale-110' : 'bg-[#8390D6] scale-100'}`}></div>
           <div className={`w-40 h-40 rounded-full flex items-center justify-center relative z-10 transition-all duration-300 shadow-[0_0_58px_rgba(220,235,241,0.22)] ring-1 ring-[#B7C3CA]/40 ${visualizerScale}`}>
             <svg className="w-16 h-16 text-white/90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               {isSpeaking ? (
@@ -576,7 +576,7 @@ export default function InterviewPage() {
             onTouchStart={startRecording}
             onTouchEnd={stopRecording}
             className={`w-20 h-20 rounded-full flex items-center justify-center transition-all shadow-lg select-none ${isRecording
-              ? 'bg-[#B7C3CA] shadow-[#B7C3CA]/40 scale-110'
+              ? 'bg-red-500 shadow-red-500/50 scale-110'
               : 'bg-[#F7FBFC] hover:bg-[#EAF4F7] text-[#17232B]'
               }`}
           >
