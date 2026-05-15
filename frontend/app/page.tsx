@@ -727,7 +727,7 @@ export default function Home() {
                 <select id="education" value={education} onChange={(e) => setEducation(e.target.value)} className={`theme-input w-full px-5 py-3.5 rounded-2xl border ${!education ? 'border-[#B7C3CA] bg-[#EAF4F7]/55' : ''} outline-none cursor-pointer focus:ring-4 focus:ring-[#8390D6]/20 transition-all appearance-none font-bold`}>
                   <option value="" disabled>선택하기</option>
                   <option value="고졸">고졸</option>
-                  <option value="전문학사">전문학사</option>
+                  <option value="전문학사">전문학사(2-3년제)</option>
                   <option value="학사(4년제)">학사(4년제)</option>
                   <option value="석사">석사</option>
                   <option value="박사">박사</option>
