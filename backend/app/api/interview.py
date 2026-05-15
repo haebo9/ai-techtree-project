@@ -150,19 +150,38 @@ async def start_interview(request: StartInterviewRequest):
         "Authorization": f"Bearer {settings.OPENAI_API_KEY}",
         "Content-Type": "application/json"
     }
-    payload = {
+    realtime_session = {
+        "type": "realtime",
         "model": "gpt-realtime-mini-2025-12-15",
-        "modalities": ["audio", "text"],
+        "output_modalities": ["audio"],
         "instructions": context["realtime_instructions"],
-        "voice": context["selected_voice"],
-        "input_audio_transcription": {"model": "whisper-1"},
-        "turn_detection": None,
+        "audio": {
+            "input": {
+                "transcription": {"model": "whisper-1"},
+                "turn_detection": None,
+            },
+            "output": {
+                "voice": context["selected_voice"],
+            },
+        },
     }
+    payload = {"session": realtime_session}
     
     try:
-        response = requests.post("https://api.openai.com/v1/realtime/sessions", headers=headers, json=payload, timeout=10)
+        response = requests.post("https://api.openai.com/v1/realtime/client_secrets", headers=headers, json=payload, timeout=10)
         response.raise_for_status()
-        ephemeral_token = response.json()["client_secret"]["value"]
+        response_data = response.json()
+        ephemeral_token = (
+            response_data.get("value")
+            or response_data.get("client_secret", {}).get("value")
+            or response_data.get("session", {}).get("client_secret", {}).get("value")
+        )
+        if not ephemeral_token:
+            raise ValueError("OpenAI client secret response did not include an ephemeral token")
+    except requests.HTTPError as e:
+        error_body = e.response.text if e.response is not None else ""
+        logger.error("OpenAI Realtime client secret error: %s", error_body)
+        raise HTTPException(status_code=500, detail=f"OpenAI Session Error: {error_body or str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"OpenAI Session Error: {str(e)}")
 

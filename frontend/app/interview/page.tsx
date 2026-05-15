@@ -31,18 +31,7 @@ interface TranscriptEntry {
 
 let globalInterviewConnectionId = 0;
 const FINAL_REMARK_GRACE_MS = 12000;
-
-const USER_ENDING_PATTERNS = [
-  /\bbye\b/i,
-  /그만\s*(하겠습니다|할게요|하죠)?/,
-  /(면접|인터뷰)(을|를)?\s*(끝내|마치|종료)/,
-  /(끝|종료|마무리)\s*(하겠습니다|할게요|해주세요|해\s*주세요)/,
-];
-
-function isUserEndingTranscript(text: string) {
-  const normalized = String(text || "").replace(/\s+/g, " ").trim();
-  return USER_ENDING_PATTERNS.some((pattern) => pattern.test(normalized));
-}
+const MIN_RECORDING_MS = 700;
 
 async function readApiError(response: Response, fallback: string): Promise<string> {
   try {
@@ -63,6 +52,7 @@ export default function InterviewPage() {
   const [statusText, setStatusText] = useState("마이크 권한을 확인 중입니다...");
   const [isEnding, setIsEnding] = useState(false);
   const [isAutoEnding, setIsAutoEnding] = useState(false);
+  const [isPreparingInterview, setIsPreparingInterview] = useState(true);
 
   // WebRTC 및 Media 참조
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -82,13 +72,16 @@ export default function InterviewPage() {
   const pendingAutoEndRef = useRef(false);
   const isSpeakingRef = useRef(false);
   const isAutoEndingRef = useRef(false);
+  const recordingStartedAtRef = useRef<number | null>(null);
+  const aiTranscriptByItemRef = useRef<Record<string, string>>({});
+  const savedAiTranscriptKeysRef = useRef<Set<string>>(new Set());
+  const savedAiTranscriptTextsRef = useRef<Set<string>>(new Set());
   const activeConnectionIdRef = useRef(0);
   const initStartTimerRef = useRef<number | null>(null);
   const initialResponseRequestedRef = useRef(false);
   const jobImagePendingRef = useRef(false);
   const jobImageInjectedRef = useRef(false);
   const interviewModeRef = useRef<"short" | "long">("long");
-  const userRequestedEndRef = useRef(false);
 
   const createTimedResponseEvent = useCallback(() => {
     return {
@@ -107,6 +100,7 @@ export default function InterviewPage() {
     }
     pendingAutoEndRef.current = false;
     isAutoEndingRef.current = false;
+    recordingStartedAtRef.current = null;
     pendingUserTranscriptIndexesRef.current = [];
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(t => t.stop());
@@ -180,17 +174,6 @@ export default function InterviewPage() {
 
   const scheduleAutoEndInterview = useCallback(() => {
     if (isEndingRef.current || autoEndTimerRef.current) return;
-    if (!userRequestedEndRef.current) {
-      const elapsedMs = startTimeRef.current ? Date.now() - startTimeRef.current : 0;
-      const minimumMs = interviewModeRef.current === "short" ? 7 * 60 * 1000 : 15 * 60 * 1000;
-      if (elapsedMs < minimumMs) {
-        pendingAutoEndRef.current = false;
-        isAutoEndingRef.current = false;
-        setIsAutoEnding(false);
-        setStatusText("면접이 계속 진행됩니다. 스페이스바를 누른 채로 대답하세요.");
-        return;
-      }
-    }
     isAutoEndingRef.current = true;
     setIsAutoEnding(true);
     setStatusText("면접관의 마지막 멘트가 끝난 뒤 리포트를 생성합니다...");
@@ -212,6 +195,25 @@ export default function InterviewPage() {
     }
   }, [scheduleAutoEndInterview]);
 
+  const saveAiTranscript = useCallback((text: string, key?: string) => {
+    const aiText = String(text || "").replace(/\s+/g, " ").trim();
+    if (!aiText) return;
+
+    const dedupeKey = key || aiText;
+    if (savedAiTranscriptKeysRef.current.has(dedupeKey)) return;
+    const textDedupeKey = aiText.toLocaleLowerCase("ko-KR");
+    if (savedAiTranscriptTextsRef.current.has(textDedupeKey)) return;
+    savedAiTranscriptKeysRef.current.add(dedupeKey);
+    savedAiTranscriptTextsRef.current.add(textDedupeKey);
+
+    transcriptRef.current.push({ role: "ai", text: aiText });
+    setIsPreparingInterview(false);
+    console.log("[AI 답변]:", aiText);
+    if (isInterviewClosingTranscript(aiText)) {
+      markInterviewClosingDetected();
+    }
+  }, [markInterviewClosingDetected]);
+
   // 1. 컴포넌트 마운트 시 WebRTC 직접 연결 시도
   useEffect(() => {
     let isEffectCancelled = false;
@@ -221,6 +223,10 @@ export default function InterviewPage() {
     initialResponseRequestedRef.current = false;
     jobImagePendingRef.current = false;
     jobImageInjectedRef.current = false;
+    aiTranscriptByItemRef.current = {};
+    savedAiTranscriptKeysRef.current = new Set();
+    savedAiTranscriptTextsRef.current = new Set();
+    setIsPreparingInterview(true);
 
     const isActiveConnection = () => (
       !isEffectCancelled && activeConnectionIdRef.current === connectionId
@@ -355,6 +361,8 @@ export default function InterviewPage() {
           if (!initialResponseRequestedRef.current) {
             initialResponseRequestedRef.current = true;
             dc.send(JSON.stringify(createTimedResponseEvent()));
+            setIsPreparingInterview(false);
+            setStatusText("면접관의 첫 질문을 준비 중입니다...");
           }
         });
 
@@ -363,14 +371,24 @@ export default function InterviewPage() {
 
           const realtimeEvent = JSON.parse(e.data);
 
-          // 텍스트 변환 기록(Transcript) 가로채기 -> 추후 DB 저장을 위해 배열에 푸시
-          if (realtimeEvent.type === "response.audio_transcript.done") {
-            const aiText = realtimeEvent.transcript || "";
-            transcriptRef.current.push({ role: "ai", text: aiText });
-            console.log("[AI 답변]:", aiText);
-            if (isInterviewClosingTranscript(aiText)) {
-              markInterviewClosingDetected();
-            }
+          // 텍스트 변환 기록(Transcript) 가로채기 -> 추후 평가와 이메일 리포트에 사용합니다.
+          if (
+            realtimeEvent.type === "response.audio_transcript.delta" ||
+            realtimeEvent.type === "response.output_audio_transcript.delta"
+          ) {
+            const itemId = `${realtimeEvent.response_id || "response"}-${realtimeEvent.item_id || realtimeEvent.output_index || "latest"}`;
+            const key = String(itemId);
+            aiTranscriptByItemRef.current[key] = `${aiTranscriptByItemRef.current[key] || ""}${realtimeEvent.delta || ""}`;
+          }
+          if (
+            realtimeEvent.type === "response.audio_transcript.done" ||
+            realtimeEvent.type === "response.output_audio_transcript.done"
+          ) {
+            const itemId = `${realtimeEvent.response_id || "response"}-${realtimeEvent.item_id || realtimeEvent.output_index || "latest"}`;
+            const key = String(itemId);
+            const aiText = realtimeEvent.transcript || aiTranscriptByItemRef.current[key] || "";
+            delete aiTranscriptByItemRef.current[key];
+            saveAiTranscript(aiText, `ai-${key}`);
           }
           if (realtimeEvent.type === "conversation.item.input_audio_transcription.completed") {
             const userText = realtimeEvent.transcript || "";
@@ -385,22 +403,39 @@ export default function InterviewPage() {
               transcriptRef.current.push({ role: "user", text: userText });
             }
             console.log("[내 답변]:", userText);
-            if (isUserEndingTranscript(userText)) {
-              userRequestedEndRef.current = true;
-              markInterviewClosingDetected();
-            }
           }
 
           // 파형 애니메이션을 위한 상태 업데이트
           if (realtimeEvent.type === "response.audio.delta") {
             isSpeakingRef.current = true;
+            setIsPreparingInterview(false);
             setIsSpeaking(true);
             setStatusText("AI가 말하는 중...");
           }
           if (realtimeEvent.type === "response.done") {
             isSpeakingRef.current = false;
+            setIsPreparingInterview(false);
             setIsSpeaking(false);
             injectJobImageContext();
+            const responseOutput = Array.isArray(realtimeEvent.response?.output)
+              ? realtimeEvent.response.output
+              : [];
+            responseOutput.forEach((outputItem: Record<string, unknown>, outputIndex: number) => {
+              const content = Array.isArray(outputItem?.content) ? outputItem.content : [];
+              const textParts = content
+                .map((part: Record<string, unknown>) => (
+                  typeof part?.transcript === "string"
+                    ? part.transcript
+                    : typeof part?.text === "string"
+                      ? part.text
+                      : ""
+                ))
+                .filter(Boolean);
+              if (textParts.length > 0) {
+                const itemId = typeof outputItem?.id === "string" ? outputItem.id : `response-${realtimeEvent.response?.id || "done"}-${outputIndex}`;
+                saveAiTranscript(textParts.join(" "), `ai-${itemId}`);
+              }
+            });
             if (pendingAutoEndRef.current) {
               pendingAutoEndRef.current = false;
               scheduleAutoEndInterview();
@@ -416,11 +451,7 @@ export default function InterviewPage() {
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
 
-        const baseUrl = "https://api.openai.com/v1/realtime";
-        // 백엔드에서 생성한 토큰의 모델과 프론트엔드의 요청 모델이 일치해야 합니다.
-        const model = "gpt-realtime-mini-2025-12-15";
-
-        const sdpResponse = await fetch(`${baseUrl}?model=${model}`, {
+        const sdpResponse = await fetch("https://api.openai.com/v1/realtime/calls", {
           method: "POST",
           body: offer.sdp,
           headers: {
@@ -444,7 +475,7 @@ export default function InterviewPage() {
         // 연결 성공!
         if (!isActiveConnection()) return;
         setIsRecording(false);
-        setStatusText("🟢 스페이스바를 누른 채로 대답하세요.");
+        setStatusText("면접관의 첫 질문을 준비 중입니다...");
 
       } catch (error) {
         console.error("WebRTC 연결 에러:", error);
@@ -465,7 +496,7 @@ export default function InterviewPage() {
       jobImageInjectedRef.current = false;
       cleanupRealtimeSession();
     };
-  }, [cleanupRealtimeSession, createTimedResponseEvent, markInterviewClosingDetected, router, scheduleAutoEndInterview]);
+  }, [cleanupRealtimeSession, createTimedResponseEvent, router, saveAiTranscript, scheduleAutoEndInterview]);
 
   // 2. 마이크 Push-To-Talk 핸들러
   const startRecording = useCallback(() => {
@@ -473,6 +504,7 @@ export default function InterviewPage() {
     if (streamRef.current && !isRecording && dcRef.current?.readyState === "open") {
       const audioTrack = streamRef.current.getAudioTracks()[0];
       audioTrack.enabled = true;
+      recordingStartedAtRef.current = Date.now();
       setIsRecording(true);
       setStatusText("🔴 답변중... (답변 완료 후 손을 떼세요.)");
       // 잔여 버퍼 비우기
@@ -485,7 +517,14 @@ export default function InterviewPage() {
     if (streamRef.current && isRecording && dcRef.current?.readyState === "open") {
       const audioTrack = streamRef.current.getAudioTracks()[0];
       audioTrack.enabled = false;
+      const recordedMs = recordingStartedAtRef.current ? Date.now() - recordingStartedAtRef.current : 0;
+      recordingStartedAtRef.current = null;
       setIsRecording(false);
+      if (recordedMs < MIN_RECORDING_MS) {
+        dcRef.current.send(JSON.stringify({ type: "input_audio_buffer.clear" }));
+        setStatusText("짧은 입력은 전송하지 않았습니다. 스페이스바를 누른 채로 대답하세요.");
+        return;
+      }
       setStatusText("답변을 전송 중입니다...");
 
       // 수동으로 오디오 버퍼 커밋 및 AI 응답 요청
@@ -520,20 +559,21 @@ export default function InterviewPage() {
     }
   }, [startRecording, stopRecording]);
 
-  const visualizerScale = isSpeaking ? "scale-110 animate-pulse bg-gradient-to-tr from-purple-600 to-indigo-500"
-    : isRecording ? "scale-100 animate-pulse bg-gradient-to-tr from-red-500 to-pink-500"
-      : "scale-100 bg-gradient-to-tr from-blue-600 to-indigo-500 hover:scale-105";
+  const visualizerScale = isSpeaking
+    ? "scale-110 animate-pulse bg-gradient-to-tr from-[#DCEBF1] via-[#8390D6] to-[#4556D6]"
+    : "scale-100 bg-gradient-to-tr from-[#DCEBF1] via-[#8390D6] to-[#4556D6] hover:scale-105";
 
   return (
-    <main className="min-h-screen bg-neutral-900 flex flex-col items-center justify-center p-4 relative">
+    <main className="theme-deep min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden">
+      <div className="absolute -top-32 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-[#DCEBF1]/10 blur-3xl" />
       <div className="absolute top-0 w-full p-6 flex justify-between items-center z-10 max-w-5xl">
         <div className="flex items-center space-x-4">
-          <div className="w-8 h-8 rounded-lg overflow-hidden border border-neutral-700">
-            <Image src="/logo.png" alt="Logo" width={32} height={32} className="w-full h-full object-cover" priority />
+          <div className="w-8 h-8 rounded-lg overflow-hidden border border-[#B7C3CA]/40 bg-white/10">
+            <Image src="/techtree-logo.png" alt="Logo" width={32} height={32} className="w-full h-full object-cover" priority loading="eager" />
           </div>
           <div className="flex items-center space-x-2 text-white">
-            <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-            <span className="text-sm font-medium opacity-80">면접 진행 중</span>
+            <div className="interview-live-dot h-2.5 w-2.5 rounded-full animate-pulse"></div>
+            <span className="text-sm font-bold opacity-90">면접 진행 중</span>
           </div>
         </div>
         <button 
@@ -541,10 +581,10 @@ export default function InterviewPage() {
           disabled={isEnding}
           className={`px-4 py-2 text-white rounded-lg text-sm font-medium transition-colors border ${
             isEnding
-              ? "bg-neutral-800 border-neutral-700 opacity-50 cursor-not-allowed"
+              ? "bg-[#17232B]/80 border-[#7E8A92]/40 opacity-50 cursor-not-allowed"
               : isAutoEnding
-                ? "bg-red-600 hover:bg-red-500 border-red-500"
-                : "bg-neutral-800 hover:bg-neutral-700 border-neutral-700"
+                ? "bg-[#B88A3A] hover:bg-[#D7B56D] border-[#D7B56D]"
+                : "bg-[#17232B]/70 hover:bg-[#243844] border-[#B7C3CA]/35"
           }`}
         >
           {isEnding ? "종료중" : "면접 종료하기"}
@@ -553,8 +593,8 @@ export default function InterviewPage() {
 
       <div className="flex-1 w-full max-w-5xl flex flex-col items-center justify-center">
         <div className="relative w-64 h-64 mb-16 flex items-center justify-center">
-          <div className={`absolute inset-0 rounded-full blur-3xl opacity-30 transition-all duration-700 ${isSpeaking ? 'bg-purple-500 scale-125' : isRecording ? 'bg-red-500 scale-110' : 'bg-blue-500 scale-100'}`}></div>
-          <div className={`w-40 h-40 rounded-full flex items-center justify-center relative z-10 transition-all duration-300 shadow-[0_0_50px_rgba(0,0,0,0.3)] ${visualizerScale}`}>
+          <div className={`absolute inset-0 rounded-full blur-3xl opacity-40 transition-all duration-700 ${isSpeaking ? 'bg-[#DCEBF1] scale-125' : 'bg-[#8390D6] scale-100'}`}></div>
+          <div className={`w-40 h-40 rounded-full flex items-center justify-center relative z-10 transition-all duration-300 shadow-[0_0_58px_rgba(220,235,241,0.22)] ring-1 ring-[#B7C3CA]/40 ${visualizerScale}`}>
             <svg className="w-16 h-16 text-white/90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               {isSpeaking ? (
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
@@ -567,32 +607,54 @@ export default function InterviewPage() {
       </div>
 
       <div className="w-full max-w-3xl pb-10">
-        <div className="bg-neutral-800/50 backdrop-blur-md border border-neutral-700 rounded-3xl p-6 flex flex-col items-center">
+        <div className="bg-[#17232B]/52 backdrop-blur-md border border-[#B7C3CA]/30 rounded-2xl p-6 flex flex-col items-center shadow-2xl shadow-black/20">
           <button
             onMouseDown={startRecording}
             onMouseUp={stopRecording}
             onTouchStart={startRecording}
             onTouchEnd={stopRecording}
-            className={`w-20 h-20 rounded-full flex items-center justify-center transition-all shadow-lg select-none ${isRecording
+            className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all shadow-lg select-none ${isRecording
               ? 'bg-red-500 shadow-red-500/50 scale-110'
-              : 'bg-white hover:bg-gray-100 text-neutral-900'
+              : 'bg-[#F7FBFC] hover:bg-[#EAF4F7] text-[#17232B]'
               }`}
           >
+            {isRecording && (
+              <span className="absolute inset-0 rounded-full border border-red-200/60 animate-ping" />
+            )}
             {isRecording ? (
-              <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
-                <rect x="6" y="6" width="12" height="12" rx="2" />
+              <svg className="relative z-10 w-9 h-9 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeWidth={2.4} d="M6 10v4M10 7v10M14 9v6M18 11v2" />
               </svg>
             ) : (
-              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="relative z-10 w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
               </svg>
             )}
           </button>
-          <p className="mt-6 text-neutral-400 text-sm font-medium tracking-wide">
+          <p className="mt-6 text-[#E2E8EC] text-sm font-medium tracking-wide">
             {statusText}
           </p>
         </div>
       </div>
+
+      {isPreparingInterview && (
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-[#17232B]/72 px-5 backdrop-blur-md">
+          <div className="w-full max-w-md rounded-2xl border border-[#B7C3CA]/35 bg-[#F7FBFC]/88 px-6 py-8 text-center shadow-2xl shadow-black/30">
+            <div className="relative mx-auto mb-6 flex h-24 w-24 items-center justify-center">
+              <div className="absolute inset-0 rounded-full border border-[#D7B56D]/45 animate-ping" />
+              <div className="absolute h-20 w-20 rounded-full border-4 border-[#B7C3CA]/45 border-t-[#4556D6] animate-spin" />
+              <div className="relative h-12 w-12 rounded-2xl bg-gradient-to-br from-[#DCEBF1] via-[#8390D6] to-[#4556D6] shadow-lg shadow-[#8390D6]/30 ring-1 ring-[#D7B56D]/50" />
+            </div>
+            <p className="text-xs font-black uppercase tracking-[0.28em] text-[#B88A3A]">Preparing</p>
+            <h2 className="mt-3 text-2xl font-black tracking-tight text-[#17232B]">
+              면접관을 준비하고 있습니다
+            </h2>
+            <p className="mx-auto mt-4 max-w-sm text-sm font-semibold leading-relaxed text-[#243844]">
+              {statusText}
+            </p>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
