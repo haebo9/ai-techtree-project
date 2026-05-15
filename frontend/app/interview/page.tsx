@@ -31,18 +31,7 @@ interface TranscriptEntry {
 
 let globalInterviewConnectionId = 0;
 const FINAL_REMARK_GRACE_MS = 12000;
-
-const USER_ENDING_PATTERNS = [
-  /\bbye\b/i,
-  /그만\s*(하겠습니다|할게요|하죠)?/,
-  /(면접|인터뷰)(을|를)?\s*(끝내|마치|종료)/,
-  /(끝|종료|마무리)\s*(하겠습니다|할게요|해주세요|해\s*주세요)/,
-];
-
-function isUserEndingTranscript(text: string) {
-  const normalized = String(text || "").replace(/\s+/g, " ").trim();
-  return USER_ENDING_PATTERNS.some((pattern) => pattern.test(normalized));
-}
+const MIN_RECORDING_MS = 700;
 
 async function readApiError(response: Response, fallback: string): Promise<string> {
   try {
@@ -83,13 +72,15 @@ export default function InterviewPage() {
   const pendingAutoEndRef = useRef(false);
   const isSpeakingRef = useRef(false);
   const isAutoEndingRef = useRef(false);
+  const recordingStartedAtRef = useRef<number | null>(null);
+  const aiTranscriptByItemRef = useRef<Record<string, string>>({});
+  const savedAiTranscriptKeysRef = useRef<Set<string>>(new Set());
   const activeConnectionIdRef = useRef(0);
   const initStartTimerRef = useRef<number | null>(null);
   const initialResponseRequestedRef = useRef(false);
   const jobImagePendingRef = useRef(false);
   const jobImageInjectedRef = useRef(false);
   const interviewModeRef = useRef<"short" | "long">("long");
-  const userRequestedEndRef = useRef(false);
 
   const createTimedResponseEvent = useCallback(() => {
     return {
@@ -108,6 +99,7 @@ export default function InterviewPage() {
     }
     pendingAutoEndRef.current = false;
     isAutoEndingRef.current = false;
+    recordingStartedAtRef.current = null;
     pendingUserTranscriptIndexesRef.current = [];
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(t => t.stop());
@@ -181,17 +173,6 @@ export default function InterviewPage() {
 
   const scheduleAutoEndInterview = useCallback(() => {
     if (isEndingRef.current || autoEndTimerRef.current) return;
-    if (!userRequestedEndRef.current) {
-      const elapsedMs = startTimeRef.current ? Date.now() - startTimeRef.current : 0;
-      const minimumMs = interviewModeRef.current === "short" ? 7 * 60 * 1000 : 15 * 60 * 1000;
-      if (elapsedMs < minimumMs) {
-        pendingAutoEndRef.current = false;
-        isAutoEndingRef.current = false;
-        setIsAutoEnding(false);
-        setStatusText("면접이 계속 진행됩니다. 스페이스바를 누른 채로 대답하세요.");
-        return;
-      }
-    }
     isAutoEndingRef.current = true;
     setIsAutoEnding(true);
     setStatusText("면접관의 마지막 멘트가 끝난 뒤 리포트를 생성합니다...");
@@ -212,6 +193,22 @@ export default function InterviewPage() {
       scheduleAutoEndInterview();
     }
   }, [scheduleAutoEndInterview]);
+
+  const saveAiTranscript = useCallback((text: string, key?: string) => {
+    const aiText = String(text || "").replace(/\s+/g, " ").trim();
+    if (!aiText) return;
+
+    const dedupeKey = key || aiText;
+    if (savedAiTranscriptKeysRef.current.has(dedupeKey)) return;
+    savedAiTranscriptKeysRef.current.add(dedupeKey);
+
+    transcriptRef.current.push({ role: "ai", text: aiText });
+    setIsPreparingInterview(false);
+    console.log("[AI 답변]:", aiText);
+    if (isInterviewClosingTranscript(aiText)) {
+      markInterviewClosingDetected();
+    }
+  }, [markInterviewClosingDetected]);
 
   // 1. 컴포넌트 마운트 시 WebRTC 직접 연결 시도
   useEffect(() => {
@@ -365,15 +362,24 @@ export default function InterviewPage() {
 
           const realtimeEvent = JSON.parse(e.data);
 
-          // 텍스트 변환 기록(Transcript) 가로채기 -> 추후 DB 저장을 위해 배열에 푸시
-          if (realtimeEvent.type === "response.audio_transcript.done") {
-            const aiText = realtimeEvent.transcript || "";
-            transcriptRef.current.push({ role: "ai", text: aiText });
-            setIsPreparingInterview(false);
-            console.log("[AI 답변]:", aiText);
-            if (isInterviewClosingTranscript(aiText)) {
-              markInterviewClosingDetected();
-            }
+          // 텍스트 변환 기록(Transcript) 가로채기 -> 추후 평가와 이메일 리포트에 사용합니다.
+          if (
+            realtimeEvent.type === "response.audio_transcript.delta" ||
+            realtimeEvent.type === "response.output_audio_transcript.delta"
+          ) {
+            const itemId = `${realtimeEvent.response_id || "response"}-${realtimeEvent.item_id || realtimeEvent.output_index || "latest"}`;
+            const key = String(itemId);
+            aiTranscriptByItemRef.current[key] = `${aiTranscriptByItemRef.current[key] || ""}${realtimeEvent.delta || ""}`;
+          }
+          if (
+            realtimeEvent.type === "response.audio_transcript.done" ||
+            realtimeEvent.type === "response.output_audio_transcript.done"
+          ) {
+            const itemId = `${realtimeEvent.response_id || "response"}-${realtimeEvent.item_id || realtimeEvent.output_index || "latest"}`;
+            const key = String(itemId);
+            const aiText = realtimeEvent.transcript || aiTranscriptByItemRef.current[key] || "";
+            delete aiTranscriptByItemRef.current[key];
+            saveAiTranscript(aiText, `ai-${key}`);
           }
           if (realtimeEvent.type === "conversation.item.input_audio_transcription.completed") {
             const userText = realtimeEvent.transcript || "";
@@ -388,10 +394,6 @@ export default function InterviewPage() {
               transcriptRef.current.push({ role: "user", text: userText });
             }
             console.log("[내 답변]:", userText);
-            if (isUserEndingTranscript(userText)) {
-              userRequestedEndRef.current = true;
-              markInterviewClosingDetected();
-            }
           }
 
           // 파형 애니메이션을 위한 상태 업데이트
@@ -406,6 +408,25 @@ export default function InterviewPage() {
             setIsPreparingInterview(false);
             setIsSpeaking(false);
             injectJobImageContext();
+            const responseOutput = Array.isArray(realtimeEvent.response?.output)
+              ? realtimeEvent.response.output
+              : [];
+            responseOutput.forEach((outputItem: Record<string, unknown>, outputIndex: number) => {
+              const content = Array.isArray(outputItem?.content) ? outputItem.content : [];
+              const textParts = content
+                .map((part: Record<string, unknown>) => (
+                  typeof part?.transcript === "string"
+                    ? part.transcript
+                    : typeof part?.text === "string"
+                      ? part.text
+                      : ""
+                ))
+                .filter(Boolean);
+              if (textParts.length > 0) {
+                const itemId = typeof outputItem?.id === "string" ? outputItem.id : `response-${realtimeEvent.response?.id || "done"}-${outputIndex}`;
+                saveAiTranscript(textParts.join(" "), `ai-${itemId}`);
+              }
+            });
             if (pendingAutoEndRef.current) {
               pendingAutoEndRef.current = false;
               scheduleAutoEndInterview();
@@ -466,7 +487,7 @@ export default function InterviewPage() {
       jobImageInjectedRef.current = false;
       cleanupRealtimeSession();
     };
-  }, [cleanupRealtimeSession, createTimedResponseEvent, markInterviewClosingDetected, router, scheduleAutoEndInterview]);
+  }, [cleanupRealtimeSession, createTimedResponseEvent, router, saveAiTranscript, scheduleAutoEndInterview]);
 
   // 2. 마이크 Push-To-Talk 핸들러
   const startRecording = useCallback(() => {
@@ -474,6 +495,7 @@ export default function InterviewPage() {
     if (streamRef.current && !isRecording && dcRef.current?.readyState === "open") {
       const audioTrack = streamRef.current.getAudioTracks()[0];
       audioTrack.enabled = true;
+      recordingStartedAtRef.current = Date.now();
       setIsRecording(true);
       setStatusText("🔴 답변중... (답변 완료 후 손을 떼세요.)");
       // 잔여 버퍼 비우기
@@ -486,7 +508,14 @@ export default function InterviewPage() {
     if (streamRef.current && isRecording && dcRef.current?.readyState === "open") {
       const audioTrack = streamRef.current.getAudioTracks()[0];
       audioTrack.enabled = false;
+      const recordedMs = recordingStartedAtRef.current ? Date.now() - recordingStartedAtRef.current : 0;
+      recordingStartedAtRef.current = null;
       setIsRecording(false);
+      if (recordedMs < MIN_RECORDING_MS) {
+        dcRef.current.send(JSON.stringify({ type: "input_audio_buffer.clear" }));
+        setStatusText("짧은 입력은 전송하지 않았습니다. 스페이스바를 누른 채로 대답하세요.");
+        return;
+      }
       setStatusText("답변을 전송 중입니다...");
 
       // 수동으로 오디오 버퍼 커밋 및 AI 응답 요청
@@ -521,9 +550,9 @@ export default function InterviewPage() {
     }
   }, [startRecording, stopRecording]);
 
-  const visualizerScale = isSpeaking ? "scale-110 animate-pulse bg-gradient-to-tr from-[#DCEBF1] via-[#8390D6] to-[#4556D6]"
-    : isRecording ? "scale-100 animate-pulse bg-gradient-to-tr from-red-500 to-rose-600"
-      : "scale-100 bg-gradient-to-tr from-[#DCEBF1] via-[#8390D6] to-[#4556D6] hover:scale-105";
+  const visualizerScale = isSpeaking
+    ? "scale-110 animate-pulse bg-gradient-to-tr from-[#DCEBF1] via-[#8390D6] to-[#4556D6]"
+    : "scale-100 bg-gradient-to-tr from-[#DCEBF1] via-[#8390D6] to-[#4556D6] hover:scale-105";
 
   return (
     <main className="theme-deep min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden">
@@ -555,7 +584,7 @@ export default function InterviewPage() {
 
       <div className="flex-1 w-full max-w-5xl flex flex-col items-center justify-center">
         <div className="relative w-64 h-64 mb-16 flex items-center justify-center">
-          <div className={`absolute inset-0 rounded-full blur-3xl opacity-40 transition-all duration-700 ${isSpeaking ? 'bg-[#DCEBF1] scale-125' : isRecording ? 'bg-red-500 scale-110' : 'bg-[#8390D6] scale-100'}`}></div>
+          <div className={`absolute inset-0 rounded-full blur-3xl opacity-40 transition-all duration-700 ${isSpeaking ? 'bg-[#DCEBF1] scale-125' : 'bg-[#8390D6] scale-100'}`}></div>
           <div className={`w-40 h-40 rounded-full flex items-center justify-center relative z-10 transition-all duration-300 shadow-[0_0_58px_rgba(220,235,241,0.22)] ring-1 ring-[#B7C3CA]/40 ${visualizerScale}`}>
             <svg className="w-16 h-16 text-white/90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               {isSpeaking ? (
@@ -575,17 +604,20 @@ export default function InterviewPage() {
             onMouseUp={stopRecording}
             onTouchStart={startRecording}
             onTouchEnd={stopRecording}
-            className={`w-20 h-20 rounded-full flex items-center justify-center transition-all shadow-lg select-none ${isRecording
+            className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all shadow-lg select-none ${isRecording
               ? 'bg-red-500 shadow-red-500/50 scale-110'
               : 'bg-[#F7FBFC] hover:bg-[#EAF4F7] text-[#17232B]'
               }`}
           >
+            {isRecording && (
+              <span className="absolute inset-0 rounded-full border border-red-200/60 animate-ping" />
+            )}
             {isRecording ? (
-              <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
-                <rect x="6" y="6" width="12" height="12" rx="2" />
+              <svg className="relative z-10 w-9 h-9 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeWidth={2.4} d="M6 10v4M10 7v10M14 9v6M18 11v2" />
               </svg>
             ) : (
-              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="relative z-10 w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
               </svg>
             )}
