@@ -75,6 +75,7 @@ export default function InterviewPage() {
   const recordingStartedAtRef = useRef<number | null>(null);
   const aiTranscriptByItemRef = useRef<Record<string, string>>({});
   const savedAiTranscriptKeysRef = useRef<Set<string>>(new Set());
+  const savedAiTranscriptTextsRef = useRef<Set<string>>(new Set());
   const activeConnectionIdRef = useRef(0);
   const initStartTimerRef = useRef<number | null>(null);
   const initialResponseRequestedRef = useRef(false);
@@ -200,7 +201,10 @@ export default function InterviewPage() {
 
     const dedupeKey = key || aiText;
     if (savedAiTranscriptKeysRef.current.has(dedupeKey)) return;
+    const textDedupeKey = aiText.toLocaleLowerCase("ko-KR");
+    if (savedAiTranscriptTextsRef.current.has(textDedupeKey)) return;
     savedAiTranscriptKeysRef.current.add(dedupeKey);
+    savedAiTranscriptTextsRef.current.add(textDedupeKey);
 
     transcriptRef.current.push({ role: "ai", text: aiText });
     setIsPreparingInterview(false);
@@ -219,6 +223,9 @@ export default function InterviewPage() {
     initialResponseRequestedRef.current = false;
     jobImagePendingRef.current = false;
     jobImageInjectedRef.current = false;
+    aiTranscriptByItemRef.current = {};
+    savedAiTranscriptKeysRef.current = new Set();
+    savedAiTranscriptTextsRef.current = new Set();
     setIsPreparingInterview(true);
 
     const isActiveConnection = () => (
@@ -354,6 +361,8 @@ export default function InterviewPage() {
           if (!initialResponseRequestedRef.current) {
             initialResponseRequestedRef.current = true;
             dc.send(JSON.stringify(createTimedResponseEvent()));
+            setIsPreparingInterview(false);
+            setStatusText("면접관의 첫 질문을 준비 중입니다...");
           }
         });
 
@@ -466,7 +475,7 @@ export default function InterviewPage() {
         // 연결 성공!
         if (!isActiveConnection()) return;
         setIsRecording(false);
-        setStatusText("🟢 스페이스바를 누른 채로 대답하세요.");
+        setStatusText("면접관의 첫 질문을 준비 중입니다...");
 
       } catch (error) {
         console.error("WebRTC 연결 에러:", error);

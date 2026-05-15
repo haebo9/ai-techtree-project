@@ -402,7 +402,7 @@ export default function Home() {
             <div className="h-11 w-11 overflow-hidden rounded-xl border border-[#4556D6]/25 bg-white shadow-sm">
               <NextImage src="/techtree-logo.png" alt="TechTree Logo" width={44} height={44} className="h-full w-full object-contain" priority loading="eager" />
             </div>
-            <span className="text-lg font-black tracking-tight text-[#17232B]">TechTree</span>
+            <span className="font-display text-lg font-bold tracking-tight text-[#17232B]">TechTree</span>
           </div>
           <div className="flex items-center gap-3">
             <Link href="/debug" className="theme-silver-pill rounded-full border px-4 py-2 text-xs font-black text-[#243844] transition hover:text-[#17232B]" title="개발자 디버그 페이지">
@@ -421,7 +421,7 @@ export default function Home() {
         <section className="grid min-h-[620px] grid-cols-[0.82fr_1.18fr] items-center gap-12 py-16">
           <div>
             <p className="text-sm font-black uppercase tracking-[0.34em] text-[#B88A3A]">AI 가상 면접 서비스</p>
-            <h1 className="mt-7 text-[88px] font-black leading-[0.92] tracking-tight text-[#101820]">
+            <h1 className="font-display mt-7 text-[88px] font-bold leading-[0.92] tracking-tight text-[#101820]">
               면접 준비를<br />대화로.
             </h1>
             <p className="mt-8 max-w-xl text-xl font-bold leading-relaxed text-[#243844]">
@@ -462,7 +462,7 @@ export default function Home() {
             </div>
             <div className="absolute bottom-24 right-12 w-[34%] rounded-2xl border border-white/45 bg-[#101820]/88 p-5 text-white shadow-2xl shadow-[#17232B]/30">
               <p className="text-xs font-black uppercase tracking-[0.22em] text-[#D7B56D]">Push to Talk</p>
-              <p className="mt-4 text-3xl font-black leading-tight">말하고,<br />바로 이어가기.</p>
+              <p className="font-display mt-4 text-3xl font-bold leading-tight">말하고,<br />바로 이어가기.</p>
             </div>
           </div>
         </section>
@@ -475,35 +475,35 @@ export default function Home() {
             <div className="tech-logo-marquee">
               <div className="tech-logo-track flex w-max items-center gap-12">
                 {[...[
-                  ["OpenAI", "/openai-logo.png"],
-                  ["LangChain", "/langchain-logo.png"],
-                  ["Python", "/python-logo.png"],
-                  ["Next.js", "/nextjs-logo.png"],
-                  ["FastAPI", "/fastapi-logo.png"],
-                  ["MongoDB", "/mongodb-logo.png"],
-                  ["AWS", "/aws-logo.png"],
-                  ["Docker", "/docker-logo.png"],
-                  ["Nginx", "/nginx-logo.png"],
-                  ["Certbot", "/certbot-logo.png"],
-                  ["Tavily", "/tavily_logo.png"],
-                  ["Resend", "/resend-logo.svg"],
-                  ["Telegram", "/telegram-logo.png"],
-                  ["Streamlit", "/streamlit-logo.png"],
+                  ["OpenAI", "logo/openai-logo.png"],
+                  ["LangChain", "logo/langchain-logo.png"],
+                  ["Python", "logo/python-logo.png"],
+                  ["Next.js", "logo/nextjs-logo.png"],
+                  ["FastAPI", "logo/fastapi-logo.png"],
+                  ["MongoDB", "logo/mongodb-logo.png"],
+                  ["AWS", "logo/aws-logo.png"],
+                  ["Docker", "logo/docker-logo.png"],
+                  ["Nginx", "logo/nginx-logo.png"],
+                  ["Certbot", "logo/certbot-logo.png"],
+                  ["Tavily", "logo/tavily_logo.png"],
+                  ["Resend", "logo/resend-logo.svg"],
+                  ["Telegram", "logo/telegram-logo.png"],
+                  ["Streamlit", "logo/streamlit-logo.png"],
                 ], ...[
-                  ["OpenAI", "/openai-logo.png"],
-                  ["LangChain", "/langchain-logo.png"],
-                  ["Python", "/python-logo.png"],
-                  ["Next.js", "/nextjs-logo.png"],
-                  ["FastAPI", "/fastapi-logo.png"],
-                  ["MongoDB", "/mongodb-logo.png"],
-                  ["AWS", "/aws-logo.png"],
-                  ["Docker", "/docker-logo.png"],
-                  ["Nginx", "/nginx-logo.png"],
-                  ["Certbot", "/certbot-logo.png"],
-                  ["Tavily", "/tavily_logo.png"],
-                  ["Resend", "/resend-logo.svg"],
-                  ["Telegram", "/telegram-logo.png"],
-                  ["Streamlit", "/streamlit-logo.png"],
+                  ["OpenAI", "logo/openai-logo.png"],
+                  ["LangChain", "logo/langchain-logo.png"],
+                  ["Python", "logo/python-logo.png"],
+                  ["Next.js", "logo/nextjs-logo.png"],
+                  ["FastAPI", "logo/fastapi-logo.png"],
+                  ["MongoDB", "logo/mongodb-logo.png"],
+                  ["AWS", "logo/aws-logo.png"],
+                  ["Docker", "logo/docker-logo.png"],
+                  ["Nginx", "logo/nginx-logo.png"],
+                  ["Certbot", "logo/certbot-logo.png"],
+                  ["Tavily", "logo/tavily_logo.png"],
+                  ["Resend", "logo/resend-logo.svg"],
+                  ["Telegram", "logo/telegram-logo.png"],
+                  ["Streamlit", "logo/streamlit-logo.png"],
                 ]].map(([name, logoPath], index) => (
                   <div key={`${name}-${index}`} title={name} aria-label={name} className="group flex h-20 w-36 shrink-0 items-center justify-center transition hover:-translate-y-1">
                     <NextImage src={logoPath} alt={`${name} logo`} width={128} height={56} className="max-h-12 w-auto max-w-28 object-contain opacity-80 grayscale transition duration-300 group-hover:opacity-100 group-hover:grayscale-0" loading="eager" unoptimized />
@@ -558,14 +558,17 @@ export default function Home() {
           </form>
         ) : (
         <form onSubmit={handleSubmit} className="space-y-7">
+          <div className="flex justify-end text-xs font-bold text-[#243844]">
+            <span className="text-red-500">*</span> 필수 입력
+          </div>
           {/* Section 1: JD & Resume Analysis - Two Column Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             {/* Left: Job Description */}
             <div className="theme-card flex flex-col h-full p-5 sm:p-6 rounded-2xl border transition-shadow relative">
               <div className="flex justify-between items-start mb-4">
                 <div>
-                  <h2 className="text-sm font-bold text-[#8390D6] uppercase tracking-widest mb-1 flex items-center gap-2">
-                    <span className="w-2 h-2 bg-[#8390D6] rounded-full animate-pulse" />
+                  <h2 className="text-sm font-bold text-[#4556D6] uppercase tracking-widest mb-1 flex items-center gap-2">
+                    <span className="w-2 h-2 bg-[#4556D6] rounded-full animate-pulse" />
                     STEP 1. 공고 분석
                   </h2>
                   <p className="text-xs text-[#243844] font-medium ml-4">채용 공고를 기반으로 한 맞춤 면접</p>
@@ -601,12 +604,12 @@ export default function Home() {
                     <input key={`jd-${inputResetKey}`} type="file" id="jdImageFile" accept="image/*" onChange={handleJdImageChange} className="hidden" />
                     <label htmlFor="jdImageFile" className="cursor-pointer group flex flex-col items-center">
                       <div className="w-10 h-10 bg-white/75 rounded-full flex items-center justify-center shadow-sm border border-[#B7C3CA]/45 mb-2 group-hover:scale-110 transition-transform">
-                        <svg className="w-5 h-5 text-[#8390D6]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                        <svg className="w-5 h-5 text-[#4556D6]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                       </div>
-                      <span className="text-xs font-bold text-[#8390D6]">Paste, drop, or click to add files</span>
+                      <span className="text-xs font-bold text-[#4556D6]">Paste, drop, or click to add files</span>
                       <span className="text-[10px] text-[#243844] mt-1 font-bold">PNG, JPG, JPEG, HEIC</span>
                     </label>
-                    {jdFileName && <p className="text-[11px] font-bold text-[#8390D6] mt-3 bg-[#8390D6]/20 px-2 py-1 rounded-md">✓ {jdFileName}</p>}
+                    {jdFileName && <p className="text-[11px] font-bold text-[#4556D6] mt-3 bg-[#4556D6]/15 px-2 py-1 rounded-md">✓ {jdFileName}</p>}
                   </div>
                 )}
 
@@ -690,7 +693,7 @@ export default function Home() {
             </h2>
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
               <div className="lg:col-span-2">
-                <label htmlFor="jobTitle" className="block text-xs font-bold text-[#243844] mb-2 ml-1">지원 직무</label>
+                <label htmlFor="jobTitle" className="block text-xs font-bold text-[#4556D6] mb-2 ml-1">지원 직무 <span className="text-red-500">*</span></label>
                 <div className="relative">
                   <input
                     type="text"
@@ -713,7 +716,7 @@ export default function Home() {
                 </div>
               </div>
               <div>
-                <label htmlFor="experience" className="block text-xs font-bold text-[#243844] mb-2 ml-1">경력</label>
+                <label htmlFor="experience" className="block text-xs font-bold text-[#4556D6] mb-2 ml-1">경력 <span className="text-red-500">*</span></label>
                 <select id="experience" value={experience} onChange={(e) => setExperience(e.target.value)} className={`theme-input w-full px-5 py-3.5 rounded-2xl border ${!experience ? 'border-[#B7C3CA] bg-[#EAF4F7]/55' : ''} outline-none cursor-pointer focus:ring-4 focus:ring-[#8390D6]/20 transition-all appearance-none font-bold`}>
                   <option value="" disabled>선택하기</option>
                   <option value="신입">신입 (0년)</option>
@@ -723,7 +726,7 @@ export default function Home() {
                 </select>
               </div>
               <div>
-                <label htmlFor="education" className="block text-xs font-bold text-[#243844] mb-2 ml-1">최종 학력</label>
+                <label htmlFor="education" className="block text-xs font-bold text-[#4556D6] mb-2 ml-1">최종 학력 <span className="text-red-500">*</span></label>
                 <select id="education" value={education} onChange={(e) => setEducation(e.target.value)} className={`theme-input w-full px-5 py-3.5 rounded-2xl border ${!education ? 'border-[#B7C3CA] bg-[#EAF4F7]/55' : ''} outline-none cursor-pointer focus:ring-4 focus:ring-[#8390D6]/20 transition-all appearance-none font-bold`}>
                   <option value="" disabled>선택하기</option>
                   <option value="고졸">고졸</option>
@@ -737,12 +740,12 @@ export default function Home() {
           </div>
 
           <div className="theme-card p-5 sm:p-6 rounded-2xl border">
-            <h2 className="text-sm font-bold text-[#7E8A92] uppercase tracking-widest mb-4 flex items-center gap-2">
-              <span className="w-2 h-2 bg-[#7E8A92] rounded-full" />
+            <h2 className="text-sm font-bold text-[#4556D6] uppercase tracking-widest mb-4 flex items-center gap-2">
+              <span className="w-2 h-2 bg-[#4556D6] rounded-full" />
               STEP 4. 리포트 이메일
             </h2>
             <div>
-              <label htmlFor="reportEmail" className="block text-xs font-bold text-[#243844] mb-2 ml-1">리포트 받을 이메일</label>
+              <label htmlFor="reportEmail" className="block text-xs font-bold text-[#4556D6] mb-2 ml-1">리포트 받을 이메일 <span className="text-red-500">*</span></label>
               <input
                 type="email"
                 id="reportEmail"
@@ -773,7 +776,7 @@ export default function Home() {
                 <div className="absolute inset-0 bg-white/10 translate-y-full transition-transform duration-300 group-hover:translate-y-0" />
                 <div className="relative flex h-full flex-col justify-between gap-4">
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-2xl font-black">핵심만 빠르게</span>
+                    <span className="font-display text-2xl font-bold">빠른 연습</span>
                     <span className="shrink-0 rounded-xl border border-white/25 bg-white/15 px-3 py-1 text-sm font-black text-white">
                       7분 내외
                     </span>
@@ -798,7 +801,7 @@ export default function Home() {
                 <div className="absolute inset-0 bg-white/15 translate-y-full transition-transform duration-300 group-hover:translate-y-0" />
                 <div className="relative flex h-full flex-col justify-between gap-4">
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-2xl font-black">실전처럼 완벽하게</span>
+                    <span className="font-display text-2xl font-bold">실전 연습</span>
                     <span className="shrink-0 rounded-xl border border-white/25 bg-white/15 px-3 py-1 text-sm font-black text-white">
                       20분 내외
                     </span>
@@ -830,7 +833,7 @@ export default function Home() {
           <div className="grid grid-cols-[0.72fr_1.28fr] items-center gap-16">
             <div className="home-copy">
               <p className="text-sm font-black uppercase tracking-[0.32em] text-[#4556D6]">Designed for Practice</p>
-              <h2 className="mt-5 text-5xl font-black leading-tight tracking-tight">
+              <h2 className="font-display mt-5 text-5xl font-bold leading-tight tracking-tight">
                 실제로 말해봐야<br />보이는 것들.
               </h2>
               <p className="mt-7 text-lg font-bold leading-relaxed text-[#243844]">
@@ -841,7 +844,7 @@ export default function Home() {
             <div className="home-art-panel relative min-h-[470px] overflow-hidden rounded-2xl">
               <div className="absolute left-12 top-12 rounded-2xl border border-white/45 bg-white/88 p-6 shadow-2xl shadow-[#4556D6]/18">
                 <p className="text-xs font-black uppercase tracking-[0.22em] text-[#B88A3A]">Input</p>
-                <p className="mt-4 text-3xl font-black text-[#17232B]">공고와 이력서를<br />면접 맥락으로</p>
+                <p className="font-display mt-4 text-3xl font-bold text-[#17232B]">공고와 이력서를<br />면접 맥락으로</p>
               </div>
               <div className="absolute bottom-10 right-12 w-[58%] overflow-hidden rounded-2xl border border-white/55 bg-white/90 p-10 shadow-2xl shadow-[#17232B]/20">
                 <NextImage src="/techtree-logo.png" alt="TechTree service screen placeholder" width={260} height={260} className="mx-auto h-64 w-64 object-contain" />
@@ -871,7 +874,7 @@ export default function Home() {
             </div>
             <div className="home-copy">
               <p className="text-sm font-black uppercase tracking-[0.32em] text-[#B88A3A]">Voice First</p>
-              <h2 className="mt-5 text-5xl font-black leading-tight tracking-tight">
+              <h2 className="font-display mt-5 text-5xl font-bold leading-tight tracking-tight">
                 읽는 연습이 아니라,<br />대화하는 연습.
               </h2>
               <p className="mt-7 text-lg font-bold leading-relaxed text-[#243844]">
@@ -884,7 +887,7 @@ export default function Home() {
           <div className="grid grid-cols-[0.8fr_1.2fr] items-start gap-12">
             <div>
               <p className="text-sm font-black uppercase tracking-[0.32em] text-[#4556D6]">What You Get</p>
-              <h2 className="mt-5 text-6xl font-black leading-[0.98] tracking-tight text-[#101820]">
+              <h2 className="font-display mt-5 text-6xl font-bold leading-[0.98] tracking-tight text-[#101820]">
                 끝나면,<br />다음 연습이<br />보입니다.
               </h2>
             </div>
@@ -896,7 +899,7 @@ export default function Home() {
                 ["Q&A 피드백", "주요 질문과 답변을 기준으로 다음 답변을 준비합니다."],
               ].map(([title, body]) => (
                 <div key={title} className="rounded-2xl border border-[#B7C3CA]/45 bg-white/72 p-7 shadow-sm">
-                  <p className="text-2xl font-black text-[#17232B]">{title}</p>
+                  <p className="font-display text-2xl font-bold text-[#17232B]">{title}</p>
                   <p className="mt-5 text-base font-bold leading-relaxed text-[#243844]">{body}</p>
                 </div>
               ))}
@@ -907,26 +910,19 @@ export default function Home() {
             <div className="grid grid-cols-[0.88fr_1.12fr] gap-14">
               <div>
                 <p className="text-sm font-black uppercase tracking-[0.3em] text-[#D7B56D]">Developer Note</p>
-                <h3 className="mt-5 text-6xl font-black leading-tight">제작자의 말</h3>
+                <h3 className="font-display mt-5 text-4xl font-bold leading-tight">제작자의 말</h3>
               </div>
               <div className="space-y-5 text-xl font-bold leading-relaxed text-white/90">
                 <p>
-                  취업을 준비하는 사람에게 면접이라는 단어는 무겁고 답답하게 다가옵니다.
-                  철저히 준비한 예상 질문도 면접장에서 무너지곤 합니다.
-                </p>
-                <p>
-                  TechTree는 완벽한 답변을 알려주지는 않습니다. 
+                  TechTree는 면접에서의 완벽한 답변을 알려주지는 않습니다. 
                   하지만 단 한 번이라도 실전처럼 내뱉는 말 한마디가 우리를 한 걸음 더 나아가게 할 것임을 믿습니다.
-                </p>
-                <p>
-                  오늘보다 나은 내일을 위해! 
                 </p>
               </div>
             </div>
           </div>
 
           <div className="rounded-2xl bg-gradient-to-br from-[#DCEBF1] via-[#A9BBFF] to-[#4556D6] px-12 py-20 text-center shadow-2xl shadow-[#4556D6]/18">
-            <h3 className="text-6xl font-black tracking-tight text-[#101820]">지금 바로 면접을 시작하세요</h3>
+            <h3 className="font-display text-6xl font-bold tracking-tight text-[#101820]">지금 바로 면접을 시작하세요</h3>
             <p className="mx-auto mt-6 max-w-2xl text-lg font-bold leading-relaxed text-[#17232B]">
               위 입력 영역에 준비한 자료를 넣고 빠른 연습 또는 실전 연습을 선택하면, <br/>
               AI 면접관이 당신의 맥락에 맞춰 대화를 시작합니다.
