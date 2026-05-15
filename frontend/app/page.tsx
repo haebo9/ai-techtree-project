@@ -6,6 +6,14 @@ import Link from "next/link";
 import NextImage from "next/image";
 import { apiPath } from "@/lib/api";
 
+const serviceImages = {
+  profile: "/service/techtree-기본정보입력화면.png",
+  interview: "/service/techtree-면접중화면.png",
+  complete: "/service/techtree-면접종료화면.png",
+  reportTop: "/service/techtree-종합리포트1.png",
+  reportBottom: "/service/techtree-종합리포트2.png",
+} as const;
+
 export default function Home() {
   const router = useRouter();
   const [jobTitle, setJobTitle] = useState("");
@@ -442,8 +450,30 @@ export default function Home() {
             <div className="absolute left-10 top-10 rounded-full border border-white/40 bg-white/35 px-4 py-2 text-xs font-black text-[#17232B] backdrop-blur">
               Realtime Voice Interview
             </div>
-            <div className="absolute left-1/2 top-20 h-24 w-24 -translate-x-1/2 overflow-hidden rounded-2xl border border-white/60 bg-white p-3 shadow-2xl shadow-[#4556D6]/20">
-              <NextImage src="/techtree-logo.png" alt="TechTree visual placeholder" width={96} height={96} className="h-full w-full object-contain" priority loading="eager" />
+            <div className="absolute left-1/2 top-16 h-36 w-64 -translate-x-1/2">
+              <div className="absolute left-0 top-1/2 h-px w-full -translate-y-1/2 bg-gradient-to-r from-white/0 via-white/70 to-white/0" />
+              <div className="absolute left-6 top-8 flex h-16 w-16 items-center justify-center rounded-2xl border border-white/55 bg-white/58 shadow-2xl shadow-[#4556D6]/18 backdrop-blur">
+                <div className="h-8 w-8 rounded-xl border border-[#4556D6]/25 bg-[#DCEBF1]/80" />
+              </div>
+              <div className="absolute left-1/2 top-0 flex h-20 w-20 -translate-x-1/2 items-center justify-center rounded-2xl border border-[#D7B56D]/55 bg-[#101820]/86 shadow-2xl shadow-[#17232B]/25">
+                <div className="flex items-end gap-1.5">
+                  <span className="h-4 w-1.5 rounded-full bg-[#D7B56D]" />
+                  <span className="h-8 w-1.5 rounded-full bg-white" />
+                  <span className="h-6 w-1.5 rounded-full bg-[#8390D6]" />
+                  <span className="h-3 w-1.5 rounded-full bg-[#D7B56D]" />
+                </div>
+              </div>
+              <div className="absolute right-6 top-8 flex h-16 w-16 items-center justify-center rounded-2xl border border-white/55 bg-white/58 shadow-2xl shadow-[#4556D6]/18 backdrop-blur">
+                <div className="grid grid-cols-2 gap-1">
+                  <span className="h-3 w-3 rounded-sm bg-[#4556D6]" />
+                  <span className="h-3 w-3 rounded-sm bg-[#D7B56D]" />
+                  <span className="h-3 w-3 rounded-sm bg-[#B7C3CA]" />
+                  <span className="h-3 w-3 rounded-sm bg-[#17232B]" />
+                </div>
+              </div>
+              <div className="absolute bottom-1 left-8 rounded-full border border-white/45 bg-white/38 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-[#17232B] backdrop-blur">Input</div>
+              <div className="absolute bottom-1 left-1/2 -translate-x-1/2 rounded-full border border-[#D7B56D]/55 bg-[#D7B56D]/22 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-[#17232B] backdrop-blur">Voice</div>
+              <div className="absolute bottom-1 right-5 rounded-full border border-white/45 bg-white/38 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-[#17232B] backdrop-blur">Report</div>
             </div>
             <div className="absolute bottom-14 left-14 w-[58%] rounded-2xl border border-white/50 bg-white/90 p-6 shadow-2xl shadow-[#17232B]/20">
               <div className="mb-5 flex gap-2">
@@ -557,8 +587,8 @@ export default function Home() {
             </button>
           </form>
         ) : (
-        <form onSubmit={handleSubmit} className="space-y-7">
-          <div className="flex justify-end text-xs font-bold text-[#243844]">
+        <form onSubmit={handleSubmit} className="relative space-y-7">
+          <div className="absolute -top-7 right-1 text-xs font-bold text-[#243844]">
             <span className="text-red-500">*</span> 필수 입력
           </div>
           {/* Section 1: JD & Resume Analysis - Two Column Layout */}
@@ -837,39 +867,42 @@ export default function Home() {
                 실제로 말해봐야<br />보이는 것들.
               </h2>
               <p className="mt-7 text-lg font-bold leading-relaxed text-[#243844]">
-                글로 정리한 답변은 괜찮아 보여도, 면접 자리에서는 흐름과 속도, 근거가 함께 드러납니다.
-                TechTree는 사용자가 준비한 자료를 질문으로 바꾸고, 음성 대화 속에서 답변의 구조를 점검합니다.
+                글로 쓴 답변은 완벽해 보여도, 실제 대화에서는 흐름과 논리의 빈틈이 드러납니다. 
+                TechTree는 준비하신 서류를 실전 질문으로 변환하여 목소리로 답하게 합니다. 
+                대화 속에서 답변의 구조와 근거를 직접 확인하세요.
               </p>
             </div>
-            <div className="home-art-panel relative min-h-[470px] overflow-hidden rounded-2xl">
-              <div className="absolute left-12 top-12 rounded-2xl border border-white/45 bg-white/88 p-6 shadow-2xl shadow-[#4556D6]/18">
+            <div className="home-art-panel relative min-h-[520px] overflow-hidden rounded-2xl">
+              <div className="absolute left-10 top-10 z-10 max-w-[300px] rounded-2xl border border-white/45 bg-white/92 p-6 shadow-2xl shadow-[#4556D6]/18">
                 <p className="text-xs font-black uppercase tracking-[0.22em] text-[#B88A3A]">Input</p>
                 <p className="font-display mt-4 text-3xl font-bold text-[#17232B]">공고와 이력서를<br />면접 맥락으로</p>
               </div>
-              <div className="absolute bottom-10 right-12 w-[58%] overflow-hidden rounded-2xl border border-white/55 bg-white/90 p-10 shadow-2xl shadow-[#17232B]/20">
-                <NextImage src="/techtree-logo.png" alt="TechTree service screen placeholder" width={260} height={260} className="mx-auto h-64 w-64 object-contain" />
+              <div className="absolute bottom-8 right-8 w-[74%] overflow-hidden rounded-2xl border border-white/65 bg-[#F7FBFC]/94 p-2 shadow-2xl shadow-[#17232B]/22">
+                <NextImage
+                  src={serviceImages.profile}
+                  alt="TechTree 기본정보 입력 화면"
+                  width={1495}
+                  height={1113}
+                  className="aspect-[2990/2226] w-full rounded-xl object-contain"
+                />
               </div>
             </div>
           </div>
 
           <div className="grid grid-cols-[1.22fr_0.78fr] items-center gap-16">
-            <div className="home-art-panel relative min-h-[540px] overflow-hidden rounded-2xl">
-              <div className="absolute left-1/2 top-12 h-24 w-24 -translate-x-1/2 overflow-hidden rounded-2xl border border-white/55 bg-white p-3 shadow-2xl">
-                <NextImage src="/techtree-logo.png" alt="TechTree interview placeholder" width={96} height={96} className="h-full w-full object-contain" />
+            <div className="home-art-panel relative min-h-[610px] overflow-hidden rounded-2xl">
+              <div className="absolute left-10 top-10 z-10 max-w-[310px] rounded-2xl border border-white/45 bg-white/92 p-6 shadow-2xl shadow-[#4556D6]/18">
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-[#B88A3A]">Live Interview</p>
+                <p className="font-display mt-4 text-3xl font-bold text-[#17232B]">실제와 같은<br />연결된 대화를</p>
               </div>
-              <div className="absolute bottom-16 left-1/2 w-[72%] -translate-x-1/2 rounded-2xl border border-white/45 bg-[#101820]/90 p-7 text-white shadow-2xl shadow-[#17232B]/25">
-                <div className="mb-6 flex items-center justify-between">
-                  <span className="text-xs font-black uppercase tracking-[0.24em] text-[#D7B56D]">Interview Flow</span>
-                  <span className="interview-live-dot h-2.5 w-2.5 rounded-full" />
-                </div>
-                <div className="grid grid-cols-4 gap-3">
-                  {["정보 입력", "질문 준비", "음성 답변", "리포트"].map((item, index) => (
-                    <div key={item} className="rounded-xl border border-white/12 bg-white/8 p-4">
-                      <p className="text-xs font-black text-[#D7B56D]">0{index + 1}</p>
-                      <p className="mt-5 text-sm font-black">{item}</p>
-                    </div>
-                  ))}
-                </div>
+              <div className="absolute bottom-10 right-8 w-[82%] overflow-hidden rounded-2xl border border-white/60 bg-[#17232B]/88 p-2 shadow-2xl shadow-[#17232B]/28">
+                <NextImage
+                  src={serviceImages.interview}
+                  alt="TechTree 면접 진행 화면"
+                  width={1026}
+                  height={728}
+                  className="aspect-[2052/1456] w-full rounded-xl object-contain"
+                />
               </div>
             </div>
             <div className="home-copy">
@@ -878,8 +911,9 @@ export default function Home() {
                 읽는 연습이 아니라,<br />대화하는 연습.
               </h2>
               <p className="mt-7 text-lg font-bold leading-relaxed text-[#243844]">
-                Push-to-Talk 방식으로 답변 타이밍을 직접 제어합니다.
-                잡음 유입을 줄이고, 질문을 듣고 생각한 뒤 말하는 실제 면접 흐름에 집중할 수 있습니다.
+                정해진 순서대로 묻고 답하는 방식은 실전에서 큰 힘을 발휘하지 못합니다. 
+                TechTree는 지원 직무에 맞춘 질문을 시작으로, 사용자의 답변에 반응하며 연속적인 문답을 이어갑니다. 
+                정답을 읊는 연습이 아닌, 대화하는 법을 익히는 데 집중하세요.
               </p>
             </div>
           </div>
@@ -903,6 +937,67 @@ export default function Home() {
                   <p className="mt-5 text-base font-bold leading-relaxed text-[#243844]">{body}</p>
                 </div>
               ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-[#B7C3CA]/42 bg-[#F7FBFC]/78 p-8 shadow-2xl shadow-[#4556D6]/10">
+            <div className="mb-8 flex items-end justify-between gap-8">
+              <div>
+                <p className="text-sm font-black uppercase tracking-[0.3em] text-[#B88A3A]">Report Preview</p>
+                <h3 className="font-display mt-4 text-4xl font-bold tracking-tight text-[#101820]">면접이 끝난 뒤에도 남는 피드백</h3>
+              </div>
+              <p className="max-w-lg text-right text-base font-bold leading-relaxed text-[#243844]">
+                종료 화면에서 리포트 생성 상태를 확인하고, 이메일에서는 점수와 강점, 개선점, 전체 대화 흐름을 이어서 확인합니다.
+              </p>
+            </div>
+            <div className="grid grid-cols-[0.78fr_1.22fr] items-stretch gap-6">
+              <div className="flex flex-col gap-4">
+                <div className="overflow-hidden rounded-2xl border border-[#B7C3CA]/45 bg-white/82 p-2 shadow-xl shadow-[#17232B]/10">
+                  <NextImage
+                    src={serviceImages.complete}
+                    alt="TechTree 면접 종료 화면"
+                    width={703}
+                    height={595}
+                    className="aspect-[1406/1190] w-full rounded-xl object-contain"
+                  />
+                </div>
+                <div className="rounded-2xl border border-[#D7B56D]/42 bg-[#D7B56D]/12 p-6">
+                  <p className="text-xs font-black uppercase tracking-[0.24em] text-[#B88A3A]">After Interview</p>
+                  <p className="mt-4 text-lg font-black leading-relaxed text-[#17232B]">
+                    면접이 종료되고 잠시 쉬고 계시면 지원자님 만을 위한 종합 평가 리포트가 이메일로 안전하게 전송됩니다.
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-5">
+                <div className="overflow-hidden rounded-2xl border border-[#B7C3CA]/45 bg-white/82 p-3 shadow-xl shadow-[#17232B]/10">
+                  <div className="mb-3 flex h-8 items-center gap-2 rounded-xl bg-[#EAF4F7]/75 px-3">
+                    <span className="h-2.5 w-2.5 rounded-full bg-red-400" />
+                    <span className="h-2.5 w-2.5 rounded-full bg-[#D7B56D]" />
+                    <span className="h-2.5 w-2.5 rounded-full bg-[#4556D6]" />
+                  </div>
+                  <NextImage
+                    src={serviceImages.reportTop}
+                    alt="TechTree 이메일 종합 리포트 상단"
+                    width={501}
+                    height={1163}
+                    className="aspect-[1002/2326] w-full rounded-xl object-contain"
+                  />
+                </div>
+                <div className="overflow-hidden rounded-2xl border border-[#B7C3CA]/45 bg-white/82 p-3 shadow-xl shadow-[#17232B]/10">
+                  <div className="mb-3 flex h-8 items-center gap-2 rounded-xl bg-[#EAF4F7]/75 px-3">
+                    <span className="h-2.5 w-2.5 rounded-full bg-red-400" />
+                    <span className="h-2.5 w-2.5 rounded-full bg-[#D7B56D]" />
+                    <span className="h-2.5 w-2.5 rounded-full bg-[#4556D6]" />
+                  </div>
+                  <NextImage
+                    src={serviceImages.reportBottom}
+                    alt="TechTree 이메일 종합 리포트 하단"
+                    width={510}
+                    height={1106}
+                    className="aspect-[1020/2212] w-full rounded-xl object-contain"
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
