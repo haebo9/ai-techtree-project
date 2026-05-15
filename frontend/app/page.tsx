@@ -400,7 +400,7 @@ export default function Home() {
         <nav className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="h-11 w-11 overflow-hidden rounded-xl border border-[#4556D6]/25 bg-white shadow-sm">
-              <NextImage src="/logo.png" alt="TechTree Logo" width={44} height={44} className="h-full w-full object-contain" priority />
+              <NextImage src="/techtree-logo.png" alt="TechTree Logo" width={44} height={44} className="h-full w-full object-contain" priority loading="eager" />
             </div>
             <span className="text-lg font-black tracking-tight text-[#17232B]">TechTree</span>
           </div>
@@ -420,7 +420,7 @@ export default function Home() {
 
         <section className="grid min-h-[620px] grid-cols-[0.82fr_1.18fr] items-center gap-12 py-16">
           <div>
-            <p className="text-sm font-black uppercase tracking-[0.34em] text-[#B88A3A]">AI Mock Interview</p>
+            <p className="text-sm font-black uppercase tracking-[0.34em] text-[#B88A3A]">AI 가상 면접 서비스</p>
             <h1 className="mt-7 text-[88px] font-black leading-[0.92] tracking-tight text-[#101820]">
               면접 준비를<br />대화로.
             </h1>
@@ -443,7 +443,7 @@ export default function Home() {
               Realtime Voice Interview
             </div>
             <div className="absolute left-1/2 top-20 h-24 w-24 -translate-x-1/2 overflow-hidden rounded-2xl border border-white/60 bg-white p-3 shadow-2xl shadow-[#4556D6]/20">
-              <NextImage src="/logo.png" alt="TechTree visual placeholder" width={96} height={96} className="h-full w-full object-contain" priority />
+              <NextImage src="/techtree-logo.png" alt="TechTree visual placeholder" width={96} height={96} className="h-full w-full object-contain" priority loading="eager" />
             </div>
             <div className="absolute bottom-14 left-14 w-[58%] rounded-2xl border border-white/50 bg-white/90 p-6 shadow-2xl shadow-[#17232B]/20">
               <div className="mb-5 flex gap-2">
@@ -463,6 +463,53 @@ export default function Home() {
             <div className="absolute bottom-24 right-12 w-[34%] rounded-2xl border border-white/45 bg-[#101820]/88 p-5 text-white shadow-2xl shadow-[#17232B]/30">
               <p className="text-xs font-black uppercase tracking-[0.22em] text-[#D7B56D]">Push to Talk</p>
               <p className="mt-4 text-3xl font-black leading-tight">말하고,<br />바로 이어가기.</p>
+            </div>
+          </div>
+        </section>
+
+        <section aria-label="TechTree technology stack" className="mb-14">
+          <div className="mx-auto max-w-6xl border-y border-[#17232B]/10 py-8">
+            <p className="mb-6 text-center text-xs font-black uppercase tracking-[0.34em] text-[#7E8A92]">
+              Technologies Used
+            </p>
+            <div className="tech-logo-marquee">
+              <div className="tech-logo-track flex w-max items-center gap-12">
+                {[...[
+                  ["OpenAI", "/openai-logo.png"],
+                  ["LangChain", "/langchain-logo.png"],
+                  ["Python", "/python-logo.png"],
+                  ["Next.js", "/nextjs-logo.png"],
+                  ["FastAPI", "/fastapi-logo.png"],
+                  ["MongoDB", "/mongodb-logo.png"],
+                  ["AWS", "/aws-logo.png"],
+                  ["Docker", "/docker-logo.png"],
+                  ["Nginx", "/nginx-logo.png"],
+                  ["Certbot", "/certbot-logo.png"],
+                  ["Tavily", "/tavily_logo.png"],
+                  ["Resend", "/resend-logo.svg"],
+                  ["Telegram", "/telegram-logo.png"],
+                  ["Streamlit", "/streamlit-logo.png"],
+                ], ...[
+                  ["OpenAI", "/openai-logo.png"],
+                  ["LangChain", "/langchain-logo.png"],
+                  ["Python", "/python-logo.png"],
+                  ["Next.js", "/nextjs-logo.png"],
+                  ["FastAPI", "/fastapi-logo.png"],
+                  ["MongoDB", "/mongodb-logo.png"],
+                  ["AWS", "/aws-logo.png"],
+                  ["Docker", "/docker-logo.png"],
+                  ["Nginx", "/nginx-logo.png"],
+                  ["Certbot", "/certbot-logo.png"],
+                  ["Tavily", "/tavily_logo.png"],
+                  ["Resend", "/resend-logo.svg"],
+                  ["Telegram", "/telegram-logo.png"],
+                  ["Streamlit", "/streamlit-logo.png"],
+                ]].map(([name, logoPath], index) => (
+                  <div key={`${name}-${index}`} title={name} aria-label={name} className="group flex h-20 w-36 shrink-0 items-center justify-center transition hover:-translate-y-1">
+                    <NextImage src={logoPath} alt={`${name} logo`} width={128} height={56} className="max-h-12 w-auto max-w-28 object-contain opacity-80 grayscale transition duration-300 group-hover:opacity-100 group-hover:grayscale-0" loading="eager" unoptimized />
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </section>
@@ -721,12 +768,12 @@ export default function Home() {
                   setInterviewMode("short");
                   startInterview("short");
                 }}
-                className="theme-cta group relative min-h-[112px] overflow-hidden rounded-2xl px-6 py-5 text-left text-white transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                className="theme-cta-muted group relative min-h-[112px] overflow-hidden rounded-2xl px-6 py-5 text-left text-white transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <div className="absolute inset-0 bg-white/15 translate-y-full transition-transform duration-300 group-hover:translate-y-0" />
+                <div className="absolute inset-0 bg-white/10 translate-y-full transition-transform duration-300 group-hover:translate-y-0" />
                 <div className="relative flex h-full flex-col justify-between gap-4">
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-2xl font-black">빠른 연습 시작하기</span>
+                    <span className="text-2xl font-black">핵심만 빠르게</span>
                     <span className="shrink-0 rounded-xl border border-white/25 bg-white/15 px-3 py-1 text-sm font-black text-white">
                       7분 내외
                     </span>
@@ -743,12 +790,15 @@ export default function Home() {
                   setInterviewMode("long");
                   startInterview("long");
                 }}
-                className="theme-cta group relative min-h-[112px] overflow-hidden rounded-2xl px-6 py-5 text-left text-white transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                className="theme-cta group relative min-h-[112px] overflow-hidden rounded-2xl px-6 py-5 text-left text-white shadow-[0_0_0_2px_rgba(215,181,109,0.72),0_24px_58px_rgba(69,86,214,0.24)] transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
               >
+                <div className="absolute -right-10 top-5 z-20 flex h-7 w-36 rotate-45 items-center justify-center border-y border-white/35 bg-gradient-to-r from-[#B88A3A] via-[#D7B56D] to-[#B88A3A] text-center text-[11px] font-black leading-none tracking-[0.24em] text-[#17232B] shadow-[0_10px_18px_rgba(23,35,43,0.26)]">
+                  BEST
+                </div>
                 <div className="absolute inset-0 bg-white/15 translate-y-full transition-transform duration-300 group-hover:translate-y-0" />
                 <div className="relative flex h-full flex-col justify-between gap-4">
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-2xl font-black">실전 연습 시작하기</span>
+                    <span className="text-2xl font-black">실전처럼 완벽하게</span>
                     <span className="shrink-0 rounded-xl border border-white/25 bg-white/15 px-3 py-1 text-sm font-black text-white">
                       20분 내외
                     </span>
@@ -794,7 +844,7 @@ export default function Home() {
                 <p className="mt-4 text-3xl font-black text-[#17232B]">공고와 이력서를<br />면접 맥락으로</p>
               </div>
               <div className="absolute bottom-10 right-12 w-[58%] overflow-hidden rounded-2xl border border-white/55 bg-white/90 p-10 shadow-2xl shadow-[#17232B]/20">
-                <NextImage src="/logo.png" alt="TechTree service screen placeholder" width={260} height={260} className="mx-auto h-64 w-64 object-contain" />
+                <NextImage src="/techtree-logo.png" alt="TechTree service screen placeholder" width={260} height={260} className="mx-auto h-64 w-64 object-contain" />
               </div>
             </div>
           </div>
@@ -802,7 +852,7 @@ export default function Home() {
           <div className="grid grid-cols-[1.22fr_0.78fr] items-center gap-16">
             <div className="home-art-panel relative min-h-[540px] overflow-hidden rounded-2xl">
               <div className="absolute left-1/2 top-12 h-24 w-24 -translate-x-1/2 overflow-hidden rounded-2xl border border-white/55 bg-white p-3 shadow-2xl">
-                <NextImage src="/logo.png" alt="TechTree interview placeholder" width={96} height={96} className="h-full w-full object-contain" />
+                <NextImage src="/techtree-logo.png" alt="TechTree interview placeholder" width={96} height={96} className="h-full w-full object-contain" />
               </div>
               <div className="absolute bottom-16 left-1/2 w-[72%] -translate-x-1/2 rounded-2xl border border-white/45 bg-[#101820]/90 p-7 text-white shadow-2xl shadow-[#17232B]/25">
                 <div className="mb-6 flex items-center justify-between">
@@ -856,16 +906,20 @@ export default function Home() {
           <div className="theme-deep rounded-2xl p-12 text-white">
             <div className="grid grid-cols-[0.88fr_1.12fr] gap-14">
               <div>
-                <p className="text-sm font-black uppercase tracking-[0.3em] text-[#D7B56D]">Builder Note</p>
+                <p className="text-sm font-black uppercase tracking-[0.3em] text-[#D7B56D]">Developer Note</p>
                 <h3 className="mt-5 text-6xl font-black leading-tight">제작자의 말</h3>
               </div>
               <div className="space-y-5 text-xl font-bold leading-relaxed text-white/90">
                 <p>
-                  면접 준비에서 가장 답답한 순간은 무엇을 더 고쳐야 하는지 모를 때라고 생각했습니다.
-                  그래서 TechTree는 질문 목록보다 실제 대화와 이후의 피드백에 더 집중했습니다.
+                  취업을 준비하는 사람에게 면접이라는 단어는 무겁고 답답하게 다가옵니다.
+                  철저히 준비한 예상 질문도 면접장에서 무너지곤 합니다.
                 </p>
                 <p>
-                  답변을 대신 만들어주는 서비스가 아니라, 사용자가 자신의 경험을 더 정확하고 설득력 있게 말하도록 돕는 연습 도구를 목표로 합니다.
+                  TechTree는 완벽한 답변을 알려주지는 않습니다. 
+                  하지만 단 한 번이라도 실전처럼 내뱉는 말 한마디가 우리를 한 걸음 더 나아가게 할 것임을 믿습니다.
+                </p>
+                <p>
+                  오늘보다 나은 내일을 위해! 
                 </p>
               </div>
             </div>
@@ -874,11 +928,11 @@ export default function Home() {
           <div className="rounded-2xl bg-gradient-to-br from-[#DCEBF1] via-[#A9BBFF] to-[#4556D6] px-12 py-20 text-center shadow-2xl shadow-[#4556D6]/18">
             <h3 className="text-6xl font-black tracking-tight text-[#101820]">지금 바로 면접을 시작하세요</h3>
             <p className="mx-auto mt-6 max-w-2xl text-lg font-bold leading-relaxed text-[#17232B]">
-              위 입력 영역에 준비한 자료를 넣고 빠른 연습 또는 실전 연습을 선택하면,
+              위 입력 영역에 준비한 자료를 넣고 빠른 연습 또는 실전 연습을 선택하면, <br/>
               AI 면접관이 당신의 맥락에 맞춰 대화를 시작합니다.
             </p>
             <a href="#interview-workspace" className="mt-9 inline-flex rounded-full bg-[#101820] px-7 py-3 text-sm font-black text-white transition hover:bg-[#243844]">
-              입력 영역으로 이동
+              면접보러 가기
             </a>
           </div>
         </section>

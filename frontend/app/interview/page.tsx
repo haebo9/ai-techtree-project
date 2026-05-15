@@ -531,7 +531,7 @@ export default function InterviewPage() {
       <div className="absolute top-0 w-full p-6 flex justify-between items-center z-10 max-w-5xl">
         <div className="flex items-center space-x-4">
           <div className="w-8 h-8 rounded-lg overflow-hidden border border-[#B7C3CA]/40 bg-white/10">
-            <Image src="/logo.png" alt="Logo" width={32} height={32} className="w-full h-full object-cover" priority />
+            <Image src="/techtree-logo.png" alt="Logo" width={32} height={32} className="w-full h-full object-cover" priority loading="eager" />
           </div>
           <div className="flex items-center space-x-2 text-white">
             <div className="interview-live-dot h-2.5 w-2.5 rounded-full animate-pulse"></div>
