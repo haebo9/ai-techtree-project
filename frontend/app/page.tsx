@@ -7,11 +7,11 @@ import NextImage from "next/image";
 import { apiPath } from "@/lib/api";
 
 const serviceImages = {
-  profile: "/service/techtree-기본정보입력화면.png",
-  interview: "/service/techtree-면접중화면.png",
-  complete: "/service/techtree-면접종료화면.png",
-  reportTop: "/service/techtree-종합리포트1.png",
-  reportBottom: "/service/techtree-종합리포트2.png",
+  profile: "/service/techtree-home.png",
+  interview: "/service/techtree-interview.png",
+  complete: "/service/techtree-complete.png",
+  reportTop: "/service/techtree-report-1.png",
+  reportBottom: "/service/techtree-report-2.png",
 } as const;
 
 export default function Home() {
@@ -408,7 +408,7 @@ export default function Home() {
         <nav className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="h-11 w-11 overflow-hidden rounded-xl border border-[#4556D6]/25 bg-white shadow-sm">
-              <NextImage src="/techtree-logo.png" alt="TechTree Logo" width={44} height={44} className="h-full w-full object-contain" priority loading="eager" />
+              <NextImage src="/logo/techtree-logo.png" alt="TechTree Logo" width={44} height={44} className="h-full w-full object-contain" priority loading="eager" />
             </div>
             <span className="font-display text-lg font-bold tracking-tight text-[#17232B]">TechTree</span>
           </div>
@@ -515,7 +515,7 @@ export default function Home() {
                   ["Docker", "logo/docker-logo.png"],
                   ["Nginx", "logo/nginx-logo.png"],
                   ["Certbot", "logo/certbot-logo.png"],
-                  ["Tavily", "logo/tavily_logo.png"],
+                  ["Tavily", "logo/tavily-logo.png"],
                   ["Resend", "logo/resend-logo.svg"],
                   ["Telegram", "logo/telegram-logo.png"],
                   ["Streamlit", "logo/streamlit-logo.png"],
@@ -530,7 +530,7 @@ export default function Home() {
                   ["Docker", "logo/docker-logo.png"],
                   ["Nginx", "logo/nginx-logo.png"],
                   ["Certbot", "logo/certbot-logo.png"],
-                  ["Tavily", "logo/tavily_logo.png"],
+                  ["Tavily", "logo/tavily-logo.png"],
                   ["Resend", "logo/resend-logo.svg"],
                   ["Telegram", "logo/telegram-logo.png"],
                   ["Streamlit", "logo/streamlit-logo.png"],

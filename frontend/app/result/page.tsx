@@ -210,7 +210,7 @@ export default function ResultPage() {
             <div className="flex items-center gap-4">
               <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#E2E8EC] via-[#8390D6] to-[#4556D6] p-0.5 shadow-lg shadow-[#7E8A92]/20 rotate-3 shrink-0">
                 <div className="w-full h-full bg-white rounded-xl flex items-center justify-center overflow-hidden">
-                  <Image src="/techtree-logo.png" alt="Logo" width={42} height={42} className="w-3/4 h-3/4 object-contain" priority loading="eager" />
+                  <Image src="/logo/techtree-logo.png" alt="Logo" width={42} height={42} className="w-3/4 h-3/4 object-contain" priority loading="eager" />
                 </div>
               </div>
               <div className="px-4 py-1.5 bg-[#EAF4F7]/70 text-[#4556D6] text-[10px] font-black rounded-full uppercase tracking-[0.2em] border border-[#B7C3CA]/45 animate-pulse">
