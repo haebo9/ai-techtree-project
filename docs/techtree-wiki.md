@@ -55,7 +55,21 @@ flowchart LR
 - 채용 공고 텍스트 또는 이미지
 - 빠른 연습 또는 실전 연습 모드
 
-초대코드 인증은 `/api/invite/session`과 관련 API에서 처리하고, 면접 API 라우터는 `require_invite_session` 의존성을 통해 인증된 세션만 허용한다. 따라서 `/api/interview/start`를 직접 호출하더라도 초대 세션이 없으면 `401 Unauthorized`가 발생한다.
+초대코드 인증은 `/api/invite/session`과 `/api/invite/verify`에서 처리한다. 사용자가 코드를 제출하면 backend는 `MONGODB_URL`로 연결된 MongoDB Atlas에서 `invite_codes` 컬렉션을 조회한다. 운영 기준 컬렉션은 `reflection.invite_codes`이며, `INVITE_DB_NAME=reflection`, `INVITE_COLLECTION_NAME=invite_codes`로 명시할 수 있다. `INVITE_DB_NAME`이 비어 있으면 코드상 `REFLECTION_DB_NAME`을 우선 사용하고, 그 값도 없을 때 `DB_NAME`으로 fallback한다.
+
+인증 조건은 `status=active`이고 `use_count < use_max`인 문서이다. 인증에 성공하면 `use_count`를 1 증가시키고, 서명된 HttpOnly session cookie를 발급한다. 면접 API와 업로드 API는 `require_invite_session` 의존성을 통해 인증된 세션만 허용한다. 따라서 `/api/interview/start`를 직접 호출하더라도 초대 세션이 없으면 `401 Unauthorized`가 발생한다.
+
+초대코드 문서 예시는 다음과 같다.
+
+```json
+{
+  "code": "TECHTREE-ABCDEFG",
+  "name": "haebo",
+  "status": "active",
+  "use_max": 1,
+  "use_count": 0
+}
+```
 
 ## 4. Frontend 화면 흐름
 
@@ -256,7 +270,9 @@ Nginx는 외부 80/443 요청을 받아 frontend와 backend로 라우팅한다. 
 - `TAVILY_API_KEY`: 선택적 채용 공고 검색.
 - `MONGODB_URL`: 선택적 Reflection/Policy 저장소.
 - `RESEND_API_KEY`: 이메일 발송.
-- `INVITE_CODES` 또는 초대코드 관련 설정: 접근 제어.
+- `INVITE_DB_NAME`: 초대코드 저장 DB. 운영 권장값은 `reflection`.
+- `INVITE_COLLECTION_NAME`: 초대코드 컬렉션. 기본값은 `invite_codes`.
+- `INVITE_SESSION_SECRET`: 초대 인증 세션 서명용 secret.
 - `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`: 선택적 운영 알림.
 
 개인정보 처리 원칙은 다음과 같다.

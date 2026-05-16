@@ -23,7 +23,7 @@ TechTree는 이력서, 채용 공고, 지원 직무, 경력, 학력 정보를 �
 ### 현재 추가된 기능
 
 - 초대코드 인증
-  - MongoDB `invite_codes` 컬렉션 기반 접근 제어
+  - MongoDB Atlas `reflection.invite_codes` 컬렉션 기반 접근 제어
   - HttpOnly session cookie 발급
   - 인증 성공 및 서버 오류 Telegram 알림
 
@@ -93,7 +93,7 @@ TechTree는 이력서, 채용 공고, 지원 직무, 경력, 학력 정보를 �
 - 이력서와 채용 공고 원문은 장기 저장하지 않습니다.
 - 면접 종료 후 이메일 리포트와 reflection 생성에 필요한 처리에만 transcript를 사용합니다.
 - 저장되는 자기개선 데이터는 `prompt_hint`, `lesson`, `policy` 같은 비식별 운영 지침입니다.
-- 초대코드와 reflection/policy는 MongoDB를 우선 사용하고, reflection/policy는 JSONL fallback을 가집니다.
+- 초대코드는 MongoDB Atlas `reflection.invite_codes`를 사용하고, reflection/policy는 MongoDB를 우선 사용하되 JSONL fallback을 가집니다.
 - 브라우저에는 같은 정보로 다시 연습하기를 위해 `sessionStorage`가 사용될 수 있습니다.
 
 ## 5. Reflection/Policy 자기개선 계획

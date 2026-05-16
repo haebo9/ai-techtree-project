@@ -60,7 +60,7 @@ Local Docker proxy: http://localhost:8080
 1. 프론트엔드는 `GET /api/invite/session`으로 기존 인증 세션을 확인합니다.
 2. 인증 세션이 없으면 초대코드 입력 화면만 보여줍니다.
 3. 사용자는 초대코드를 입력하고 `POST /api/invite/verify`를 호출합니다.
-4. 백엔드는 MongoDB `invite_codes`에서 `status=active`, `use_count < use_max` 조건을 확인합니다.
+4. 백엔드는 MongoDB Atlas의 `reflection.invite_codes`에서 `status=active`, `use_count < use_max` 조건을 확인합니다.
 5. 성공 시 `use_count`를 증가시키고 HttpOnly session cookie를 발급합니다.
 6. 인증 성공 이벤트와 서버 오류는 설정된 경우 Telegram으로 전송됩니다.
 
@@ -241,7 +241,7 @@ payload:
 | Data | 저장 위치 | 설명 |
 | :--- | :--- | :--- |
 | 입력 프로필 | Browser `sessionStorage` | 같은 정보로 다시 연습하기 |
-| 초대코드 | MongoDB `invite_codes` | 접근 제어 |
+| 초대코드 | MongoDB Atlas `reflection.invite_codes` | 접근 제어 |
 | 초대 세션 | HttpOnly session cookie | 브라우저 세션 기준 |
 | 면접 세션 메타데이터 | backend in-memory `temp_sessions` | 프로세스 재시작 시 사라질 수 있음 |
 | Transcript | 종료 요청과 이메일 리포트 처리에 사용 | 장기 원문 저장 대상 아님 |

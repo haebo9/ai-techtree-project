@@ -259,10 +259,18 @@ scp backend/.env techtree-server:~/ai-techtree-project/backend/.env
 초대코드 인증 관련:
 
 - `INVITE_AUTH_ENABLED`: 기본값 `true`. `false`로 두면 초대코드 인증을 우회합니다.
-- `INVITE_DB_NAME`: 초대코드 저장 DB. 없으면 `DB_NAME`을 사용합니다.
+- `INVITE_DB_NAME`: 초대코드 저장 DB. 운영 권장값은 `reflection`입니다. 없으면 코드상 `REFLECTION_DB_NAME`을 먼저 사용하고, 그 값도 없을 때 `DB_NAME`을 사용합니다.
 - `INVITE_COLLECTION_NAME`: 기본값 `invite_codes`.
 - `INVITE_SESSION_SECRET`: 초대 인증 세션 서명용 secret. 운영에서는 반드시 별도 난수 값을 둡니다.
 - `INVITE_SESSION_COOKIE_NAME`: 기본값 `techtree_invite_session`.
+
+현재 운영 기준 초대코드 컬렉션:
+
+```text
+MongoDB Atlas
+  database: reflection
+  collection: invite_codes
+```
 
 초대코드 문서 구조:
 
@@ -383,7 +391,7 @@ docker compose exec nginx nginx -s reload
 
 ## 7. 초대코드 및 알림 운영
 
-초대코드 인증은 스크래핑/무단 API 호출을 줄이기 위한 최소 접근 제어입니다. 사용자는 메인 화면에서 초대코드를 입력해야 하며, 인증 성공 후에만 이력서 분석, 공고 분석, 면접 시작 API를 호출할 수 있습니다.
+초대코드 인증은 스크래핑/무단 API 호출을 줄이기 위한 최소 접근 제어입니다. 사용자는 메인 화면에서 초대코드를 입력해야 하며, 인증 성공 후에만 이력서 분석, 공고 분석, 면접 시작 API를 호출할 수 있습니다. 운영 서버는 `MONGODB_URL`로 연결된 MongoDB Atlas의 `reflection.invite_codes` 컬렉션을 조회합니다. 서버 `.env`에는 명시적으로 `INVITE_DB_NAME=reflection`을 두는 것을 권장합니다.
 
 기본 50개 1회용 코드 생성:
 

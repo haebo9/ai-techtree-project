@@ -19,7 +19,7 @@ class Settings(BaseSettings):
 
     # 초대코드 인증 설정
     INVITE_AUTH_ENABLED: bool = True
-    INVITE_DB_NAME: str | None = None
+    INVITE_DB_NAME: str | None = None  # 없으면 REFLECTION_DB_NAME("reflection")을 사용합니다.
     INVITE_COLLECTION_NAME: str = "invite_codes"
     INVITE_SESSION_SECRET: str | None = None
     INVITE_SESSION_COOKIE_NAME: str = "techtree_invite_session"
