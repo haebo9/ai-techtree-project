@@ -2,7 +2,7 @@ services:
   backend:
     build:
       context: .
-      dockerfile: Dockerfile.backend
+      dockerfile: backend/Dockerfile
     container_name: techtree-backend-local
     env_file:
       - ./backend/.env.local
