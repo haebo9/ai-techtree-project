@@ -327,6 +327,12 @@ docker compose down
 docker compose up -d --build
 ```
 
+운영 `docker-compose.yml`의 `certbot` 컨테이너는 12시간마다 `certbot renew`를 실행합니다. `nginx` 컨테이너는 갱신된 인증서를 다시 읽을 수 있도록 6시간마다 `nginx -s reload`를 수행합니다. 갱신 직후 즉시 반영이 필요하면 아래 명령으로 수동 리로드할 수 있습니다.
+
+```bash
+docker compose exec nginx nginx -s reload
+```
+
 확인:
 
 ```bash
@@ -370,6 +376,7 @@ docker compose down
 
 ```bash
 docker compose run --rm certbot renew --dry-run
+docker compose exec nginx nginx -s reload
 ```
 
 ---

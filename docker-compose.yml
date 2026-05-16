@@ -37,6 +37,14 @@ services:
   nginx:
     image: nginx:1.27-alpine
     container_name: techtree-nginx
+    command: >
+      /bin/sh -c '
+      while :; do
+        sleep 6h;
+        nginx -s reload;
+      done &
+      nginx -g "daemon off;"
+      '
     ports:
       - "80:80"
       - "443:443"
