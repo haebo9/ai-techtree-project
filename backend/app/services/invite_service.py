@@ -74,7 +74,12 @@ class InviteCodeStore:
             serverSelectionTimeoutMS=1500,
             connectTimeoutMS=1500,
         )
-        self.db = self.client[db_name or settings.INVITE_DB_NAME or settings.DB_NAME]
+        self.db = self.client[
+            db_name
+            or settings.INVITE_DB_NAME
+            or settings.REFLECTION_DB_NAME
+            or settings.DB_NAME
+        ]
         self.collection: Collection = self.db[settings.INVITE_COLLECTION_NAME]
 
     def ensure_indexes(self) -> None:

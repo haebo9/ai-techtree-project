@@ -7,7 +7,9 @@ from app.api.router import api_router
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    version=settings.VERSION
+    version=settings.VERSION,
+    docs_url="/api/docs", # docs 경로 명시 
+    openapi_url="/api/openapi.json" # 스웨거 요청 경로 명시
 )
 
 # CORS 설정
@@ -35,6 +37,6 @@ async def root():
         "message": "Welcome to TechTree", 
         "docs": {
             "mcp": "/mcp/docs",
-            "api": "/docs"
+            "api": "/api/docs"
         }
     }

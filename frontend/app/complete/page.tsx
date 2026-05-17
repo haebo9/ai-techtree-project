@@ -33,7 +33,7 @@ export default function CompletePage() {
       <div className="theme-shell w-full max-w-2xl rounded-2xl border p-8 sm:p-12 text-center">
         <div className="mx-auto mb-6 w-16 h-16 rounded-2xl bg-gradient-to-br from-[#E2E8EC] via-[#8390D6] to-[#4556D6] p-0.5 shadow-lg shadow-[#7E8A92]/20 rotate-3">
           <div className="w-full h-full bg-white rounded-xl flex items-center justify-center overflow-hidden">
-            <Image src="/techtree-logo.png" alt="Logo" width={48} height={48} className="w-3/4 h-3/4 object-contain" priority loading="eager" />
+            <Image src="/logo/techtree-logo.png" alt="Logo" width={48} height={48} className="w-3/4 h-3/4 object-contain" priority loading="eager" />
           </div>
         </div>
 
