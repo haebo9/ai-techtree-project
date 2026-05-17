@@ -73,11 +73,11 @@
 
 | Technology | Current Usage | Decision Notes |
 | :--- | :--- | :--- |
-| **Next.js 16 App Router** | `/`, `/interview`, `/result`, `/complete`, `/debug` 페이지 구성 | 파일 기반 라우팅과 클라이언트 컴포넌트를 활용합니다. WebRTC, localStorage, FileReader, mediaDevices 사용 때문에 주요 화면은 클라이언트 컴포넌트입니다. |
+| **Next.js 16 App Router** | `/`, `/interview`, `/complete`, `/result`, `/debug` 페이지 구성 | 파일 기반 라우팅과 클라이언트 컴포넌트를 활용합니다. WebRTC, sessionStorage, FileReader, mediaDevices 사용 때문에 주요 화면은 클라이언트 컴포넌트입니다. `/result`는 legacy/manual report view로 보조 유지합니다. |
 | **React 19** | 면접 상태, transcript, WebRTC peer connection, data channel 이벤트 관리 | 실시간 이벤트 순서가 흔들릴 수 있으므로 `useRef` 기반 상태 보존과 방어적 이벤트 처리를 사용합니다. |
 | **Tailwind CSS 4** | 화면 스타일링과 반응형 UI 구성 | 별도 컴포넌트 라이브러리 없이 현재 화면에 맞춘 경량 스타일을 유지합니다. |
-| **Browser APIs** | `RTCPeerConnection`, `getUserMedia`, `localStorage`, `FileReader` | OpenAI Realtime 연결과 push-to-talk UX의 핵심입니다. 마이크 트랙은 기본 비활성화하고 사용자가 Space를 누르는 동안만 활성화합니다. |
-| **pdfjs-dist / heic2any** | 이력서 PDF 처리 보조, HEIC 채용 공고 이미지 변환 | 업로드 가능한 문서/이미지 입력 범위를 넓히기 위한 프론트 보조 도구입니다. |
+| **Browser APIs** | `RTCPeerConnection`, `getUserMedia`, `sessionStorage`, `FileReader` | OpenAI Realtime 연결과 push-to-talk UX의 핵심입니다. 마이크 트랙은 기본 비활성화하고 사용자가 Space를 누르는 동안만 활성화합니다. |
+| **heic2any** | HEIC 채용 공고 이미지 변환 | iPhone 등에서 캡처한 채용 공고 이미지를 JPEG로 변환해 입력 범위를 넓힙니다. PDF 이력서 텍스트 추출은 백엔드 `PyPDF2`가 담당합니다. |
 
 현재 사용하지 않는 이전 설계 요소:
 
@@ -112,9 +112,9 @@
 
 | Technology | Current Usage | Decision Notes |
 | :--- | :--- | :--- |
-| **OpenAI Realtime API** | 음성 면접관 대화, 음성/텍스트 응답, tool call 판단 | 면접 중 저지연 음성 UX가 가장 중요하므로 브라우저에서 WebRTC로 직접 연결합니다. |
+| **OpenAI Realtime API** | 음성 면접관 대화, 음성/텍스트 응답, 입력 음성 전사 | 면접 중 저지연 음성 UX가 가장 중요하므로 브라우저에서 WebRTC로 직접 연결합니다. 현재 채용 검색 도구 판단은 LangGraph manager가 담당합니다. |
 | **LangChain / langchain-openai** | `ChatOpenAI`, structured output, tool binding | 평가 리포트와 reflection 후보 생성처럼 구조화된 결과가 필요한 작업에 사용합니다. |
-| **LangGraph** | 면접 상태 저장, 평가 워크플로우 실행, `/chat` 호환 경로 | Realtime이 실제 면접 진행을 담당하지만, 종료 후 평가와 상태 기반 워크플로우에는 LangGraph를 유지합니다. |
+| **LangGraph** | 면접 전 컨텍스트 준비와 종료 후 평가 워크플로우 실행 | Realtime이 실제 면접 진행을 담당하지만, 준비 단계의 도구 호출 판단과 종료 후 평가에는 LangGraph를 유지합니다. |
 | **Reflection Service** | 과거 면접 결과에서 prompt guideline 후보 생성 및 선택 | `short`, `long`, `common` scope를 기준으로 다음 면접 프롬프트에 운영 지침을 주입합니다. |
 | **Structured Output** | 평가 리포트와 reflection 생성 결과 스키마 고정 | 리포트 화면과 이메일 템플릿이 기대하는 필드 구조를 안정적으로 맞추기 위해 사용합니다. |
 
@@ -132,7 +132,7 @@
 
 | Feature | Model | Purpose | Cost | Source |
 | :--- | :--- | :--- | :--- | :--- |
-| 실시간 음성 면접 세션 | `gpt-realtime-mini` | **저지연 S2S WebRTC 대화 및 실시간 Function Calling 제어**<br/>→ 면접 UX 최적화를 위한 Realtime 전용 mini 모델 활용 | Audio Input: $10.00<br/>Audio Output: $20.00<br/>Text Input: $0.60<br/>Text Output: $2.40 | `backend/app/api/interview.py`<br/>`frontend/app/interview/page.tsx`<br/>`frontend/app/debug/page.tsx` |
+| 실시간 음성 면접 세션 | `gpt-realtime-mini-2025-12-15` | **저지연 S2S WebRTC 대화 및 면접관 음성 응답**<br/>→ 면접 UX 최적화를 위한 Realtime 전용 mini 모델 활용 | Audio Input: $10.00<br/>Audio Output: $20.00<br/>Text Input: $0.60<br/>Text Output: $2.40 | `backend/app/api/interview.py`<br/>`frontend/app/interview/page.tsx`<br/>`frontend/app/debug/page.tsx` |
 | 실시간 입력 음성 전사 | `whisper-1` | **실시간 오디오 스트림 STT(Speech-to-Text) 및 텍스트 로그 보존**<br/>→ OpenAI Realtime 인터페이스 표준 모델 활용 | Transcription: $0.006 / minute | `backend/app/api/interview.py` |
 | 채용 공고 텍스트/이미지 직무명 추출 | `gpt-5.4-nano` | **멀티모달 Vision 기반 JD 개요 분석 및 엔티티(Entity) 추출**<br/>→ GPT-5.4 Nano의 경량 멀티모달 처리 성능 활용 | Input: $0.20<br/>Output: $1.25 | `backend/app/api/upload.py` |
 | 면접 시작 전 채용 공고 이미지 분석 | `gpt-5.4-nano` | **Vision 기반 구조화 요약(Structured Output) 및 요구역량 매핑**<br/>→ 대량 텍스트 요약 및 이미지 파싱 효율성 고려 | Input: $0.20<br/>Output: $1.25 | `backend/app/api/interview.py` |
@@ -162,7 +162,7 @@ AI 모델을 사용하지 않는 주요 기능:
 
 | Service | Current Usage | Decision Notes |
 | :--- | :--- | :--- |
-| **Tavily API** | `search_job_postings` 도구와 면접 시작 전 추천 공고 탐색 | 채용 공고 추천은 실제 검색 결과 기반이어야 하므로 LLM 생성 대신 검색 API를 사용합니다. API 키가 없거나 검색 실패 시 구조화된 빈 결과/trace를 반환합니다. |
+| **Tavily API** | LangGraph manager의 `search_korean_job_postings` 도구 | 채용 공고 데이터는 실제 검색 결과 기반이어야 하므로 LLM 생성 대신 검색 API를 사용합니다. API 키가 없거나 검색 실패 시 구조화된 빈 결과/trace를 반환합니다. |
 | **MongoDB / Atlas Vector Search** | reflection/policy 저장과 선택적 벡터 검색, 초대코드 저장 | 로컬 JSONL 저장소와 Mongo 저장소를 함께 고려하는 구조입니다. Atlas Vector Search가 가능하면 embedding 기반 유사 지침 검색을 사용합니다. 초대코드는 `invite_codes` 컬렉션에 `code`, `name`, `status`, `use_max`, `use_count`만 저장합니다. |
 | **Resend** | 최종 면접 리포트 이메일 발송 | 면접 종료 후 백그라운드 작업에서 평가 결과를 HTML 이메일로 발송합니다. |
 | **Telegram Bot API** | 운영 로그/초대코드 인증 알림 구조 | 배포 운영에서 장애나 주요 이벤트 알림에 사용할 수 있도록 설정값과 logger 구조를 유지합니다. 초대코드 인증 성공 시 전체 코드, 관리용 이름, 상태, 사용 횟수를 전송합니다. |
@@ -180,7 +180,7 @@ AI 모델을 사용하지 않는 주요 기능:
 | **Nginx** | Reverse Proxy 및 SSL Termination | 포트 `80/443`을 관리하며 프론트엔드(`:3000`)와 API(`:8000`) 경로를 분기 처리합니다. |
 | **Certbot** | Let's Encrypt 기반 자동 SSL 갱신 | 주기적인 인증서 갱신을 통해 보안 연결을 유지합니다. |
 | **Environment Variables** | `.env` 및 `docker-compose.yml` 관리 | API Key, DB URL, CORS 설정 등을 환경 변수로 주입하여 보안 및 유연성을 확보합니다. |
-| **AWS EC2** | t3.medium 이상급 인스턴스 권장 | 음성 처리 및 LangGraph 워크플로우의 안정적 수행을 위해 적정 리소스를 할당합니다. |
+| **AWS EC2** | `t3.small` 이상과 swap 권장 | 현재 가이드는 `t3.small` + 2GiB swap을 기준으로 하며, 트래픽 증가 시 더 큰 인스턴스로 확장합니다. |
 
 운영 및 배포 관리 원칙:
 

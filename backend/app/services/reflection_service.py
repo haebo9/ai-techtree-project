@@ -518,7 +518,9 @@ class ReflectionService:
         messages: Iterable[Any],
         evaluation: Dict[str, Any],
         interview_mode: str = "long",
+        saved_jobs: Optional[List[Dict[str, Any]]] = None,
     ) -> int:
+        _ = saved_jobs
         normalized_mode = _normalize_interview_mode(interview_mode)
         candidates = self._generate_candidates(
             job_title=job_title,
@@ -881,7 +883,7 @@ def safe_generate_and_store_reflections(
     education: str,
     messages: Iterable[Any],
     evaluation: Dict[str, Any],
-
+    saved_jobs: Optional[List[Dict[str, Any]]] = None,
     interview_mode: str = "long",
     injected_reflection_ids: Optional[List[str]] = None,
     injected_policy_ids: Optional[List[str]] = None,
@@ -896,7 +898,7 @@ def safe_generate_and_store_reflections(
             education=education,
             messages=messages,
             evaluation=evaluation,
-
+            saved_jobs=saved_jobs,
             interview_mode=interview_mode,
         )
     except Exception as exc:
