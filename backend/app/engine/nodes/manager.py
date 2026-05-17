@@ -25,10 +25,12 @@ def manager_agent_node(state: InterviewState):
     - 지원 직무: {job_title}
     - 사용자가 제공한 채용 공고: {job_description}
     
-    만약 사용자가 제공한 채용 공고 정보가 없거나, 직무 관련 필요 역량 및 우대 역량 등의 정보가 부족하다면 
-    반드시 `search_korean_job_postings` 툴을 사용해 직무 정보를 검색하세요.
+    [도구 사용 규칙]
+    - 사용자가 제공한 채용 공고 정보가 없거나, 직무 관련 필요 역량 및 우대 역량 등의 정보가 부족하면
+      `search_korean_job_postings` 툴을 1회 호출하세요.
     검색 쿼리(query)는 '{job_title}' 직무명으로 설정하세요.
-    정보가 이미 충분하다면 툴을 호출하지 말고 '정보가 충분하여 면접 준비를 완료합니다.'라고 답변하세요.
+    - 정보가 이미 충분하다면 툴을 호출하지 말고 '정보가 충분하여 면접 준비를 완료합니다.'라고 답변하세요.
+    - 직무명이 '정보 없음'이거나 공백이면 툴을 호출하지 말고 '지원 직무 정보가 부족하여 기본 면접 가이드로 진행합니다.'라고 답변하세요.
     """
     
     # We only want the agent to see the system prompt and any previous tool messages (if loop occurs)
