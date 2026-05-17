@@ -1,36 +1,33 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TechTree Frontend
 
-## Getting Started
+TechTree frontend는 Next.js App Router 기반의 AI 모의면접 UI입니다. 초대코드 인증, 지원자 정보 입력, 이력서/채용 공고 업로드, OpenAI Realtime WebRTC 면접 화면, 완료 안내 화면, 개발자 디버그 화면을 담당합니다.
 
-First, run the development server:
+## Local Development
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+기본 접속 주소:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```text
+http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+로컬 개발에서는 `next.config.ts`의 rewrite가 `/api/*` 요청을 기본적으로 `http://localhost:8000/api/*`로 전달합니다. 다른 백엔드를 사용하려면 `BACKEND_INTERNAL_URL`을 설정합니다.
 
-## Learn More
+## Key Pages
 
-To learn more about Next.js, take a look at the following resources:
+- `/`: 초대코드 인증, 면접 정보 입력, 서비스 소개
+- `/interview`: OpenAI Realtime WebRTC 음성 면접
+- `/complete`: 비동기 이메일 리포트 생성 안내
+- `/result`: legacy/manual report view
+- `/debug`: Realtime 세션과 transcript 확인용 개발자 도구
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Checks
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run lint
+npm run build
+```

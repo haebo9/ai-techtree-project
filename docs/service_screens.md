@@ -52,7 +52,7 @@
 
 ## Developer Debug
 
-> Realtime 세션 연결, 이벤트 로그, tool call 흐름을 점검하기 위한 개발자용 화면입니다.
+> Realtime 세션 연결, 프롬프트, 이벤트 로그, transcript 흐름을 점검하기 위한 개발자용 화면입니다.
 
 ![TechTree debug screen](../frontend/public/service/techtree-debug.png)
 

@@ -213,6 +213,7 @@ async def start_interview(request: StartInterviewRequest):
         ephemeral_token=ephemeral_token,
         message="면접 세션이 준비되었습니다.",
         job_posting_analysis=context["job_posting_analysis"],
+        prepared_jobs=context["prepared_jobs"],
         interview_mode=context["interview_mode"],
         prompt_variant=context["prompt_variant"],
         guideline_selection=context["guideline_selection"],

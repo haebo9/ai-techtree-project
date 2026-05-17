@@ -125,6 +125,14 @@ def test_prepare_interview_context_falls_back_to_long_for_unknown_mode(monkeypat
 
 def test_start_interview_does_not_register_realtime_search_tools(monkeypatch):
     captured_payload = {}
+    prepared_jobs = [
+        {
+            "company": "A",
+            "title": "AI Engineer",
+            "url": "https://example.com/jobs/1",
+            "content": "상시채용. AI 서비스 개발.",
+        }
+    ]
 
     class FakeRealtimeResponse:
         def raise_for_status(self):
@@ -158,7 +166,7 @@ def test_start_interview_does_not_register_realtime_search_tools(monkeypatch):
             "job_posting_analysis": {"status": "not_provided"},
             "job_posting_analysis_status": "not_provided",
             "context_jobs": [],
-            "prepared_jobs": [],
+            "prepared_jobs": prepared_jobs,
             "job_description": "맞춤형 채용 공고 정보 없음",
             "reflection_guidelines": "",
             "guideline_selection": {"text": "", "reflection_ids": [], "policy_ids": []},
@@ -183,6 +191,7 @@ def test_start_interview_does_not_register_realtime_search_tools(monkeypatch):
     )
 
     assert response.ephemeral_token == "ephemeral-test-token"
+    assert response.prepared_jobs == prepared_jobs
     assert "tools" not in captured_payload
     assert "tool_choice" not in captured_payload
 

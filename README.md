@@ -20,12 +20,65 @@
 ![Service Capture](frontend/public/service/techtree-home.png)
 
 ## 📖 Index
-- [Documentation](#-documentation): 기획 및 설계 문서 <br/>
+- [Current Service Flow](#-current-service-flow): 현재 서비스 흐름 <br/>
 - [Tech Stack](#-tech-stack): 사용 기술 및 도구 <br/>
 - [Architecture & Agent Workflow](#-architecture--agent-workflow): 시스템 구조 <br/>
+- [Documentation](#-documentation): 기획 및 설계 문서 <br/>
 - [Git & Deployment](#-git--deployment): 브랜치 전략 및 배포 <br/>
 - [Version History](#-version-history): 버전별 변경 사항 <br/>
 - [Getting Started](#-getting-started): 설치 및 실행 방법
+
+---
+
+## ⭐ Current Service Flow
+
+> 현재 운영 버전(v2.0.0)의 기본 흐름은 **초대코드 인증 → 정보 입력 → Realtime 음성 면접 → 완료 화면 → 이메일 리포트**입니다.
+
+1. 사용자는 초대코드 인증 후 지원 직무, 경력, 학력, 이메일, 이력서, 채용 공고 정보를 입력합니다.
+2. 프론트엔드는 입력값을 브라우저 세션에 저장하고 `/interview`로 이동합니다.
+3. FastAPI 백엔드는 LangGraph manager로 면접 컨텍스트를 준비하고 OpenAI Realtime WebRTC client secret을 발급합니다.
+4. 브라우저는 OpenAI Realtime에 WebRTC로 직접 연결하고, 사용자는 Space 기반 Push-to-Talk 방식으로 답변합니다.
+5. 면접 종료 후 transcript와 실제 공고 데이터는 백엔드 평가 흐름에 전달됩니다.
+6. LangGraph evaluator가 구조화된 평가 리포트를 생성하고, Resend를 통해 입력한 이메일로 발송합니다.
+
+핵심 리포트 항목:
+
+- 종합 점수
+- 강점 및 개선점
+- 주요 Q&A 피드백
+- 말투/답변 습관 피드백
+- 이력서 기반 자기소개 개선안
+- 이력서-직무 적합도
+- 전체 대화 내역
+
+---
+
+## ⭐ Tech Stack
+
+> 프로젝트에 사용된 핵심 기술 및 인프라 구성입니다.
+
+| Category | Technology | Description |
+| --- | --- | --- |
+| **Frontend** | ![Next.js](https://img.shields.io/badge/Next.js-000000?style=flat-square&logo=nextdotjs&logoColor=white) ![React](https://img.shields.io/badge/React-61DAFB?style=flat-square&logo=react&logoColor=black) ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=flat-square&logo=tailwind-css&logoColor=white) | Modern Web Application (App Router) |
+| **Backend** | ![Python](https://img.shields.io/badge/python-3670A0?style=flat-square&logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white) | High-Performance API & Realtime Session Server |
+| **AI / LLM** | ![OpenAI](https://img.shields.io/badge/OpenAI_Realtime-412991?style=flat-square&logo=openai&logoColor=white) ![LangGraph](https://img.shields.io/badge/LangGraph-FF4B4B?style=flat-square) ![LangChain](https://img.shields.io/badge/LangChain-1C3C3C?style=flat-square&logo=langchain&logoColor=white) | Realtime WebRTC & Agent Orchestration |
+| **ExternalAPI** | ![WebRTC](https://img.shields.io/badge/WebRTC-333333?style=flat-square&logo=webrtc&logoColor=white) ![Tavily](https://img.shields.io/badge/Tavily-4285F4?style=flat-square) ![Resend](https://img.shields.io/badge/Resend-000000?style=flat-square) | Realtime Communication & External Services |
+| **Cloud/DB** | ![AWS](https://img.shields.io/badge/AWS-232F3E?style=flat-square&logo=amazon-aws&logoColor=white) ![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=flat-square&logo=mongodb&logoColor=white) | Cloud Infrastructure & Database |
+
+--- 
+## ⭐ Architecture & Agent Workflow
+- **Frontend**: `Next.js (App Router)` 기반의 반응형 웹 서비스로 구현되었습니다.
+- **Backend**: `FastAPI` 서버를 통해 OpenAI Realtime 세션 관리 및 비즈니스 로직을 처리합니다.
+- **AI Engine**: `LangGraph`를 사용하여 면접 전 컨텍스트 준비, 면접 평가, 자기 비판(Self-Reflection) 기반 프롬프트 개선을 관리합니다.
+- **Realtime**: `WebRTC` 기술을 활용하여 저지연 실시간 음성 통신을 지원합니다.
+
+> [**System Architecture**](docs/architecture.md)
+![TechTree v2.0 system architecture](docs/images/Techtree-Arch-v2.0.drawio.svg)
+*(v2.0 아키텍처 다이어그램)*
+
+> [**Agent Workflow**](docs/agent_workflow.md)
+![TechTree v2.0 LangGraph workflow](docs/images/v2.0_agent_logic.png)
+*(v2.0 랭그래프 워크플로우)*
 
 ---
 
@@ -44,48 +97,21 @@
 
 ---
 
-## ⭐ Tech Stack
-
-> 프로젝트에 사용된 핵심 기술 및 인프라 구성입니다.
-
-| Category | Technology | Description |
-| --- | --- | --- |
-| **Frontend** | ![Next.js](https://img.shields.io/badge/Next.js-000000?style=flat-square&logo=nextdotjs&logoColor=white) ![React](https://img.shields.io/badge/React-61DAFB?style=flat-square&logo=react&logoColor=black) ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=flat-square&logo=tailwind-css&logoColor=white) | Modern Web Application (App Router) |
-| **Backend** | ![Python](https://img.shields.io/badge/python-3670A0?style=flat-square&logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white) | High-Performance API & Realtime Session Server |
-| **AI / LLM** | ![OpenAI](https://img.shields.io/badge/OpenAI_Realtime-412991?style=flat-square&logo=openai&logoColor=white) ![LangGraph](https://img.shields.io/badge/LangGraph-FF4B4B?style=flat-square) ![LangChain](https://img.shields.io/badge/LangChain-1C3C3C?style=flat-square&logo=langchain&logoColor=white) | Realtime S2S & Agent Orchestration |
-| **ExternalAPI** | ![WebRTC](https://img.shields.io/badge/WebRTC-333333?style=flat-square&logo=webrtc&logoColor=white) ![Tavily](https://img.shields.io/badge/Tavily-4285F4?style=flat-square) ![Resend](https://img.shields.io/badge/Resend-000000?style=flat-square) | Realtime Communication & External Services |
-| **Cloud/DB** | ![AWS](https://img.shields.io/badge/AWS-232F3E?style=flat-square&logo=amazon-aws&logoColor=white) ![Vercel](https://img.shields.io/badge/Vercel-000000?style=flat-square&logo=vercel&logoColor=white) ![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=flat-square&logo=mongodb&logoColor=white) | Cloud Infrastructure & Database |
-
---- 
-## ⭐ Architecture & Agent Workflow
-- **Frontend**: `Next.js (App Router)` 기반의 반응형 웹 서비스로 구현되었습니다.
-- **Backend**: `FastAPI` 서버를 통해 OpenAI Realtime 세션 관리 및 비즈니스 로직을 처리합니다.
-- **AI Engine**: `LangGraph`를 사용하여 면접 평가, 자기 비판(Self-Reflection), 리포트 생성 프로세스를 관리합니다.
-- **Realtime**: `WebRTC` 기술을 활용하여 저지연 실시간 음성 통신을 지원합니다.
-
-> [**System Architecture**](docs/architecture.md)
-![TechTree v2.0 system architecture](docs/images/Techtree-Arch-v2.0.drawio.svg)
-*(v2.0 아키텍처 다이어그램)*
-
-> [**Agent Workflow**](docs/agent_workflow.md)
-![TechTree v2.0 LangGraph workflow](docs/images/v2.0_agent_logic.png)
-*(v2.0 랭그래프 워크플로우)*
-
----
 ## ⭐ Git & Deployment
 
 > 본 프로젝트는 **개발(Dev)** 과 **운영(Prod)** 환경을 철저히 분리하여 데이터 안정성과 배포 속도를 모두 확보했습니다.
 
 | Branch | Action & Role | Frontend | Backend | Database |
 | :--- | :--- | :--- | :--- | :--- |
-| **`develop`** | **Develop & Test**<br/>개발 및 로컬/도커 테스트 | **Localhost / Preview**<br/>(Dev Environment) | **Local Uvicorn / Docker Smoke Test** | **MongoDB Atlas**<br/>(Unified DB) + **Local JSONL Fallback** |
-| **`main` / `Tag`** | **Production**<br/>AWS 서버 배포 | **AWS EC2 Docker**<br/>(Next.js + Nginx) | **AWS EC2 Docker**<br/>(FastAPI/Uvicorn) | **MongoDB Atlas**<br/>(Unified DB) + **AWS JSONL Fallback / Sync** |
+| **`develop`** | **Develop & Test**<br/>개발 및 로컬/도커 테스트 | **Localhost / Preview**<br/>(Dev Environment) | **Local Uvicorn / Docker Smoke Test** | **MongoDB Atlas**<br/>(Reflection/Policy, Invite) + **Local JSONL Fallback** |
+| **`main` / `Tag`** | **Production**<br/>AWS 서버 배포 | **AWS EC2 Docker**<br/>(Next.js + Nginx) | **AWS EC2 Docker**<br/>(FastAPI/Uvicorn) | **MongoDB Atlas**<br/>(Reflection/Policy, Invite) + **AWS JSONL Fallback** |
 
 ---
 
 ## ⭐ Version History
 
-> 프로젝트의 주요 릴리즈 및 변경 사항 내역입니다.<br/>
+> 현재 운영 버전은 **v2.0.0 Realtime Voice Interview**입니다.<br/>
+> 아래는 프로젝트의 주요 릴리즈 및 변경 사항 내역입니다.<br/>
 
 | Version | Feature | KeyTechnology | Release Date |
 | :--- | :--- | :--- | :--- |
@@ -111,3 +137,39 @@
    - TAVILY_API_KEY (Job Search)
    - RESEND_API_KEY (Email Report)
    - MONGODB_URL (Optional reflection memory)
+
+### Local Development
+
+Backend:
+
+```bash
+source .venv/bin/activate
+cd backend
+uvicorn app.main:app --reload --port 8000
+```
+
+Frontend:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Useful URLs:
+
+- Frontend: `http://localhost:3000`
+- Debug page: `http://localhost:3000/debug`
+- Backend docs: `http://localhost:8000/docs`
+
+### Verification
+
+```bash
+.venv/bin/python -m compileall backend/app
+```
+
+```bash
+cd frontend
+npm run lint
+npm run build
+```
