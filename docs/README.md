@@ -2,10 +2,11 @@
 
 TechTree 문서는 최종 배포, 개발자 온보딩, 포트폴리오 설명을 함께 지원하기 위해 관리됩니다.
 
-## 핵심 문서
+## 서비스 이해
 
 - [TechTree Wiki](./techtree-wiki.md): 서비스 목적, 전체 아키텍처, API 흐름, Realtime 면접, 평가, Reflection/Policy 자기개선, Docker/AWS 배포를 한 번에 설명하는 기준 문서
-- [User Flow](./user_flow.md): 사용자가 보는 화면 흐름과 시스템 내부 처리 순서
+- [Service Screens](./service_screens.md): 서비스에 접속하지 않고도 홈, 면접, 완료, 리포트 화면을 확인할 수 있는 이미지 중심 문서
+- [User Flow](./user_flow.md): 사용자가 보는 화면 흐름과 각 단계의 시스템 내부 처리 순서
 - [MVP and Plan](./mvp_and_plan.md): MVP에서 현재 배포 버전까지의 기능 진화와 향후 과제
 
 ## 설계와 의사결정

@@ -1,5 +1,5 @@
 # 개발자의 성장이 현실이 되는 곳, TechTree
-# 👉 [서비스 바로가기](https://techtree.haebo.pro) 👈
+### 👉 [서비스 바로가기 : https://techtree.haebo.pro](https://techtree.haebo.pro) 👈
 
 <img src="frontend/public/logo/techtree-logo.png" width="200" height="200" alt="TechTree Tree" style="border-radius: 50%; object-fit: cover;">
 
@@ -16,12 +16,13 @@
 > 💡 **실시간 통신(WebRTC)** 의 속도감과 **에이전틱한 작업 흐름**의 정교함을 동시에 확보하도록 설계되었습니다.<br/>
 > 💡 반복적인 **실전 연습**과 AI의 객관적인 **피드백**을 통해 면접 역량을 극대화합니다. 
 
+> [TechTree Service UI](docs/service_screens.md)
 ![Service Capture](frontend/public/service/techtree-home.png)
 
 ## 📖 Index
 - [Documentation](#-documentation): 기획 및 설계 문서 <br/>
 - [Tech Stack](#-tech-stack): 사용 기술 및 도구 <br/>
-- [Architecture & Agent Workflow](#-Architecture-&-Agent-Workflow): 시스템 구조 <br/>
+- [Architecture & Agent Workflow](#-architecture--agent-workflow): 시스템 구조 <br/>
 - [Git & Deployment](#-git--deployment): 브랜치 전략 및 배포 <br/>
 - [Version History](#-version-history): 버전별 변경 사항 <br/>
 - [Getting Started](#-getting-started): 설치 및 실행 방법
@@ -36,7 +37,8 @@
 
 | Category | Description | Key Documents |
 | --- | --- | --- |
-| **기획 (PRD)** | 서비스 목표 및 흐름 정의 | • [MVP 및 개발 계획](docs/mvp_and_plan.md)<br>• [서비스 흐름도](docs/user_flow.md) |
+| **서비스 (Product)** | 실제 화면과 사용자 흐름 | • [서비스 화면](docs/service_screens.md)<br>• [서비스 흐름도](docs/user_flow.md) |
+| **기획 (PRD)** | 서비스 목표 및 개발 계획 | • [MVP 및 개발 계획](docs/mvp_and_plan.md)<br>• [TechTree Wiki](docs/techtree-wiki.md) |
 | **설계 (Design)** | 시스템 및 AI 에이전트 설계 | • [시스템 아키텍처](docs/architecture.md)<br>• [AI 에이전트 워크플로우](docs/agent_workflow.md) |
 | **지식 (Knowledge)** | 기술 의사결정 및 참고 자료 | • [기술 스택 선정 이유](docs/tech_decisions.md)<br>• [참고 레퍼런스](docs/references.md) |
 
@@ -62,11 +64,11 @@
 - **Realtime**: `WebRTC` 기술을 활용하여 저지연 실시간 음성 통신을 지원합니다.
 
 > [**System Architecture**](docs/architecture.md)
-![alt text](docs/images/Techtree-Arch-v2.0.drawio.svg)
+![TechTree v2.0 system architecture](docs/images/Techtree-Arch-v2.0.drawio.svg)
 *(v2.0 아키텍처 다이어그램)*
 
 > [**Agent Workflow**](docs/agent_workflow.md)
-![alt text](docs/images/v2.0_agent_logic.png)
+![TechTree v2.0 LangGraph workflow](docs/images/v2.0_agent_logic.png)
 *(v2.0 랭그래프 워크플로우)*
 
 ---
@@ -76,8 +78,8 @@
 
 | Branch | Action & Role | Frontend | Backend | Database |
 | :--- | :--- | :--- | :--- | :--- |
-| **`develop`** | **Develop & Test**<br/>개발 및 로컬 테스트 | **Localhost / Preview**<br/>(Dev Environment) | **Local Docker**<br/>(Uvicorn Reload) | **MongoDB Atlas**<br/>(Dev) |
-| **`main` / `Tag`** | **Production**<br/>실제 라이브 서비스 | **Vercel Prod**<br/>(Edge Network) | **FastAPI Runtime** | **Optional MongoDB Atlas**<br/>(Reflection Memory) |
+| **`develop`** | **Develop & Test**<br/>개발 및 로컬/도커 테스트 | **Localhost / Preview**<br/>(Dev Environment) | **Local Uvicorn / Docker Smoke Test** | **MongoDB Atlas**<br/>(Unified DB) + **Local JSONL Fallback** |
+| **`main` / `Tag`** | **Production**<br/>AWS 서버 배포 | **AWS EC2 Docker**<br/>(Next.js + Nginx) | **AWS EC2 Docker**<br/>(FastAPI/Uvicorn) | **MongoDB Atlas**<br/>(Unified DB) + **AWS JSONL Fallback / Sync** |
 
 ---
 
@@ -90,7 +92,7 @@
 | [**v1.0.0**](https://github.com/haebo9/ai-techtree-project/tree/v1.0.0) | **MCP Tool Calling Agent**<br>MCP tool을 활용한 챗봇 서비스 | Langchain, MCP, FastAPI, AWS | 2026.01.15 |
 | [**v1.1.0**](https://github.com/haebo9/ai-techtree-project/tree/v1.1.0) | **Agentic Quiz System**<br>키워드 기반 동적 문제 풀이 서비스 | LangGraph, MongoDB, Streamlit | 2026.03.02 |
 | [**v1.1.1(lab)**](https://github.com/haebo9/ai-techtree-project/tree/v1.1.1(lab)) | **Multi-Agent Workflow**<br>LangGraph 기반 에이전트 워크플로우 고도화 | LangGraph, Sub-Agents, Next.js | - |
-| [**v2.0.0**]((https://github.com/haebo9/ai-techtree-project/tree/v2.0.0)) | **Realtime Voice Interview**<br>실시간 음성 면접 및 멀티모달 분석 서비스 | OpenAI Realtime, WebRTC, Next.js | 2026.05.18 |
+| [**v2.0.0**](https://github.com/haebo9/ai-techtree-project/tree/v2.0.0) | **Realtime Voice Interview**<br>실시간 음성 면접 및 멀티모달 분석 서비스 | OpenAI Realtime, WebRTC, Next.js | 2026.05.18 |
 
 ---
 
@@ -100,7 +102,7 @@
 ### Prerequisites (v2.0 Deployment)
 - **Environment**:
    - **Python**: `3.12.13` (Release Version: python:3.12-slim)
-   - **Node.js**: `v25.2.1` (Release Version: node:22-slim)
+   - **Node.js**: `22.x` (Release Version: node:22-slim)
    - **Next.js**: `16.2.6`
    - **React**: `19.2.6`
 
