@@ -30,7 +30,7 @@ def test_common_prompt_keeps_required_realtime_guardrails():
     assert "둘 중 하나를 생략하지 마세요" in prompt
     assert "이력서에 명시된 경험은 직접 언급할 수 있습니다" in prompt
     assert "선택지를 먼저 제시하지 말고" in prompt
-    assert "지원자가 면접 종료 의사를 명확히 밝히면" in prompt
+    assert "지원자가 면접 종료 의사를 말하더라도" in prompt
     assert "평가는 최종 리포트에서만 제공됩니다" in prompt
 
 
@@ -91,3 +91,10 @@ def test_every_realtime_voice_has_interviewer_name():
         "shimmer": "Yuna",
         "verse": "Jin",
     }
+
+
+def test_prompt_uses_natural_operation_header_without_model_name_label():
+    prompt = _prompt()
+
+    assert "# 대화 운영 원칙" in prompt
+    assert "# Realtime 모델 운영 원칙" not in prompt
