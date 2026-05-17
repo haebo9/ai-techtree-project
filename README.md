@@ -20,27 +20,36 @@
 ![Service Capture](frontend/public/service/techtree-home.png)
 
 ## 📖 Index
-- [Documentation](#-documentation): 기획 및 설계 문서 <br/>
+- [Current Service Flow](#-current-service-flow): 현재 서비스 흐름 <br/>
 - [Tech Stack](#-tech-stack): 사용 기술 및 도구 <br/>
 - [Architecture & Agent Workflow](#-architecture--agent-workflow): 시스템 구조 <br/>
+- [Documentation](#-documentation): 기획 및 설계 문서 <br/>
 - [Git & Deployment](#-git--deployment): 브랜치 전략 및 배포 <br/>
 - [Version History](#-version-history): 버전별 변경 사항 <br/>
 - [Getting Started](#-getting-started): 설치 및 실행 방법
 
 ---
 
-## ⭐ Documentation
+## ⭐ Current Service Flow
 
-> 프로젝트의 모든 기획 및 설계 문서는 [`docs`](docs/README.md) 디렉토리 내에서 코드와 함께 관리됩니다.
+> 현재 운영 버전(v2.0.0)의 기본 흐름은 **초대코드 인증 → 정보 입력 → Realtime 음성 면접 → 완료 화면 → 이메일 리포트**입니다.
 
-### 📂 Documentation Structure
+1. 사용자는 초대코드 인증 후 지원 직무, 경력, 학력, 이메일, 이력서, 채용 공고 정보를 입력합니다.
+2. 프론트엔드는 입력값을 브라우저 세션에 저장하고 `/interview`로 이동합니다.
+3. FastAPI 백엔드는 LangGraph manager로 면접 컨텍스트를 준비하고 OpenAI Realtime WebRTC client secret을 발급합니다.
+4. 브라우저는 OpenAI Realtime에 WebRTC로 직접 연결하고, 사용자는 Space 기반 Push-to-Talk 방식으로 답변합니다.
+5. 면접 종료 후 transcript와 실제 공고 데이터는 백엔드 평가 흐름에 전달됩니다.
+6. LangGraph evaluator가 구조화된 평가 리포트를 생성하고, Resend를 통해 입력한 이메일로 발송합니다.
 
-| Category | Description | Key Documents |
-| --- | --- | --- |
-| **서비스 (Product)** | 실제 화면과 사용자 흐름 | • [서비스 화면](docs/service_screens.md)<br>• [서비스 흐름도](docs/user_flow.md) |
-| **기획 (PRD)** | 서비스 목표 및 개발 계획 | • [MVP 및 개발 계획](docs/mvp_and_plan.md)<br>• [TechTree Wiki](docs/techtree-wiki.md) |
-| **설계 (Design)** | 시스템 및 AI 에이전트 설계 | • [시스템 아키텍처](docs/architecture.md)<br>• [AI 에이전트 워크플로우](docs/agent_workflow.md) |
-| **지식 (Knowledge)** | 기술 의사결정 및 참고 자료 | • [기술 스택 선정 이유](docs/tech_decisions.md)<br>• [참고 레퍼런스](docs/references.md) |
+핵심 리포트 항목:
+
+- 종합 점수
+- 강점 및 개선점
+- 주요 Q&A 피드백
+- 말투/답변 습관 피드백
+- 이력서 기반 자기소개 개선안
+- 이력서-직무 적합도
+- 전체 대화 내역
 
 ---
 
@@ -52,7 +61,7 @@
 | --- | --- | --- |
 | **Frontend** | ![Next.js](https://img.shields.io/badge/Next.js-000000?style=flat-square&logo=nextdotjs&logoColor=white) ![React](https://img.shields.io/badge/React-61DAFB?style=flat-square&logo=react&logoColor=black) ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=flat-square&logo=tailwind-css&logoColor=white) | Modern Web Application (App Router) |
 | **Backend** | ![Python](https://img.shields.io/badge/python-3670A0?style=flat-square&logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white) | High-Performance API & Realtime Session Server |
-| **AI / LLM** | ![OpenAI](https://img.shields.io/badge/OpenAI_Realtime-412991?style=flat-square&logo=openai&logoColor=white) ![LangGraph](https://img.shields.io/badge/LangGraph-FF4B4B?style=flat-square) ![LangChain](https://img.shields.io/badge/LangChain-1C3C3C?style=flat-square&logo=langchain&logoColor=white) | Realtime S2S & Agent Orchestration |
+| **AI / LLM** | ![OpenAI](https://img.shields.io/badge/OpenAI_Realtime-412991?style=flat-square&logo=openai&logoColor=white) ![LangGraph](https://img.shields.io/badge/LangGraph-FF4B4B?style=flat-square) ![LangChain](https://img.shields.io/badge/LangChain-1C3C3C?style=flat-square&logo=langchain&logoColor=white) | Realtime WebRTC & Agent Orchestration |
 | **ExternalAPI** | ![WebRTC](https://img.shields.io/badge/WebRTC-333333?style=flat-square&logo=webrtc&logoColor=white) ![Tavily](https://img.shields.io/badge/Tavily-4285F4?style=flat-square) ![Resend](https://img.shields.io/badge/Resend-000000?style=flat-square) | Realtime Communication & External Services |
 | **Cloud/DB** | ![AWS](https://img.shields.io/badge/AWS-232F3E?style=flat-square&logo=amazon-aws&logoColor=white) ![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=flat-square&logo=mongodb&logoColor=white) | Cloud Infrastructure & Database |
 
@@ -72,20 +81,37 @@
 *(v2.0 랭그래프 워크플로우)*
 
 ---
+
+## ⭐ Documentation
+
+> 프로젝트의 모든 기획 및 설계 문서는 [`docs`](docs/README.md) 디렉토리 내에서 코드와 함께 관리됩니다.
+
+### 📂 Documentation Structure
+
+| Category | Description | Key Documents |
+| --- | --- | --- |
+| **서비스 (Product)** | 실제 화면과 사용자 흐름 | • [서비스 화면](docs/service_screens.md)<br>• [서비스 흐름도](docs/user_flow.md) |
+| **기획 (PRD)** | 서비스 목표 및 개발 계획 | • [MVP 및 개발 계획](docs/mvp_and_plan.md)<br>• [TechTree Wiki](docs/techtree-wiki.md) |
+| **설계 (Design)** | 시스템 및 AI 에이전트 설계 | • [시스템 아키텍처](docs/architecture.md)<br>• [AI 에이전트 워크플로우](docs/agent_workflow.md) |
+| **지식 (Knowledge)** | 기술 의사결정 및 참고 자료 | • [기술 스택 선정 이유](docs/tech_decisions.md)<br>• [참고 레퍼런스](docs/references.md) |
+
+---
+
 ## ⭐ Git & Deployment
 
 > 본 프로젝트는 **개발(Dev)** 과 **운영(Prod)** 환경을 철저히 분리하여 데이터 안정성과 배포 속도를 모두 확보했습니다.
 
 | Branch | Action & Role | Frontend | Backend | Database |
 | :--- | :--- | :--- | :--- | :--- |
-| **`develop`** | **Develop & Test**<br/>개발 및 로컬/도커 테스트 | **Localhost / Preview**<br/>(Dev Environment) | **Local Uvicorn / Docker Smoke Test** | **MongoDB Atlas**<br/>(Unified DB) + **Local JSONL Fallback** |
+| **`develop`** | **Develop & Test**<br/>개발 및 로컬/도커 테스트 | **Localhost / Preview**<br/>(Dev Environment) | **Local Uvicorn / Docker Smoke Test** | **MongoDB Atlas**<br/>(Reflection/Policy, Invite) + **Local JSONL Fallback** |
 | **`main` / `Tag`** | **Production**<br/>AWS 서버 배포 | **AWS EC2 Docker**<br/>(Next.js + Nginx) | **AWS EC2 Docker**<br/>(FastAPI/Uvicorn) | **MongoDB Atlas**<br/>(Reflection/Policy, Invite) + **AWS JSONL Fallback** |
 
 ---
 
 ## ⭐ Version History
 
-> 프로젝트의 주요 릴리즈 및 변경 사항 내역입니다.<br/>
+> 현재 운영 버전은 **v2.0.0 Realtime Voice Interview**입니다.<br/>
+> 아래는 프로젝트의 주요 릴리즈 및 변경 사항 내역입니다.<br/>
 
 | Version | Feature | KeyTechnology | Release Date |
 | :--- | :--- | :--- | :--- |
@@ -111,3 +137,39 @@
    - TAVILY_API_KEY (Job Search)
    - RESEND_API_KEY (Email Report)
    - MONGODB_URL (Optional reflection memory)
+
+### Local Development
+
+Backend:
+
+```bash
+source .venv/bin/activate
+cd backend
+uvicorn app.main:app --reload --port 8000
+```
+
+Frontend:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Useful URLs:
+
+- Frontend: `http://localhost:3000`
+- Debug page: `http://localhost:3000/debug`
+- Backend docs: `http://localhost:8000/docs`
+
+### Verification
+
+```bash
+.venv/bin/python -m compileall backend/app
+```
+
+```bash
+cd frontend
+npm run lint
+npm run build
+```
