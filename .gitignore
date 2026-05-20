@@ -17,6 +17,7 @@ coverage/
 dist/
 build/
 backend/scripts/mongo_backup
+.npm-cache/
 
 # --- Backend (Python) ---
 backend/.venv/

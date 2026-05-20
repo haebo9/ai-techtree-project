@@ -1,0 +1,660 @@
+"use client";
+
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
+import { apiPath } from "@/lib/api";
+import { isInterviewClosingTranscript } from "@/lib/interviewClosing";
+
+interface JobSearchResult {
+  company?: string;
+  title?: string;
+  url?: string;
+  content?: string;
+  deadline_status?: string;
+}
+
+interface ToolTrace {
+  tool_name?: string;
+  query?: string;
+  status?: string;
+  reason?: string;
+  raw_count?: number;
+  filtered_count?: number;
+}
+
+interface TranscriptEntry {
+  role: "user" | "ai";
+  text: string;
+  pending?: boolean;
+}
+
+let globalInterviewConnectionId = 0;
+const FINAL_REMARK_GRACE_MS = 12000;
+const MIN_RECORDING_MS = 700;
+
+async function readApiError(response: Response, fallback: string): Promise<string> {
+  try {
+    const data = await response.json();
+    if (typeof data?.detail === "string") return data.detail;
+    if (typeof data?.message === "string") return data.message;
+  } catch {
+    // Ignore non-JSON error responses.
+  }
+  return fallback;
+}
+
+export default function InterviewPage() {
+  const router = useRouter();
+
+  const [isRecording, setIsRecording] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [statusText, setStatusText] = useState("마이크 권한을 확인 중입니다...");
+  const [isEnding, setIsEnding] = useState(false);
+  const [isAutoEnding, setIsAutoEnding] = useState(false);
+  const [isPreparingInterview, setIsPreparingInterview] = useState(true);
+
+  // WebRTC 및 Media 참조
+  const pcRef = useRef<RTCPeerConnection | null>(null);
+  const dcRef = useRef<RTCDataChannel | null>(null);
+  const audioElRef = useRef<HTMLAudioElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  // 세션 정보 및 대화 기록(Transcript) 임시 저장소
+  const transcriptRef = useRef<TranscriptEntry[]>([]);
+  const pendingUserTranscriptIndexesRef = useRef<number[]>([]);
+  const savedJobsRef = useRef<JobSearchResult[]>([]);
+  const toolTracesRef = useRef<ToolTrace[]>([]);
+  const sessionIdRef = useRef<string | null>(null);
+  const startTimeRef = useRef<number | null>(null);
+  const isEndingRef = useRef(false);
+  const autoEndTimerRef = useRef<number | null>(null);
+  const pendingAutoEndRef = useRef(false);
+  const isSpeakingRef = useRef(false);
+  const isAutoEndingRef = useRef(false);
+  const recordingStartedAtRef = useRef<number | null>(null);
+  const aiTranscriptByItemRef = useRef<Record<string, string>>({});
+  const savedAiTranscriptKeysRef = useRef<Set<string>>(new Set());
+  const savedAiTranscriptTextsRef = useRef<Set<string>>(new Set());
+  const activeConnectionIdRef = useRef(0);
+  const initStartTimerRef = useRef<number | null>(null);
+  const initialResponseRequestedRef = useRef(false);
+  const jobImagePendingRef = useRef(false);
+  const jobImageInjectedRef = useRef(false);
+  const interviewModeRef = useRef<"short" | "long">("long");
+
+  const createTimedResponseEvent = useCallback(() => {
+    return {
+      type: "response.create"
+    };
+  }, []);
+
+  const cleanupRealtimeSession = useCallback(() => {
+    if (initStartTimerRef.current) {
+      window.clearTimeout(initStartTimerRef.current);
+      initStartTimerRef.current = null;
+    }
+    if (autoEndTimerRef.current) {
+      window.clearTimeout(autoEndTimerRef.current);
+      autoEndTimerRef.current = null;
+    }
+    pendingAutoEndRef.current = false;
+    isAutoEndingRef.current = false;
+    recordingStartedAtRef.current = null;
+    pendingUserTranscriptIndexesRef.current = [];
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+    dcRef.current?.close();
+    dcRef.current = null;
+    pcRef.current?.close();
+    pcRef.current = null;
+  }, []);
+
+  const endInterview = useCallback(async () => {
+    if (isEndingRef.current) return;
+    isEndingRef.current = true;
+    setIsEnding(true);
+    cleanupRealtimeSession();
+
+    const currentSessionId = sessionIdRef.current;
+    if (!currentSessionId) {
+      router.push("/complete");
+      return;
+    }
+
+    try {
+      setStatusText("대화 내용을 평가하고 있습니다...");
+      
+      // 시간 계산
+      const endTime = Date.now();
+      const diffMs = startTimeRef.current ? endTime - startTimeRef.current : 0;
+      const minutes = Math.floor(diffMs / 60000);
+      const seconds = Math.floor((diffMs % 60000) / 1000);
+      const durationStr = `${minutes}분 ${seconds}초`;
+      const dateStr = new Date().toLocaleDateString('ko-KR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      // 텍스트 변환된 transcriptRef.current 는 평가와 reflection 생성에 사용합니다.
+      // 이메일 리포트 발송을 위해 브라우저 세션에만 임시 보관하고 DB에는 저장하지 않습니다.
+      // 더불어 환각 방지를 위해 수집된 실제 채용 공고(savedJobsRef.current)도 함께 보냅니다.
+      const orderedTranscripts = transcriptRef.current
+        .filter((item) => item.text.trim())
+        .map(({ role, text }) => ({ role, text }));
+      const response = await fetch(apiPath(`/interview/${currentSessionId}/end`), {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          transcripts: orderedTranscripts,
+          saved_jobs: savedJobsRef.current,
+          tool_traces: toolTracesRef.current,
+          interview_date: dateStr,
+          interview_duration: durationStr
+        })
+      });
+      if (!response.ok) throw new Error("면접 종료 API 오류");
+      
+      localStorage.removeItem("interviewTranscripts");
+      sessionStorage.removeItem("interviewTranscriptsForEmail");
+      sessionStorage.setItem("lastInterviewEndedAt", dateStr);
+      
+      router.push("/complete");
+    } catch (err) {
+      console.error("종료 에러:", err);
+      router.push("/complete");
+    }
+  }, [cleanupRealtimeSession, router]);
+
+  const scheduleAutoEndInterview = useCallback(() => {
+    if (isEndingRef.current || autoEndTimerRef.current) return;
+    isAutoEndingRef.current = true;
+    setIsAutoEnding(true);
+    setStatusText("면접관의 마지막 멘트가 끝난 뒤 리포트를 생성합니다...");
+    autoEndTimerRef.current = window.setTimeout(() => {
+      autoEndTimerRef.current = null;
+      endInterview();
+    }, FINAL_REMARK_GRACE_MS);
+  }, [endInterview]);
+
+  const markInterviewClosingDetected = useCallback(() => {
+    if (isEndingRef.current) return;
+    pendingAutoEndRef.current = true;
+    isAutoEndingRef.current = true;
+    setIsAutoEnding(true);
+    setStatusText("면접관이 마지막 멘트를 하는 중입니다. 잠시만 기다려 주세요...");
+    if (!isSpeakingRef.current) {
+      pendingAutoEndRef.current = false;
+      scheduleAutoEndInterview();
+    }
+  }, [scheduleAutoEndInterview]);
+
+  const saveAiTranscript = useCallback((text: string, key?: string) => {
+    const aiText = String(text || "").replace(/\s+/g, " ").trim();
+    if (!aiText) return;
+
+    const dedupeKey = key || aiText;
+    if (savedAiTranscriptKeysRef.current.has(dedupeKey)) return;
+    const textDedupeKey = aiText.toLocaleLowerCase("ko-KR");
+    if (savedAiTranscriptTextsRef.current.has(textDedupeKey)) return;
+    savedAiTranscriptKeysRef.current.add(dedupeKey);
+    savedAiTranscriptTextsRef.current.add(textDedupeKey);
+
+    transcriptRef.current.push({ role: "ai", text: aiText });
+    setIsPreparingInterview(false);
+    console.log("[AI 답변]:", aiText);
+    if (isInterviewClosingTranscript(aiText)) {
+      markInterviewClosingDetected();
+    }
+  }, [markInterviewClosingDetected]);
+
+  // 1. 컴포넌트 마운트 시 WebRTC 직접 연결 시도
+  useEffect(() => {
+    let isEffectCancelled = false;
+    
+    const connectionId = ++globalInterviewConnectionId;
+    activeConnectionIdRef.current = connectionId;
+    initialResponseRequestedRef.current = false;
+    jobImagePendingRef.current = false;
+    jobImageInjectedRef.current = false;
+    aiTranscriptByItemRef.current = {};
+    savedAiTranscriptKeysRef.current = new Set();
+    savedAiTranscriptTextsRef.current = new Set();
+    setIsPreparingInterview(true);
+
+    const isActiveConnection = () => (
+      !isEffectCancelled && activeConnectionIdRef.current === connectionId
+    );
+
+    // 상대방(AI)의 음성을 재생할 숨겨진 오디오 엘리먼트 생성
+    const audioEl = document.createElement("audio");
+    audioEl.autoplay = true;
+    audioElRef.current = audioEl;
+
+    const initWebRTC = async () => {
+      try {
+        setStatusText("지원 정보와 모집중인 채용 공고를 분석해 면접을 준비 중입니다...");
+
+        // 1) 로컬 스토리지에서 사용자가 입력한 프로필 가져오기
+        const savedProfile = sessionStorage.getItem("interviewProfile") || localStorage.getItem("interviewProfile");
+        const profileData = savedProfile ? JSON.parse(savedProfile) : {
+          report_email: "test@example.com",
+          job_title: "직무 미상",
+          education: "학사(4년제)",
+          experience: "신입",
+          resume: "정보 없음"
+        };
+        interviewModeRef.current = profileData.interview_mode === "short" ? "short" : "long";
+        jobImagePendingRef.current = Boolean(profileData.job_image);
+        jobImageInjectedRef.current = false;
+
+        // 2) 우리 백엔드 API를 호출해 OpenAI 일회용 접속 토큰(ephemeral_token) 발급
+        const res = await fetch(apiPath("/interview/start"), {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: "test@example.com",
+            report_email: profileData.report_email || "test@example.com",
+            job_title: profileData.job_title || "직무 미상",
+            education: profileData.education || "학사(4년제)",
+            experience: profileData.experience || "신입",
+            resume: profileData.resume || "정보 없음",
+            job_description: profileData.job_description || "",
+            job_image: profileData.job_image || null,
+            interview_mode: profileData.interview_mode || "long"
+          })
+        });
+
+        if (!res.ok) {
+          const detail = await readApiError(res, "토큰 발급 API 오류");
+          if (res.status === 401) {
+            setStatusText("초대코드 인증이 필요합니다. 메인 화면에서 다시 입장해 주세요.");
+            router.replace("/");
+            return;
+          }
+          setStatusText(`면접 세션을 시작하지 못했습니다. (${res.status}) ${detail}`);
+          console.warn("Interview start API failed:", { status: res.status, detail });
+          return;
+        }
+        const data = await res.json();
+        if (!isActiveConnection()) return;
+
+        const EPHEMERAL_KEY = data.ephemeral_token;
+        sessionIdRef.current = data.session_id;
+        savedJobsRef.current = Array.isArray(data.prepared_jobs) ? data.prepared_jobs : [];
+
+        setStatusText("면접관과 통신을 연결 중입니다...");
+
+        // 2) WebRTC Peer Connection 객체 생성
+        const pc = new RTCPeerConnection();
+        pcRef.current = pc;
+
+        // 상대방(OpenAI)에서 오디오 스트림이 들어오면 재생
+        pc.ontrack = (e) => {
+          if (audioElRef.current) {
+            audioElRef.current.srcObject = e.streams[0];
+          }
+        };
+
+        // 3) 내 마이크 스트림 가져오기 및 WebRTC에 추가
+        const ms = await navigator.mediaDevices.getUserMedia({ audio: true });
+        if (!isActiveConnection()) {
+          ms.getTracks().forEach(t => t.stop());
+          return;
+        }
+        streamRef.current = ms;
+        pc.addTrack(ms.getTracks()[0]);
+        // Push-To-Talk를 위해 기본 마이크 송출 차단
+        ms.getAudioTracks()[0].enabled = false;
+
+        // 4) 데이터 채널 열기 (이벤트를 주고받기 위함)
+        const dc = pc.createDataChannel("oai-events");
+        dcRef.current = dc;
+
+        const injectJobImageContext = () => {
+          if (
+            !jobImagePendingRef.current ||
+            jobImageInjectedRef.current ||
+            !profileData.job_image ||
+            dc.readyState !== "open"
+          ) {
+            return;
+          }
+
+          jobImageInjectedRef.current = true;
+          jobImagePendingRef.current = false;
+
+          dc.send(JSON.stringify({
+            type: "conversation.item.create",
+            item: {
+              type: "message",
+              role: "user",
+              content: [
+                {
+                  type: "input_image",
+                  image_url: profileData.job_image
+                },
+                {
+                  type: "input_text",
+                  text: "이 이미지는 제가 지원하고자 하는 채용 공고입니다. 이후 질문에서 이 내용을 참고해 주세요."
+                }
+              ]
+            }
+          }));
+          console.log("[Realtime] 첫 응답 이후 공고 이미지 context를 주입했습니다.");
+        };
+
+        dc.addEventListener("open", () => {
+          if (!isActiveConnection()) return;
+
+          const openedAt = Date.now();
+          startTimeRef.current = openedAt;
+
+          // VAD가 꺼져 있으므로 연결 직후 첫 인사 생성을 수동 요청
+          if (!initialResponseRequestedRef.current) {
+            initialResponseRequestedRef.current = true;
+            dc.send(JSON.stringify(createTimedResponseEvent()));
+            setIsPreparingInterview(false);
+            setStatusText("면접관의 첫 질문을 준비 중입니다...");
+          }
+        });
+
+        dc.addEventListener("message", async (e) => {
+          if (!isActiveConnection()) return;
+
+          const realtimeEvent = JSON.parse(e.data);
+
+          // 텍스트 변환 기록(Transcript) 가로채기 -> 추후 평가와 이메일 리포트에 사용합니다.
+          if (
+            realtimeEvent.type === "response.audio_transcript.delta" ||
+            realtimeEvent.type === "response.output_audio_transcript.delta"
+          ) {
+            const itemId = `${realtimeEvent.response_id || "response"}-${realtimeEvent.item_id || realtimeEvent.output_index || "latest"}`;
+            const key = String(itemId);
+            aiTranscriptByItemRef.current[key] = `${aiTranscriptByItemRef.current[key] || ""}${realtimeEvent.delta || ""}`;
+          }
+          if (
+            realtimeEvent.type === "response.audio_transcript.done" ||
+            realtimeEvent.type === "response.output_audio_transcript.done"
+          ) {
+            const itemId = `${realtimeEvent.response_id || "response"}-${realtimeEvent.item_id || realtimeEvent.output_index || "latest"}`;
+            const key = String(itemId);
+            const aiText = realtimeEvent.transcript || aiTranscriptByItemRef.current[key] || "";
+            delete aiTranscriptByItemRef.current[key];
+            saveAiTranscript(aiText, `ai-${key}`);
+          }
+          if (realtimeEvent.type === "conversation.item.input_audio_transcription.completed") {
+            const userText = realtimeEvent.transcript || "";
+            const pendingIndex = pendingUserTranscriptIndexesRef.current.shift();
+            if (
+              pendingIndex !== undefined &&
+              transcriptRef.current[pendingIndex]?.role === "user" &&
+              transcriptRef.current[pendingIndex]?.pending
+            ) {
+              transcriptRef.current[pendingIndex] = { role: "user", text: userText };
+            } else {
+              transcriptRef.current.push({ role: "user", text: userText });
+            }
+            console.log("[내 답변]:", userText);
+          }
+
+          // 파형 애니메이션을 위한 상태 업데이트
+          if (realtimeEvent.type === "response.audio.delta") {
+            isSpeakingRef.current = true;
+            setIsPreparingInterview(false);
+            setIsSpeaking(true);
+            setStatusText("AI가 말하는 중...");
+          }
+          if (realtimeEvent.type === "response.done") {
+            isSpeakingRef.current = false;
+            setIsPreparingInterview(false);
+            setIsSpeaking(false);
+            injectJobImageContext();
+            const responseOutput = Array.isArray(realtimeEvent.response?.output)
+              ? realtimeEvent.response.output
+              : [];
+            responseOutput.forEach((outputItem: Record<string, unknown>, outputIndex: number) => {
+              const content = Array.isArray(outputItem?.content) ? outputItem.content : [];
+              const textParts = content
+                .map((part: Record<string, unknown>) => (
+                  typeof part?.transcript === "string"
+                    ? part.transcript
+                    : typeof part?.text === "string"
+                      ? part.text
+                      : ""
+                ))
+                .filter(Boolean);
+              if (textParts.length > 0) {
+                const itemId = typeof outputItem?.id === "string" ? outputItem.id : `response-${realtimeEvent.response?.id || "done"}-${outputIndex}`;
+                saveAiTranscript(textParts.join(" "), `ai-${itemId}`);
+              }
+            });
+            if (pendingAutoEndRef.current) {
+              pendingAutoEndRef.current = false;
+              scheduleAutoEndInterview();
+              return;
+            }
+            if (!isEndingRef.current) {
+              setStatusText("🟢 스페이스바를 누른 채로 대답하세요.");
+            }
+          }
+        });
+
+        // 5) WebRTC 통신 규약(SDP) 오퍼 생성 및 OpenAI로 전송
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+
+        const sdpResponse = await fetch("https://api.openai.com/v1/realtime/calls", {
+          method: "POST",
+          body: offer.sdp,
+          headers: {
+            Authorization: `Bearer ${EPHEMERAL_KEY}`,
+            "Content-Type": "application/sdp"
+          },
+        });
+
+        if (!sdpResponse.ok) {
+          const errorText = await sdpResponse.text();
+          console.error("SDP Fetch Error:", errorText);
+          throw new Error(`OpenAI SDP Error: ${errorText}`);
+        }
+
+        const answer = {
+          type: "answer" as RTCSdpType,
+          sdp: await sdpResponse.text(),
+        };
+        await pc.setRemoteDescription(answer);
+
+        // 연결 성공!
+        if (!isActiveConnection()) return;
+        setIsRecording(false);
+        setStatusText("면접관의 첫 질문을 준비 중입니다...");
+
+      } catch (error) {
+        console.error("WebRTC 연결 에러:", error);
+        setStatusText("면접관 연결에 실패했습니다.");
+      }
+    };
+
+    initStartTimerRef.current = window.setTimeout(() => {
+      initStartTimerRef.current = null;
+      initWebRTC();
+    }, 0);
+
+    return () => {
+      isEffectCancelled = true;
+      activeConnectionIdRef.current = 0;
+      initialResponseRequestedRef.current = false;
+      jobImagePendingRef.current = false;
+      jobImageInjectedRef.current = false;
+      cleanupRealtimeSession();
+    };
+  }, [cleanupRealtimeSession, createTimedResponseEvent, router, saveAiTranscript, scheduleAutoEndInterview]);
+
+  // 2. 마이크 Push-To-Talk 핸들러
+  const startRecording = useCallback(() => {
+    if (isAutoEndingRef.current) return;
+    if (streamRef.current && !isRecording && dcRef.current?.readyState === "open") {
+      const audioTrack = streamRef.current.getAudioTracks()[0];
+      audioTrack.enabled = true;
+      recordingStartedAtRef.current = Date.now();
+      setIsRecording(true);
+      setStatusText("🔴 답변중... (답변 완료 후 손을 떼세요.)");
+      // 잔여 버퍼 비우기
+      dcRef.current.send(JSON.stringify({ type: "input_audio_buffer.clear" }));
+    }
+  }, [isRecording]);
+
+  const stopRecording = useCallback(() => {
+    if (isAutoEndingRef.current) return;
+    if (streamRef.current && isRecording && dcRef.current?.readyState === "open") {
+      const audioTrack = streamRef.current.getAudioTracks()[0];
+      audioTrack.enabled = false;
+      const recordedMs = recordingStartedAtRef.current ? Date.now() - recordingStartedAtRef.current : 0;
+      recordingStartedAtRef.current = null;
+      setIsRecording(false);
+      if (recordedMs < MIN_RECORDING_MS) {
+        dcRef.current.send(JSON.stringify({ type: "input_audio_buffer.clear" }));
+        setStatusText("짧은 입력은 전송하지 않았습니다. 스페이스바를 누른 채로 대답하세요.");
+        return;
+      }
+      setStatusText("답변을 전송 중입니다...");
+
+      // 수동으로 오디오 버퍼 커밋 및 AI 응답 요청
+      const pendingIndex = transcriptRef.current.length;
+      transcriptRef.current.push({ role: "user", text: "", pending: true });
+      pendingUserTranscriptIndexesRef.current.push(pendingIndex);
+      dcRef.current.send(JSON.stringify({ type: "input_audio_buffer.commit" }));
+      dcRef.current.send(JSON.stringify(createTimedResponseEvent()));
+      setStatusText("면접관 답변을 기다리는 중입니다...");
+    }
+  }, [createTimedResponseEvent, isRecording]);
+
+  // 스페이스바 단축키 (Push-To-Talk)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === "Space" && !e.repeat) {
+        e.preventDefault();
+        startRecording();
+      }
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === "Space") {
+        e.preventDefault();
+        stopRecording();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    }
+  }, [startRecording, stopRecording]);
+
+  const visualizerScale = isSpeaking
+    ? "scale-110 animate-pulse bg-gradient-to-tr from-[#DCEBF1] via-[#8390D6] to-[#4556D6]"
+    : "scale-100 bg-gradient-to-tr from-[#DCEBF1] via-[#8390D6] to-[#4556D6] hover:scale-105";
+
+  return (
+    <main className="theme-deep min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden">
+      <div className="absolute -top-32 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-[#DCEBF1]/10 blur-3xl" />
+      <div className="absolute top-0 w-full p-6 flex justify-between items-center z-10 max-w-5xl">
+        <div className="flex items-center space-x-4">
+          <div className="w-8 h-8 rounded-lg overflow-hidden border border-[#B7C3CA]/40 bg-white/10">
+            <Image src="/logo/techtree-logo.png" alt="Logo" width={32} height={32} className="w-full h-full object-cover" priority loading="eager" />
+          </div>
+          <div className="flex items-center space-x-2 text-white">
+            <div className="interview-live-dot h-2.5 w-2.5 rounded-full animate-pulse"></div>
+            <span className="text-sm font-bold opacity-90">면접 진행 중</span>
+          </div>
+        </div>
+        <button 
+          onClick={endInterview} 
+          disabled={isEnding}
+          className={`px-4 py-2 text-white rounded-lg text-sm font-medium transition-colors border ${
+            isEnding
+              ? "bg-[#17232B]/80 border-[#7E8A92]/40 opacity-50 cursor-not-allowed"
+              : isAutoEnding
+                ? "bg-[#B88A3A] hover:bg-[#D7B56D] border-[#D7B56D]"
+                : "bg-[#17232B]/70 hover:bg-[#243844] border-[#B7C3CA]/35"
+          }`}
+        >
+          {isEnding ? "종료중" : "면접 종료하기"}
+        </button>
+      </div>
+
+      <div className="flex-1 w-full max-w-5xl flex flex-col items-center justify-center">
+        <div className="relative w-64 h-64 mb-16 flex items-center justify-center">
+          <div className={`absolute inset-0 rounded-full blur-3xl opacity-40 transition-all duration-700 ${isSpeaking ? 'bg-[#DCEBF1] scale-125' : 'bg-[#8390D6] scale-100'}`}></div>
+          <div className={`w-40 h-40 rounded-full flex items-center justify-center relative z-10 transition-all duration-300 shadow-[0_0_58px_rgba(220,235,241,0.22)] ring-1 ring-[#B7C3CA]/40 ${visualizerScale}`}>
+            <svg className="w-16 h-16 text-white/90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              {isSpeaking ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+              )}
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div className="w-full max-w-3xl pb-10">
+        <div className="bg-[#17232B]/52 backdrop-blur-md border border-[#B7C3CA]/30 rounded-2xl p-6 flex flex-col items-center shadow-2xl shadow-black/20">
+          <button
+            onMouseDown={startRecording}
+            onMouseUp={stopRecording}
+            onTouchStart={startRecording}
+            onTouchEnd={stopRecording}
+            className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all shadow-lg select-none ${isRecording
+              ? 'bg-red-500 shadow-red-500/50 scale-110'
+              : 'bg-[#F7FBFC] hover:bg-[#EAF4F7] text-[#17232B]'
+              }`}
+          >
+            {isRecording && (
+              <span className="absolute inset-0 rounded-full border border-red-200/60 animate-ping" />
+            )}
+            {isRecording ? (
+              <svg className="relative z-10 w-9 h-9 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeWidth={2.4} d="M6 10v4M10 7v10M14 9v6M18 11v2" />
+              </svg>
+            ) : (
+              <svg className="relative z-10 w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+              </svg>
+            )}
+          </button>
+          <p className="mt-6 text-[#E2E8EC] text-sm font-medium tracking-wide">
+            {statusText}
+          </p>
+        </div>
+      </div>
+
+      {isPreparingInterview && (
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-[#17232B]/72 px-5 backdrop-blur-md">
+          <div className="w-full max-w-md rounded-2xl border border-[#B7C3CA]/35 bg-[#F7FBFC]/88 px-6 py-8 text-center shadow-2xl shadow-black/30">
+            <div className="relative mx-auto mb-6 flex h-24 w-24 items-center justify-center">
+              <div className="absolute inset-0 rounded-full border border-[#D7B56D]/45 animate-ping" />
+              <div className="absolute h-20 w-20 rounded-full border-4 border-[#B7C3CA]/45 border-t-[#4556D6] animate-spin" />
+              <div className="relative h-12 w-12 rounded-2xl bg-gradient-to-br from-[#DCEBF1] via-[#8390D6] to-[#4556D6] shadow-lg shadow-[#8390D6]/30 ring-1 ring-[#D7B56D]/50" />
+            </div>
+            <p className="text-xs font-black uppercase tracking-[0.28em] text-[#B88A3A]">Preparing</p>
+            <h2 className="mt-3 text-2xl font-black tracking-tight text-[#17232B]">
+              면접관을 준비하고 있습니다
+            </h2>
+            <p className="mx-auto mt-4 max-w-sm text-sm font-semibold leading-relaxed text-[#243844]">
+              {statusText}
+            </p>
+          </div>
+        </div>
+      )}
+    </main>
+  );
+}

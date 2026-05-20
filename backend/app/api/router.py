@@ -1,15 +1,10 @@
-########################################
-# API Router
-########################################
-# /api/로 시작하는 모든 요청을 처리할 router
 from fastapi import APIRouter
+from app.api import interview, invite, upload
 
 api_router = APIRouter()
 
-######################################### 
-# Unified Chat Endpoints
-######################################### 
-# /api/chat 요청을 처리할 router
-from app.api import chat
+api_router.include_router(invite.router, prefix="/invite", tags=["Invite"])
 
-api_router.include_router(chat.router, prefix='/chat', tags=['chat'])
+# 면접 관련 엔드포인트를 라우터에 포함합니다.
+api_router.include_router(interview.router, prefix="/interview", tags=["Interview"])
+api_router.include_router(upload.router, prefix="/upload", tags=["Upload"])

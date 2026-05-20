@@ -3,6 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     # 필수 환경 변수 (값 없으면 에러 발생)
     OPENAI_API_KEY: str
+    TAVILY_API_KEY: str | None = None
     MONGODB_URL: str | None = None
     DB_NAME: str = "ai_techtree"  
     
@@ -13,9 +14,28 @@ class Settings(BaseSettings):
     TELEGRAM_BOT_TOKEN: str | None = None
     TELEGRAM_CHAT_ID: str | None = None
 
+    # 이메일 전송 (Resend API) 설정
+    RESEND_API_KEY: str | None = None
+
+    # 초대코드 인증 설정
+    INVITE_AUTH_ENABLED: bool = True
+    INVITE_DB_NAME: str | None = None  # 없으면 REFLECTION_DB_NAME("reflection")을 사용합니다.
+    INVITE_COLLECTION_NAME: str = "invite_codes"
+    INVITE_SESSION_SECRET: str | None = None
+    INVITE_SESSION_COOKIE_NAME: str = "techtree_invite_session"
+
+    # Reflexion 로컬 학습 저장소
+    REFLECTION_STORE_PATH: str = "backend/app/source/interview_reflections.jsonl"
+    POLICY_STORE_PATH: str = "backend/app/source/interview_policies.jsonl"
+    REFLECTION_STORAGE_BACKEND: str = "auto"  # auto | mongo | jsonl
+    REFLECTION_DB_NAME: str = "reflection"
+    REFLECTION_VECTOR_SEARCH_ENABLED: bool = True
+    REFLECTION_VECTOR_INDEX_NAME: str = "reflection_vector_index"
+    REFLECTION_EMBEDDING_MODEL: str = "text-embedding-3-small"
+
     # 선택적 환경 변수 (기본값 제공)
-    PROJECT_NAME: str = "AI TechTree"
-    VERSION: str = "1.1.0"
+    PROJECT_NAME: str = "TechTree"
+    VERSION: str = "2.0.0"
     
     @property
     def is_production(self) -> bool:

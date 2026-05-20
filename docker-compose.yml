@@ -1,106 +1,67 @@
 services:
-  # 1. Backend Server (FastAPI)
   backend:
-    image: haebo/ai-techtree:v1.1
-    container_name: ai-techtree-backend-v1.1
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    image: techtree-backend:latest
+    container_name: techtree-backend
+    env_file:
+      - ./backend/.env
+    environment:
+      PYTHONPATH: /app/backend
+      PYTHONUNBUFFERED: "1"
+      APP_ENV: PRODUCTION
     expose:
       - "8000"
-    env_file:
-      - ./backend/.env
-    environment:
-      - PYTHONPATH=/app/backend
-      - PYTHONUNBUFFERED=1
-    deploy:
-      resources:
-        limits:
-          memory: 300M
-    restart: always
+    restart: unless-stopped
 
-  # 2. Frontend Interface (Streamlit)
   frontend:
-    image: haebo/ai-techtree:v1.1
-    container_name: ai-techtree-frontend-v1.1
-    command: streamlit run backend/streamlit_dashboard.py --server.port 8100
-    expose:
-      - "8100"
-    env_file:
-      - ./backend/.env
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: /api
+        BACKEND_INTERNAL_URL: http://backend:8000
+    image: techtree-frontend:latest
+    container_name: techtree-frontend
     environment:
-      - PYTHONPATH=/app
-      - BACKEND_URL=http://backend:8000
-      - LANGGRAPH_API_URL=http://langgraph:2024
-      - PYTHONUNBUFFERED=1
-    deploy:
-      resources:
-        limits:
-          memory: 450M
+      NODE_ENV: production
+      NEXT_PUBLIC_API_BASE_URL: /api
+      BACKEND_INTERNAL_URL: http://backend:8000
+    expose:
+      - "3000"
     depends_on:
       - backend
-      - langgraph
-    restart: always
+    restart: unless-stopped
 
-  # 3. LangGraph Server (Graph Execution Logic)
-  langgraph:
-    image: haebo/ai-techtree:v1.1
-    container_name: ai-techtree-langgraph-v1.1
-    working_dir: /app/backend
-    command: langgraph dev --no-reload --host 0.0.0.0 --port 2024
-    expose:
-      - "2024"
-    env_file:
-      - ./backend/.env
-    environment:
-      - PYTHONPATH=/app/backend
-      - PYTHONUNBUFFERED=1
-    deploy:
-      resources:
-        limits:
-          memory: 450M
-    depends_on:
-      - backend
-    restart: always
-
-  # 5. Nginx Reverse Proxy (Gateway)
   nginx:
-    image: nginx:latest
-    container_name: ai-techtree-nginx
+    image: nginx:1.27-alpine
+    container_name: techtree-nginx
+    command: >
+      /bin/sh -c '
+      while :; do
+        sleep 6h;
+        nginx -s reload;
+      done &
+      nginx -g "daemon off;"
+      '
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
-    deploy:
-      resources:
-        limits:
-          memory: 100M
     depends_on:
       - frontend
       - backend
-      - langgraph
-    restart: always
+    restart: unless-stopped
 
-  # 5. Certbot (SSL Certificate Manager)
   certbot:
-    image: certbot/certbot
-    container_name: ai-techtree-certbot
+    image: certbot/certbot:latest
+    container_name: techtree-certbot
     volumes:
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
-    restart: always
-
-## For AWS
-# $ docker build --no-cache --platform linux/amd64 -t haebo/ai-techtree:v1.1 .
-# $ docker push haebo/ai-techtree:v1.1
-# $ scp -r nginx techtree-server:~/
-# $ scp docker-compose.yml .env techtree-server:~/
-
-## In AWS
-# $ ssh techtree-server
-# $ docker-compose pull
-# $ docker-compose down
-# $ docker-compose up -d --remove-orphans
-# $ docker-compose logs -f
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot; sleep 12h & wait $${!}; done;'"
+    restart: unless-stopped

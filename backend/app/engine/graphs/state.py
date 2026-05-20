@@ -1,41 +1,52 @@
-from typing import TypedDict, List, Optional
-from typing_extensions import Annotated
-from langchain_core.messages import BaseMessage
+from typing import TypedDict, Annotated, Dict, Any, Optional
 from langgraph.graph.message import add_messages
+from langchain_core.messages import BaseMessage
 
-# ==========================================
-# 1. State Definition
-# ==========================================
-# 키워드 관련 상태 저장 클래스
-class KeywordState(TypedDict, total=False):
+class InterviewState(TypedDict):
     """
-    State for the Keyword-Driven Learning Flow.
+    AI 가상 면접을 위한 상태(State) 스키마입니다.
     """
-    messages: Annotated[List[BaseMessage], add_messages]
-    
-    # User Context
+    # 1. 지원자 프로필 정보 (면접 초기화 시 주입)
     user_id: str
-    user_db_id: str
+    report_email: str
+    interviewer_name: str # 선택된 음성에 매칭된 면접관 이름
+    selected_voice: str
+    voice: str
+    interview_mode: str   # short 또는 long
+    interview_mode_label: str
+    interview_mode_guidance: str
+    job_title: str       # 상세 직무 (예: React 프론트엔드 개발자)
+    field: str           # 분야 (예: frontend, backend 등)
+    experience: str      # 경력 (신입, 1~3년차 등)
+    education: str       # 학력
+    resume: str          # 이력서 요약 또는 텍스트
+    major: str           # 전공 여부
+    job_description: str # 채용 공고 텍스트 (옵션)
+    raw_job_description: str
+    job_image: Optional[str]
+    job_posting_analysis: Optional[Dict[str, Any]]
+    job_posting_analysis_status: str
+    reflection_guidelines: str # 이전 면접에서 학습한 운영 지침
+    guideline_selection: Dict[str, Any]
+    reflection_source_ids: list[str]
+    policy_source_ids: list[str]
+    prompt_variant: str
+    realtime_instructions: str
+    instructions: str
+    candidate_summary: str
+    interview_brief: str
+    context_jobs: Optional[list[Dict[str, Any]]]
+    prepared_jobs: Optional[list[Dict[str, Any]]]
     
-    # Current Focus
-    keyword: str             # The active keyword
-    keyword_data: dict       # Extracted/Generated content (def, summary)
-    level: int               # The level of the keyword
+    # 2. 대화 기록 (LangGraph의 add_messages reducer를 통해 누적됨)
+    messages: Annotated[list[BaseMessage], add_messages]
     
-    # Quiz Context
-    current_question: Optional[dict]
-    evaluation_result: Optional[dict]
+    # 3. 면접 평가 결과 (면접 종료 시 Evaluator 노드에서 작성)
+    evaluation_result: Optional[Dict[str, Any]]
     
-    # Navigation
-    next_recommendations: List[str]
-    user_intent: str         # From Router
-    pass_fail: str           # From Evaluate Quiz
+    # 4. 툴 실행 결과 저장 (Tavily 등에서 찾은 실제 채용 공고 정보)
+    saved_jobs: Optional[list[Dict[str, Any]]]
+    tool_traces: Optional[list[Dict[str, Any]]]
     
-    # Context Flags
-    quiz_in_progress: bool = False # 퀴즈 진행 중 여부
-    quiz_count: int                  # 퀴즈 푼 횟수
-    quiz_pass_count: int             # 퀴즈 통과 횟수
-    quiz_max_count: int              # 퀴즈 최대 횟수
-    quiz_min_count: int              # 퀴즈 최소 통과 횟수
-    quiz_history: List[dict]         # 누적된 퀴즈 및 정답 기록
-    hint_used: bool                  # 문제당 힌트 사용 여부
+    # 5. 진행 상태 제어 플래그
+    status: str          # "IN_PROGRESS"(진행 중) -> "EVALUATING"(평가 중) -> "COMPLETED"(완료)

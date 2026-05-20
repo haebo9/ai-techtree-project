@@ -7,13 +7,19 @@ from app.api.router import api_router
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    version=settings.VERSION
+    version=settings.VERSION,
+    docs_url="/api/docs", # docs 경로 명시 
+    openapi_url="/api/openapi.json" # 스웨거 요청 경로 명시
 )
 
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"], # Next.js 포트
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:8080",
+        "https://techtree.haebo.pro",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -28,9 +34,9 @@ app.include_router(api_router, prefix="/api")
 @app.get("/")
 async def root():
     return {
-        "message": "Welcome to AI TechTree", 
+        "message": "Welcome to TechTree", 
         "docs": {
             "mcp": "/mcp/docs",
-            "api": "/docs"
+            "api": "/api/docs"
         }
     }
