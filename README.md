@@ -1,22 +1,25 @@
 # TechTree
-### AI 실시간 음성 모의면접 서비스
 
-서비스: [https://techtree.haebo.pro](https://techtree.haebo.pro)
+
+## [⭐ **AI 실시간 음성 모의면접 서비스** 바로가기 ⭐](https://techtree.haebo.pro)
 
 <img src="frontend/public/logo/techtree-logo.png" width="200" height="200" alt="TechTree Tree" style="border-radius: 50%; object-fit: cover;">
 
 <br/>
 
-> **TechTree**는 지원자의 이력서와 채용 공고를 기반으로 AI 면접관이 실시간 음성 면접을 진행하고, 면접 후 대화 근거 기반 평가 리포트를 이메일로 발송하는 서비스입니다.
->
-> 핵심 목표는 단순한 질문 생성이 아니라 **입력 자료 분석 → 저지연 음성 면접 → 구조화 평가 → 다음 면접을 위한 운영 지침 개선**까지 하나의 제품 흐름으로 연결하는 것입니다.
->
-> - **Realtime Interview**: 브라우저와 OpenAI Realtime API를 WebRTC로 직접 연결해 지연을 줄이고, Space 기반 Push-to-Talk로 답변 타이밍을 사용자가 제어합니다.
-> - **Resume/JD Grounding**: PDF/TXT 이력서와 채용 공고 텍스트/이미지를 분석해 지원 직무에 맞는 질문 맥락을 구성합니다.
-> - **Grounded Report**: 면접 transcript를 LangGraph evaluator가 분석해 점수, 강점, 개선점, Q&A 피드백, 답변 습관, 자기소개 개선안을 생성합니다.
-> - **Prompt Memory**: 원문 대화를 장기 저장하지 않고 비식별 Reflection/Policy를 축약 저장해 다음 유사 면접의 프롬프트 지침으로 선별 주입합니다.
+TechTree는 지원자의 이력서와 채용 공고를 바탕으로 AI 면접관이 실시간 음성 면접을 진행하고, 면접 후 대화 근거 기반 평가 리포트를 이메일로 발송하는 서비스입니다.
 
-[TechTree Service UI](docs/service_screens.md)
+이 프로젝트의 목표는 예상 질문을 단순 생성하는 것이 아니라, 사용자가 실제 면접처럼 말하고 피드백을 받을 수 있는 연습 환경을 만드는 것입니다. 이를 위해 **입력 자료 분석 → 저지연 음성 면접 → 구조화 평가 → 다음 면접을 위한 프롬프트 운영 지침 개선**을 하나의 제품 흐름으로 연결했습니다.
+
+### What TechTree Does
+
+- **자료 기반 면접 준비**: PDF/TXT 이력서와 채용 공고 텍스트/이미지를 분석해 지원 직무에 맞는 면접 맥락을 구성합니다.
+- **실시간 음성 면접**: 브라우저와 OpenAI Realtime API를 WebRTC로 직접 연결하고, Space 기반 Push-to-Talk로 답변 타이밍을 사용자가 제어합니다.
+- **근거 기반 평가 리포트**: 면접 transcript를 LangGraph evaluator가 분석해 점수, 강점, 개선점, Q&A 피드백, 답변 습관, 자기소개 개선안을 생성합니다.
+- **운영 지침 개선 루프**: 원문 대화를 장기 저장하지 않고 비식별 Reflection/Policy를 축약 저장해 다음 유사 면접의 프롬프트 지침으로 선별 주입합니다.
+
+서비스 화면과 자세한 플로우는 [TechTree Service UI](docs/service_screens.md)에서 확인할 수 있습니다.
+
 ![Service Capture](frontend/public/service/techtree-home.png)
 
 ## Index
