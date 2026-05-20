@@ -21,7 +21,7 @@
 
 ![TechTree v1.1 architecture](images/Techtree-Arch-v1.1.drawio.svg)
 
-## 🔴 v2.0.0 (2026-05-18)
+## 🔴 v2.0.0 (2026-05-20)
 > Realtime WebRTC Audio & In-Memory AI Engine Architecture
 - Next.js 브라우저와 OpenAI Realtime API 간의 WebRTC 직결을 통한 초저지연 Push-to-Talk 음성 면접 구현
 - FastAPI 백엔드 프로세스 내에 LangGraph를 라이브러리로 탑재하여 네트워크 지연 없는 고속 인메모리 함수 호출 구조 확립

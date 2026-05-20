@@ -1,32 +1,32 @@
-# 개발자의 성장이 현실이 되는 곳, TechTree
-### 👉 [서비스 바로가기 : https://techtree.haebo.pro](https://techtree.haebo.pro) 👈
+# TechTree
+### AI 실시간 음성 모의면접 서비스
+
+서비스: [https://techtree.haebo.pro](https://techtree.haebo.pro)
 
 <img src="frontend/public/logo/techtree-logo.png" width="200" height="200" alt="TechTree Tree" style="border-radius: 50%; object-fit: cover;">
 
 <br/>
 
-> **TechTree**는 이력서와 채용 공고를 기반으로 실전 같은 **AI 실시간 음성 면접**을 경험하고, 성장을 위한 정교한 피드백을 받는 서비스입니다. 
-
-> * **🎙️ AI 실시간 음성 면접**: OpenAI Realtime API(WebRTC)를 활용한 지연 없는 실시간 대화형 면접을 경험해보세요!
-> * **📸 멀티모달 서류 분석**: 이력서(PDF)는 물론 채용 공고(이미지/텍스트)를 AI가 즉시 분석하여 맞춤형 질문을 생성합니다!
-> * **📊 정밀 평가 및 리포트**: 면접 종료 후 성적표, 강점/약점 분석, 답변 피드백이 담긴 종합 리포트를 이메일로 받아보세요!
+> **TechTree**는 지원자의 이력서와 채용 공고를 기반으로 AI 면접관이 실시간 음성 면접을 진행하고, 면접 후 대화 근거 기반 평가 리포트를 이메일로 발송하는 서비스입니다.
 >
-> ---
+> 핵심 목표는 단순한 질문 생성이 아니라 **입력 자료 분석 → 저지연 음성 면접 → 구조화 평가 → 다음 면접을 위한 운영 지침 개선**까지 하나의 제품 흐름으로 연결하는 것입니다.
 >
-> 💡 **실시간 통신(WebRTC)** 의 속도감과 **에이전틱한 작업 흐름**의 정교함을 동시에 확보하도록 설계되었습니다.<br/>
-> 💡 반복적인 **실전 연습**과 AI의 객관적인 **피드백**을 통해 면접 역량을 극대화합니다. 
+> - **Realtime Interview**: 브라우저와 OpenAI Realtime API를 WebRTC로 직접 연결해 지연을 줄이고, Space 기반 Push-to-Talk로 답변 타이밍을 사용자가 제어합니다.
+> - **Resume/JD Grounding**: PDF/TXT 이력서와 채용 공고 텍스트/이미지를 분석해 지원 직무에 맞는 질문 맥락을 구성합니다.
+> - **Grounded Report**: 면접 transcript를 LangGraph evaluator가 분석해 점수, 강점, 개선점, Q&A 피드백, 답변 습관, 자기소개 개선안을 생성합니다.
+> - **Prompt Memory**: 원문 대화를 장기 저장하지 않고 비식별 Reflection/Policy를 축약 저장해 다음 유사 면접의 프롬프트 지침으로 선별 주입합니다.
 
-> [TechTree Service UI](docs/service_screens.md)
+[TechTree Service UI](docs/service_screens.md)
 ![Service Capture](frontend/public/service/techtree-home.png)
 
-## 📖 Index
-- [Current Service Flow](#-current-service-flow): 현재 서비스 흐름 <br/>
-- [Project Highlights](#-project-highlights): 포트폴리오 관점의 핵심 구현 성과 <br/>
-- [Tech Stack](#-tech-stack): 사용 기술 및 도구 <br/>
-- [Architecture & Agent Workflow](#-architecture--agent-workflow): 시스템 구조 <br/>
-- [Documentation](#-documentation): 기획 및 설계 문서 <br/>
-- [Git & Deployment](#-git--deployment): 브랜치 전략 및 배포 <br/>
-- [Version History](#-version-history): 버전별 변경 사항 <br/>
+## Index
+- [Current Service Flow](#-current-service-flow): 현재 서비스 흐름
+- [Project Highlights](#-project-highlights): 포트폴리오 관점의 핵심 구현 성과
+- [Tech Stack](#-tech-stack): 사용 기술 및 도구
+- [Architecture & Agent Workflow](#-architecture--agent-workflow): 시스템 구조
+- [Documentation](#-documentation): 기획 및 설계 문서
+- [Git & Deployment](#-git--deployment): 브랜치 전략 및 배포
+- [Version History](#-version-history): 버전별 변경 사항
 - [Getting Started](#-getting-started): 설치 및 실행 방법
 
 ---
@@ -57,13 +57,15 @@
 ## ⭐ Project Highlights
 
 > TechTree는 “AI를 실제 사용자 경험으로 연결한다”는 관점에서, 기획, 시스템 아키텍처 설계, AI 워크플로우 구현, 프론트엔드/백엔드 개발, Docker 기반 배포까지 단독으로 수행한 실서비스형 AI 프로젝트입니다.
+>
+> 포트폴리오 관점의 핵심 문제는 네 가지였습니다. 자동 VAD가 지원자의 생각하는 시간을 답변 종료로 오해하지 않게 만들 것, 실시간 대화와 LangGraph 평가 로직을 충돌 없이 분리할 것, 리포트가 그럴듯한 생성문이 아니라 실제 면접 대화에 근거하도록 만들 것, 프롬프트를 모든 상황에 수동으로 맞추지 않고 서비스 운영 결과로 점진 개선할 것이었습니다.
 
 | Area | What was built |
 | --- | --- |
 | **Realtime AI UX** | 브라우저에서 OpenAI Realtime API에 WebRTC로 직접 연결하고, Space 기반 Push-to-Talk로 사용자가 답변 타이밍을 제어하는 음성 면접 경험을 구현했습니다. |
-| **Agent Workflow** | LangGraph 기반 manager/evaluator 흐름으로 면접 전 컨텍스트 준비, 질문 운영, 종료 후 구조화 평가 리포트 생성을 분리했습니다. |
+| **Agent Boundary** | OpenAI Realtime은 초저지연 대화에 집중하고, LangGraph는 면접 전 컨텍스트 준비와 면접 후 평가를 담당하도록 책임을 분리했습니다. |
 | **Multimodal Context** | PDF/TXT 이력서와 채용 공고 텍스트/이미지를 분석해 지원 직무에 맞는 질문 맥락을 구성하도록 설계했습니다. |
-| **Self-Improving Prompt Memory** | 면접 종료 후 원문이 아닌 비식별 Reflection/Policy를 저장하고, 다음 유사 면접에 운영 지침으로 선별 주입하는 구조를 구현했습니다. |
+| **Prompt Memory** | 면접 종료 후 원문이 아닌 비식별 Reflection/Policy를 저장하고, 다음 유사 면접에 운영 지침으로 선별 주입하는 구조를 구현했습니다. |
 | **Production Deployment** | Next.js standalone, FastAPI, Docker Compose, Nginx, Certbot, AWS EC2, MongoDB Atlas, Resend를 조합해 실제 도메인에서 접근 가능한 운영 환경을 구성했습니다. |
 
 ---
@@ -134,7 +136,7 @@
 | [**v1.0.0**](https://github.com/haebo9/ai-techtree-project/tree/v1.0.0) | **MCP Tool Calling Agent**<br>MCP tool을 활용한 챗봇 서비스 | Langchain, MCP, FastAPI, AWS | 2026.01.15 |
 | [**v1.1.0**](https://github.com/haebo9/ai-techtree-project/tree/v1.1.0) | **Agentic Quiz System**<br>키워드 기반 동적 문제 풀이 서비스 | LangGraph, MongoDB, Streamlit | 2026.03.02 |
 | [**v1.1.1(lab)**](https://github.com/haebo9/ai-techtree-project/tree/v1.1.1(lab)) | **Multi-Agent Workflow**<br>LangGraph 기반 에이전트 워크플로우 고도화 | LangGraph, Sub-Agents, Next.js | - |
-| [**v2.0.0**](https://github.com/haebo9/ai-techtree-project/tree/v2.0.0) | **Realtime Voice Interview**<br>실시간 음성 면접 및 멀티모달 분석 서비스 | OpenAI Realtime, WebRTC, Next.js | 2026.05.18 |
+| [**v2.0.0**](https://github.com/haebo9/ai-techtree-project/tree/v2.0.0) | **Realtime Voice Interview**<br>실시간 음성 면접 및 멀티모달 분석 서비스 | OpenAI Realtime, WebRTC, Next.js | 2026.05.20 |
 
 ---
 

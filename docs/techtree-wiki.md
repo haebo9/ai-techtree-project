@@ -1,10 +1,10 @@
 # TechTree Wiki
 
-이 문서는 TechTree의 제품 목적, 시스템 구조, API 흐름, 실시간 음성 면접, 평가 리포트, Reflection/Policy 기반 자기개선, 배포 구조를 한 번에 이해하기 위한 기준 문서이다. 포트폴리오 소개, 운영 인수인계, 신규 개발자 온보딩을 모두 고려해 작성한다.
+이 문서는 TechTree의 제품 목적, 시스템 구조, API 흐름, 실시간 음성 면접, 평가 리포트, Reflection/Policy 기반 자기개선, 배포 구조를 한 번에 이해하기 위한 기준 문서이다. 포트폴리오 소개, 운영 인수인계, 신규 개발자 온보딩을 모두 고려해 작성하며, 코드와 문서가 충돌할 때는 현재 런타임 코드와 배포 compose 설정을 우선한다.
 
 ## 1. TechTree 개요
 
-TechTree는 이력서와 채용 공고를 바탕으로 실제 대화처럼 진행되는 AI 음성 모의면접 서비스이다. 사용자는 지원 직무, 경력, 학력, 이력서, 공고 텍스트 또는 이미지를 입력하고, 브라우저에서 Push-to-Talk 방식으로 면접관과 대화한다. 면접 종료 후에는 대화 기록을 기반으로 점수, 강점, 개선점, 상세 Q&A 피드백, 말투/답변 습관, 자기소개 개선 방향이 담긴 리포트가 이메일로 발송된다.
+TechTree는 이력서와 채용 공고를 바탕으로 실제 대화처럼 진행되는 AI 음성 모의면접 서비스이다. 사용자는 초대코드 인증 후 지원 직무, 경력, 학력, 이력서, 공고 텍스트 또는 이미지를 입력하고, 브라우저에서 Push-to-Talk 방식으로 면접관과 대화한다. 면접 종료 후에는 대화 기록을 기반으로 점수, 강점, 개선점, 상세 Q&A 피드백, 말투/답변 습관, 자기소개 개선 방향이 담긴 리포트가 이메일로 발송된다.
 
 제품의 핵심은 단순한 질문 생성이 아니라 다음 세 가지를 하나의 흐름으로 묶는 것이다.
 
@@ -13,6 +13,14 @@ TechTree는 이력서와 채용 공고를 바탕으로 실제 대화처럼 진�
 - LangGraph 평가와 Reflection/Policy 메모리를 통해 다음 면접의 운영 지침을 개선한다.
 
 채용 공고 검색과 선별 공고 데이터는 면접 맥락 보강과 도구 호출 기록을 위한 보조 데이터이다. 최종 리포트의 핵심 가치는 추천 공고 목록이 아니라 사용자의 실제 답변에 대한 면접 피드백이다.
+
+포트폴리오 관점에서 TechTree v2.0.0은 다음 문제를 해결한 프로젝트이다.
+
+- 실시간 음성 면접에서 자동 VAD가 지원자의 침묵과 사고 시간을 답변 종료로 오해하는 문제를 Space 기반 Push-to-Talk로 제어했다.
+- OpenAI Realtime WebRTC는 저지연 대화만 담당하고, LangGraph는 면접 전 컨텍스트 준비와 면접 후 평가만 담당하도록 에이전트 책임 경계를 분리했다.
+- 리포트가 그럴듯한 생성문에 머물지 않도록 transcript, 이력서, 공고 맥락, 도구 호출 결과를 평가 입력으로 고정했다.
+- 전체 대화 원문을 장기 저장하지 않고 비식별 Reflection/Policy만 축약 저장해 다음 면접의 프롬프트 운영 지침으로 선별 주입했다.
+- Next.js, FastAPI, Nginx, Docker Compose, AWS EC2, MongoDB Atlas, Resend를 묶어 실제 도메인에서 접근 가능한 운영 서비스를 구성했다.
 
 ## 2. 전체 아키텍처
 
@@ -27,6 +35,8 @@ flowchart LR
     Manager --> RealtimeSecret["OpenAI Realtime client secret"]
     FE --> WebRTC["OpenAI Realtime WebRTC"]
     WebRTC --> FE
+    FE --> ToolSearch["POST /api/interview/tools/search_job"]
+    ToolSearch --> Tavily["Tavily search"]
     FE --> End["POST /api/interview/{session_id}/end"]
     End --> Evaluator["LangGraph evaluator"]
     Evaluator --> Email["Resend email report"]
@@ -38,7 +48,7 @@ flowchart LR
 
 - Frontend: Next.js 16 App Router, React 19, Tailwind CSS.
 - Backend API: FastAPI, Pydantic schema, invite/session guard, upload analysis, interview API.
-- AI Runtime: OpenAI Realtime WebRTC 음성 면접, LangGraph 평가 워크플로우, LangChain/OpenAI LLM 호출.
+- AI Runtime: OpenAI Realtime WebRTC 음성 면접, LangGraph manager/evaluator 워크플로우, LangChain/OpenAI LLM 호출.
 - Operations: Docker Compose, Nginx reverse proxy, Certbot HTTPS, AWS EC2 배포, Squarespace DNS와 AWS Elastic IP 기반 도메인 연결.
 
 ## 3. 사용자 입력과 초대코드 인증
@@ -80,7 +90,7 @@ flowchart LR
 3. `/complete`: 면접 종료 안내, 이메일 리포트 생성 상태 안내.
 4. 이메일 리포트: 실제 평가 결과 확인.
 
-`/result`는 로컬 스토리지 기반의 보조/레거시 결과 화면이다. 운영 기준의 주 흐름은 `/complete`와 이메일 리포트 중심이다.
+`/result`는 로컬 스토리지 기반의 보조/레거시 결과 화면이다. 운영 기준의 주 흐름은 `/complete`와 이메일 리포트 중심이며, 사용자가 최종 평가를 확인하는 기본 채널은 이메일이다.
 
 주요 Frontend 파일은 다음과 같다.
 
@@ -113,7 +123,7 @@ FastAPI 진입점은 `backend/app/main.py`이며, `/api` 하위에 주요 라우
 5. Backend가 OpenAI Realtime `client_secrets` API를 호출해 브라우저용 ephemeral token을 발급한다.
 6. Frontend는 이 token으로 OpenAI Realtime WebRTC에 직접 연결한다.
 
-시작 응답에는 `session_id`, `ephemeral_token`, `job_posting_analysis`, `prepared_jobs`, `interview_mode`, `prompt_variant`, `guideline_selection`이 포함된다. `prepared_jobs`는 면접 컨텍스트와 종료 평가 fallback에 쓰이는 실제 공고 데이터이며, 최종 리포트의 추천 공고 섹션을 의미하지 않는다.
+시작 응답에는 `session_id`, `ephemeral_token`, `job_posting_analysis`, `prepared_jobs`, `interview_mode`, `prompt_variant`, `guideline_selection`이 포함된다. `prepared_jobs`는 면접 컨텍스트와 종료 평가 fallback에 쓰이는 실제 공고 데이터이며, 최종 리포트의 핵심 결과나 추천 공고 섹션을 의미하지 않는다.
 
 현재 Realtime 설정은 다음을 기준으로 한다.
 
@@ -156,15 +166,15 @@ TechTree는 자동 음성 감지(VAD)를 기본으로 사용하지 않는다. �
 
 - 공고 텍스트가 있으면 그대로 구조화된 면접 맥락으로 사용한다.
 - 공고 이미지가 있으면 vision-capable LLM을 통해 회사명, 직무명, 주요업무, 자격요건, 우대사항, 기술스택 등을 요약한다.
-- Tavily API 키가 있으면 면접 시작 전 지원 직무 기반 공고를 보조 맥락으로 준비할 수 있다.
+- Tavily API 키가 있으면 면접 시작 전 또는 Realtime 도구 호출 중 지원 직무 기반 공고를 보조 맥락으로 준비할 수 있다.
 
-이 데이터는 면접관이 더 현실적인 질문을 하도록 돕는 컨텍스트이다. 리포트의 중심은 사용자의 답변 평가이며, 공고 추천을 핵심 결과물로 홍보하지 않는다.
+이 데이터는 면접관이 더 현실적인 질문을 하도록 돕는 컨텍스트이다. 리포트의 중심은 사용자의 답변 평가이며, 공고 추천을 핵심 결과물로 홍보하지 않는다. evaluator는 가능한 한 실제 입력 자료와 tool output에서 온 데이터를 사용해야 하며, LLM이 임의의 공고를 만들어내는 흐름은 금지한다.
 
 ## 10. LangGraph 평가 리포트 생성
 
 면접 종료 시 Frontend는 `POST /api/interview/{session_id}/end`로 transcript를 보낸다. Backend는 이를 LangChain message 형태로 변환해 LangGraph evaluator에 넘긴다.
 
-평가 워크플로우는 다음 정보를 함께 사용한다.
+평가 워크플로우는 다음 정보를 함께 사용한다. 핵심 원칙은 “평가 문장은 생성하되 평가 근거는 세션 데이터에 고정한다”는 것이다.
 
 - 사용자 프로필: 직무, 경력, 학력
 - 이력서 텍스트
@@ -184,11 +194,11 @@ TechTree는 자동 음성 감지(VAD)를 기본으로 사용하지 않는다. �
 - 직무 적합도
 - 전체 대화 내역
 
-이메일 HTML은 `backend/app/api/interview.py`에서 조립되어 Resend로 발송된다. 발송은 백그라운드 작업으로 진행되므로 `/complete` 화면은 “분석 리포트가 비동기로 생성되어 이메일로 발송된다”는 UX를 제공한다.
+이메일 HTML은 `backend/app/api/interview.py`에서 조립되어 Resend로 발송된다. 발송은 백그라운드 작업으로 진행되므로 `/complete` 화면은 “분석 리포트가 비동기로 생성되어 이메일로 발송된다”는 UX를 제공한다. 이 구조는 사용자가 결과 화면 로딩을 기다리는 시간을 줄이는 대신, 운영 고도화 시 리포트 조회/재발송 API가 필요하다는 과제를 남긴다.
 
 ## 11. Reflection/Policy 자기개선 구조
 
-TechTree의 자기개선은 모델 파라미터를 학습시키는 fine-tuning이 아니다. 면접 운영에서 얻은 비식별 교훈을 Reflection과 Policy로 저장하고, 다음 세션의 시스템 프롬프트에 선별 주입하는 방식이다.
+TechTree의 자기개선은 모델 파라미터를 학습시키는 fine-tuning이 아니다. 면접 운영에서 얻은 비식별 교훈을 Reflection과 Policy로 저장하고, 다음 세션의 시스템 프롬프트에 선별 주입하는 prompt memory 방식이다.
 
 흐름은 다음과 같다.
 
@@ -308,7 +318,7 @@ Nginx는 외부 80/443 요청을 받아 frontend와 backend로 라우팅한다. 
 
 현재 구조는 MVP로서 빠른 실험과 실제 면접 흐름 검증에 최적화되어 있다. 운영 안정성을 높이려면 다음 개선이 필요하다.
 
-- `temp_sessions`를 DB 기반 세션 저장소로 이전한다.
+- `temp_sessions`를 DB 기반 세션 저장소로 이전해 프로세스 재시작과 다중 인스턴스 환경을 견딜 수 있게 한다.
 - 리포트 조회 API와 관리자용 리포트 재발송 도구를 추가한다.
 - Reflection/Policy를 조회, 비활성화, 승격, 삭제할 수 있는 운영 UI를 만든다.
 - transcript 저장 순서를 item id와 생성 순서 기준으로 더 엄격히 관리한다.
