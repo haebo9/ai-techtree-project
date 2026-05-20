@@ -154,11 +154,14 @@ POST /api/interview/start
   ephemeral_token,
   message,
   job_posting_analysis,
+  prepared_jobs,
   interview_mode,
   prompt_variant,
   guideline_selection
 }
 ```
+
+`prepared_jobs`는 면접 컨텍스트와 종료 평가 fallback에 쓰이는 실제 공고 데이터입니다. 최종 이메일 리포트의 핵심 섹션으로 추천 공고를 노출하기 위한 필드는 아닙니다.
 
 ## 6. Realtime Interview Flow
 
@@ -252,11 +255,13 @@ payload:
 ## 10. Production Infrastructure
 
 ```text
-https://techtree.haebo.pro
+techtree.haebo.pro
+  -> Squarespace DNS A record
+  -> AWS EC2 Elastic IP
   -> Nginx 443 SSL termination
   -> Next.js frontend container:3000
 
-https://techtree.haebo.pro/api/*
+techtree.haebo.pro/api/*
   -> Nginx reverse proxy
   -> FastAPI backend container:8000
 
@@ -266,6 +271,8 @@ Browser WebRTC
 
 배포 구성:
 
+- Squarespace DNS: `haebo.pro` 루트 도메인과 `techtree` A 레코드 관리
+- AWS Elastic IP: EC2 instance에 연결된 고정 퍼블릭 IP
 - `backend/Dockerfile`: Python 3.12 backend
 - `frontend/Dockerfile`: Node 22 frontend
 - `docker-compose.yml`: 운영 구성

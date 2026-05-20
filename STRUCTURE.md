@@ -1,6 +1,6 @@
 # Project Structure
 
-현재 런타임 경로는 **Next.js + FastAPI + OpenAI Realtime WebRTC + LangGraph evaluator + ReflectionService**입니다.
+이 문서는 현재 배포 기준의 저장소 구조를 빠르게 파악하기 위한 요약입니다. 런타임 경로는 **Next.js + FastAPI + OpenAI Realtime WebRTC + LangGraph evaluator + ReflectionService**입니다.
 
 ```text
 .
@@ -29,7 +29,7 @@
 │   │   │   └── logger.py            # app logging, optional Telegram alerts
 │   │   ├── engine/
 │   │   │   ├── graphs/              # LangGraph state/workflow
-│   │   │   ├── nodes/               # evaluator/interviewer nodes
+│   │   │   ├── nodes/               # manager/evaluator nodes
 │   │   │   ├── prompts/             # Realtime interviewer and reflection prompts
 │   │   │   └── tools/               # Tavily-backed job search helpers
 │   │   ├── schemas_api/             # FastAPI request/response models
@@ -72,8 +72,11 @@
 └── docs/
     ├── README.md                    # documentation index
     ├── techtree-wiki.md             # full technical wiki
+    ├── service_screens.md           # service screenshots and screen flow
     ├── mvp_and_plan.md              # MVP history and roadmap
     ├── user_flow.md                 # user/system flow
+    ├── architecture.md              # versioned architecture notes
+    ├── agent_workflow.md            # versioned AI workflow notes
     ├── tech_decisions.md            # technical decisions
     ├── references.md                # references, theme, fonts
     └── dev_log.md                   # development log
@@ -86,3 +89,10 @@
 - 실시간 음성 면접은 브라우저가 OpenAI Realtime에 WebRTC로 직접 연결하고, backend는 client secret과 프롬프트를 준비합니다.
 - 면접 종료 후 평가는 LangGraph workflow가 수행하고, 이메일 리포트는 FastAPI background task에서 Resend로 발송합니다.
 - Reflection/Policy는 모델 파라미터 학습이 아니라 비식별 운영 지침을 MongoDB 또는 JSONL에 저장한 뒤 다음 면접 프롬프트에 일부 주입하는 구조입니다.
+
+## Documentation Map
+
+- 서비스 소개와 빠른 실행은 [README.md](./README.md)에서 확인합니다.
+- 실제 구축과 배포 절차는 [GUIDE.md](./GUIDE.md)를 기준으로 진행합니다.
+- 제품과 기술 구조를 한 번에 이해하려면 [docs/README.md](./docs/README.md)의 추천 읽기 순서를 따릅니다.
+- 현재 코드 구조와 문서 내용이 다를 때는 실제 런타임 코드와 배포 compose 설정을 우선합니다.

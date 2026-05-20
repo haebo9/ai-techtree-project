@@ -65,7 +65,6 @@
 **근거**: 지원자가 답변 도중 생각을 위해 잠시 멈추는 것을 끝으로 오인하지 않도록 사용자가 직접 입력 시점을 제어하는 방식을 채택했습니다. 이를 통해 불필요한 잡음 유입을 차단하고 OpenAI Realtime API에 가장 깨끗한 오디오 데이터를 전달하여 전사 정확도를 높였습니다.
 
 ---
----
 
 ## 1. Frontend Architecture
 
@@ -93,9 +92,9 @@
 
 | Technology | Current Usage | Decision Notes |
 | :--- | :--- | :--- |
-| **FastAPI** | `/api/interview`, `/api/upload` 라우터 제공 | Pydantic 스키마와 Python AI 생태계 연동이 좋아 현재 백엔드의 중심으로 사용합니다. |
+| **FastAPI** | `/api/invite`, `/api/interview`, `/api/upload` 라우터 제공 | Pydantic 스키마와 Python AI 생태계 연동이 좋아 현재 백엔드의 중심으로 사용합니다. 초대코드 인증 dependency는 면접/업로드 API 앞단의 접근 제어로 사용합니다. |
 | **Pydantic / pydantic-settings** | API 요청/응답 검증, 환경 변수 로딩 | `.env`, `.env.local`, `backend/.env`, `backend/.env.local`을 통해 로컬/배포 환경을 분리합니다. |
-| **REST API** | 면접 시작, 검색 도구 실행, 면접 종료, 이메일 발송, 업로드 분석 | 브라우저와 백엔드 사이의 애플리케이션 제어면은 REST로 유지합니다. 실시간 음성 스트림은 OpenAI Realtime WebRTC가 담당합니다. |
+| **REST API** | 초대코드 인증, 면접 시작, 면접 종료, 이메일 발송, 업로드 분석 | 브라우저와 백엔드 사이의 애플리케이션 제어면은 REST로 유지합니다. 실시간 음성 스트림은 OpenAI Realtime WebRTC가 담당하고, 채용 검색 도구 판단은 LangGraph manager 내부에서 수행합니다. |
 | **BackgroundTasks** | 면접 종료 후 리포트 생성 및 이메일 발송 | 사용자가 면접 종료 응답을 빠르게 받도록 리포트 생성 작업을 백그라운드로 넘깁니다. |
 | **PyPDF2** | 업로드된 PDF 이력서 텍스트 추출 | 텍스트 기반 PDF만 처리합니다. 이미지 기반 PDF OCR은 현재 범위가 아닙니다. |
 
@@ -128,25 +127,26 @@
 
 ## 4. AI Model Usage
 
-> 2026-05-13 기준 코드에서 실제 호출되는 AI 모델만 정리합니다. 모델명은 코드에 하드코딩된 값 또는 설정 기본값을 기준으로 합니다. 비용은 OpenAI 공식 Standard pricing 기준이며, 별도 표기가 없으면 1M tokens 단위입니다.
+> 코드에서 실제 호출되는 AI 모델만 정리합니다. 모델명은 하드코딩된 값 또는 설정 기본값을 기준으로 합니다. 비용은 작성 시점의 참고값이므로 운영 전에는 OpenAI 공식 가격표에서 다시 확인합니다.
 
-| Feature | Model | Purpose | Cost | Source |
+| Feature | Model | Purpose | Cost Reference | Source |
 | :--- | :--- | :--- | :--- | :--- |
-| 실시간 음성 면접 세션 | `gpt-realtime-mini-2025-12-15` | **저지연 S2S WebRTC 대화 및 면접관 음성 응답**<br/>→ 면접 UX 최적화를 위한 Realtime 전용 mini 모델 활용 | Audio Input: $10.00<br/>Audio Output: $20.00<br/>Text Input: $0.60<br/>Text Output: $2.40 | `backend/app/api/interview.py`<br/>`frontend/app/interview/page.tsx`<br/>`frontend/app/debug/page.tsx` |
+| 실시간 음성 면접 세션 | `gpt-realtime-mini-2025-12-15` | **저지연 WebRTC 대화 및 면접관 음성 응답**<br/>→ 면접 UX 최적화를 위한 Realtime 전용 mini 모델 활용 | Audio Input: $10.00<br/>Audio Output: $20.00<br/>Text Input: $0.60<br/>Text Output: $2.40 | `backend/app/api/interview.py`<br/>`frontend/app/interview/page.tsx`<br/>`frontend/app/debug/page.tsx` |
 | 실시간 입력 음성 전사 | `whisper-1` | **실시간 오디오 스트림 STT(Speech-to-Text) 및 텍스트 로그 보존**<br/>→ OpenAI Realtime 인터페이스 표준 모델 활용 | Transcription: $0.006 / minute | `backend/app/api/interview.py` |
 | 채용 공고 텍스트/이미지 직무명 추출 | `gpt-5.4-nano` | **멀티모달 Vision 기반 JD 개요 분석 및 엔티티(Entity) 추출**<br/>→ GPT-5.4 Nano의 경량 멀티모달 처리 성능 활용 | Input: $0.20<br/>Output: $1.25 | `backend/app/api/upload.py` |
-| 면접 시작 전 채용 공고 이미지 분석 | `gpt-5.4-nano` | **Vision 기반 구조화 요약(Structured Output) 및 요구역량 매핑**<br/>→ 대량 텍스트 요약 및 이미지 파싱 효율성 고려 | Input: $0.20<br/>Output: $1.25 | `backend/app/api/interview.py` |
-| LangGraph 면접관 노드 | `gpt-4.1` | **RESTful 에이전트 추론(Reasoning) 및 복합 툴 제어**<br/>→ 안정적인 Instruction Following 및 고품질 질문 생성 | Input: $2.00<br/>Output: $8.00 | `backend/app/core/llm.py`<br/>`backend/app/engine/nodes/interviewer.py` |
+| 면접 시작 전 채용 공고 이미지 분석 | `gpt-5.4-nano` | **Vision 기반 구조화 요약(Structured Output) 및 요구역량 매핑**<br/>→ 대량 텍스트 요약 및 이미지 파싱 효율성 고려 | Input: $0.20<br/>Output: $1.25 | `backend/app/services/interview_manager.py` |
+| LangGraph manager 노드 | `gpt-4.1` | **면접 전 컨텍스트 판단 및 Tavily 도구 호출 제어**<br/>→ 사용자가 제공한 공고/직무 정보가 부족할 때 검색 보조 맥락을 준비 | Input: $2.00<br/>Output: $8.00 | `backend/app/core/llm.py`<br/>`backend/app/engine/nodes/manager.py` |
 | 최종 면접 평가 리포트 | `gpt-4.1` | **긴 컨텍스트(Context) 분석 및 정밀 피드백 구조화 생성**<br/>→ 정교한 한국어 평가 및 복합 스키마 출력 보장 | Input: $2.00<br/>Output: $8.00 | `backend/app/core/llm.py`<br/>`backend/app/engine/nodes/evaluator.py` |
 | Reflection 후보 생성 | `gpt-4.1` | **자가 성찰(Self-Reflection) 기반 운영 정책(Policy) 후보 추출**<br/>→ 재사용 가능한 가이드라인 선별을 위한 고성능 추론 | Input: $2.00<br/>Output: $8.00 | `backend/app/core/llm.py`<br/>`backend/app/services/reflection_service.py` |
 | Reflection/Policy 벡터 검색 | `text-embedding-3-small` | **의미론적 검색(Semantic Search)을 위한 고밀도 벡터 임베딩 생성**<br/>→ 대규모 텍스트 유사도 검색 효율성 확보 | $0.02 / 1M tokens<br/>Batch: $0.01 / 1M | `backend/app/core/config.py`<br/>`backend/app/services/reflection_mongo_store.py` |
 
-차기 버전 모델 개선 계획
+### 차기 버전 모델 개선 계획
+
 - 세션/UX 개선: whisper-1 대기 시간을 활용한 '사전 키워드 힌트' 도입 또는 `gpt-realtime-whisper` 모델로 변경
 - 운영 비용 절감: 기존 LangGraph의 gpt-4.1 노드들을 `gpt-5.4-mini(or -nano)`로 전면 교체
 - 평가 품질 극대화: 심층 분석이 필요한 최종 평가 노드에만 `gpt-5.4`를 전략적으로 배치
 
-AI 모델을 사용하지 않는 주요 기능:
+### AI 모델을 사용하지 않는 주요 기능
 
 - PDF 이력서 텍스트 추출: `PyPDF2` 기반 파싱이며 별도 AI 모델을 호출하지 않습니다.
 - 채용 공고 검색: `Tavily API`를 직접 호출하며 OpenAI 모델을 사용하지 않습니다.
@@ -181,6 +181,7 @@ AI 모델을 사용하지 않는 주요 기능:
 | **Certbot** | Let's Encrypt 기반 자동 SSL 갱신 | 주기적인 인증서 갱신을 통해 보안 연결을 유지합니다. |
 | **Environment Variables** | `.env` 및 `docker-compose.yml` 관리 | API Key, DB URL, CORS 설정 등을 환경 변수로 주입하여 보안 및 유연성을 확보합니다. |
 | **AWS EC2** | `t3.small` 이상과 swap 권장 | 현재 가이드는 `t3.small` + 2GiB swap을 기준으로 하며, 트래픽 증가 시 더 큰 인스턴스로 확장합니다. |
+| **Squarespace DNS / Elastic IP** | `haebo.pro` 루트 도메인과 `techtree` A 레코드 운영 | 도메인은 Squarespace 웹 UI에서 관리하고, AWS Console에서 생성한 Elastic IP를 EC2에 연결한 뒤 `techtree.haebo.pro`가 해당 IP를 가리키도록 설정합니다. |
 
 운영 및 배포 관리 원칙:
 

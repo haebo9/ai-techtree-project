@@ -1,5 +1,6 @@
 # TechTree System Architecture
-> 이 문서는 버전별 배포 아키텍처를 정리한 글입니다.
+
+> 이 문서는 TechTree의 버전별 아키텍처 변화를 정리합니다. 현재 운영 기준은 v2.0.0의 **Next.js + FastAPI + OpenAI Realtime WebRTC + LangGraph + Docker/AWS** 구조입니다.
 
 ## 🔴 v1.0.0 (2026-01-15)
 > Stateful LangChain Agent Architecture
@@ -9,7 +10,7 @@
 - 사용자 관심사 진단 및 AI 직무 트랙 추천을 위한 Stateless 아키텍처
 - 독립적인 MCP 서버를 통한 검색 및 추천 도구 통합 관리 (Kakao PlayMCP 연동)
 
-![alt text](images/Techtree-Arch-v1.0.drawio.svg)
+![TechTree v1.0 architecture](images/Techtree-Arch-v1.0.drawio.svg)
 
 ## 🔴 v1.1.0 (2026-03-02)
 > Stateful LangGraph Multi-Agent workflow Architecture
@@ -18,7 +19,7 @@
 - 입력된 user_id를 기반으로 MongoDB Atlas에 영속성 상태 관리 (진행상황 저장)
 - 내부 서비스의 expose 설정을 통해 외부 노출을 차단한 격리된 네트워크 환경 구축 (보안 강화)
 
-![alt text](images/Techtree-Arch-v1.1.drawio.svg)
+![TechTree v1.1 architecture](images/Techtree-Arch-v1.1.drawio.svg)
 
 ## 🔴 v2.0.0 (2026-05-18)
 > Realtime WebRTC Audio & In-Memory AI Engine Architecture
@@ -32,4 +33,9 @@
 - Certbot과 Nginx 간의 인증서 볼륨 공유를 통한 무중단 HTTPS 운영 인프라 자동화
 - 외부 API 계층(Tavily 공고 검색, Resend 리포트 메일 발송, Telegram 로그 알림)의 호출 파이프라인 중앙 제어
 
-![alt text](images/Techtree-Arch-v2.0.drawio.svg)
+> Domain & Deployment Boundary
+- `haebo.pro` 루트 도메인은 Squarespace에서 구매/관리하며, `techtree` A 레코드가 AWS EC2 Elastic IP를 가리키도록 설정
+- Elastic IP, Security Group, EC2 instance 연결은 AWS Console에서 설정하고, Docker Compose/Nginx/Certbot 실행은 EC2 터미널에서 수행
+- 최초 HTTPS 구성은 HTTP bootstrap Nginx로 Let's Encrypt webroot challenge를 통과시킨 뒤, 인증서 발급 후 운영 HTTPS Nginx로 전환
+
+![TechTree v2.0 architecture](images/Techtree-Arch-v2.0.drawio.svg)
