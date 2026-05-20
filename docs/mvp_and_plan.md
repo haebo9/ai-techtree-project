@@ -8,7 +8,7 @@ TechTree는 이력서, 채용 공고, 지원 직무, 경력, 학력 정보를 �
 - 핵심 가치: 실제 면접에 가까운 음성 경험, 개인화 질문, 대화 기반 피드백, 반복 연습을 통한 개선
 - 현재 단계: MVP 이후 배포 안정화 및 Reflection/Policy 기반 면접관 자기개선 고도화
 
-포트폴리오 관점에서 TechTree는 “AI를 실제 사용자 경험으로 연결한다”는 방향성을 서비스로 검증한 프로젝트입니다. 단순한 데모가 아니라 기획, 시스템 아키텍처, AI 워크플로우, 사용자 화면, 백엔드 API, 배포와 운영까지 하나의 서비스 사이클을 끝까지 연결했습니다. 특히 실시간 음성 UX, LangGraph 기반 상태 관리, 비식별 Reflection/Policy 메모리, Docker/AWS 운영 구성을 함께 검증하는 데 초점을 두었습니다.
+포트폴리오 관점에서 TechTree는 “AI를 실제 사용자 경험으로 연결한다”는 방향성을 서비스로 검증한 프로젝트입니다. 실시간 음성 UX, LangGraph 기반 평가, 비식별 Reflection/Policy 메모리, Docker/AWS 운영 구성을 하나의 서비스 사이클로 연결했습니다.
 
 ## 2. MVP에서 현재 버전까지의 진화
 
@@ -80,7 +80,7 @@ TechTree는 이력서, 채용 공고, 지원 직무, 경력, 학력 정보를 �
 - `POST /api/upload/analyze-jd`: 채용 공고 텍스트/이미지 분석 및 직무명 추출
 - `POST /api/interview/start`: 면접 컨텍스트 준비 및 OpenAI Realtime client secret 발급
 - `POST /api/interview/{session_id}/end`: 면접 종료, 리포트 생성 background task 등록
-- `POST /api/interview/{session_id}/email`: legacy/manual 이메일 발송 API
+- `POST /api/interview/{session_id}/email`: 세션 리포트 이메일 발송 보조 API
 
 ### AI Workflow
 

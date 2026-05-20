@@ -19,9 +19,7 @@
 
 - [AI 에이전트 엔지니어링](https://www.oreilly.com/library/view/building-applications-with/9781098176495/) : Building Applications with AI Agents 번역본
 - [사람인 : AI 모의면접](https://m.saramin.co.kr/member/ai-interview) : 이력서 기반 음성 면접, 지원기업 맞춤 면접, 종합 피드백 흐름 참고
-  -  연습 5턴, 실전 11턴 진행 / (1회권: 10,000원)
 - [잘봐요 : AI 모의면접연습](https://welldone-interview.co.kr/) : 이력서 기반 면접, 영상/음성 답변, 평가 리포트 UX 참고
-  - 종료시까지 무제한 음성 면접 / 사용자 정보 누적 / (1회권: 4,900원)
 
 ## Core Technology
 

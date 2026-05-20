@@ -86,7 +86,7 @@
 ## ⭐ Architecture & Agent Workflow
 - **Frontend**: `Next.js (App Router)` 기반의 반응형 웹 서비스로 구현되었습니다.
 - **Backend**: `FastAPI` 서버를 통해 OpenAI Realtime 세션 관리 및 비즈니스 로직을 처리합니다.
-- **AI Engine**: `LangGraph`를 사용하여 면접 전 컨텍스트 준비, 면접 평가, 자기 비판(Self-Reflection) 기반 프롬프트 개선을 관리합니다.
+- **AI Engine**: `LangGraph`를 사용하여 면접 전 컨텍스트 준비, 면접 평가, Reflection/Policy 기반 프롬프트 개선을 관리합니다.
 - **Realtime**: `WebRTC` 기술을 활용하여 저지연 실시간 음성 통신을 지원합니다.
 
 > [**System Architecture**](docs/architecture.md)

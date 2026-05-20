@@ -207,7 +207,7 @@ payload:
 {
   transcripts: Array<{ role: "user" | "ai"; text: string }>,
   saved_jobs: Array<Record<string, unknown>>,
-  tool_traces: Array<Record<string, unknown>>,
+  tool_traces?: Array<Record<string, unknown>>,
   interview_date?: string,
   interview_duration?: string
 }
@@ -237,7 +237,7 @@ payload:
 - 이력서-직무 적합도
 - 전체 대화 내역
 
-채용 공고 검색 데이터는 면접 컨텍스트와 tool trace에 보조적으로 활용될 수 있지만, 최종 리포트의 핵심 기능으로 설명하지 않습니다.
+채용 공고 검색 데이터는 면접 컨텍스트에 보조적으로 활용될 수 있지만, 최종 리포트의 핵심 기능으로 설명하지 않습니다.
 
 ## 9. Data Storage Summary
 
@@ -296,5 +296,5 @@ Browser WebRTC
 
 - `/complete`에서 리포트 생성 상태를 조회하는 API/UI가 아직 기본 제공되지 않습니다.
 - `temp_sessions`는 in-memory라 운영 확장 시 Redis/Mongo 전환이 필요합니다.
-- `/result`는 legacy/manual 화면으로, 기본 이메일 리포트 흐름과 통합 여부를 결정해야 합니다.
+- `/result`는 legacy/manual 화면으로 보조 유지됩니다. 운영 기본 흐름은 `/complete`와 이메일 리포트입니다.
 - Reflection/Policy 관리 화면은 아직 없습니다.

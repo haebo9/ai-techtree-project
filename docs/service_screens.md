@@ -10,7 +10,7 @@
 | 2 | Interview | OpenAI Realtime WebRTC 기반 음성 면접을 진행합니다. |
 | 3 | Complete | 면접 종료 후 비동기 리포트 생성과 이메일 발송 안내를 확인합니다. |
 | 4 | Report | legacy/manual 화면에서 점수, 강점, 개선점, 상세 Q&A 피드백을 확인합니다. |
-| Dev | Debug | Realtime 연결, 이벤트 로그, 도구 호출을 개발자가 점검합니다. |
+| Dev | Debug | Realtime 연결, 이벤트 로그, transcript 흐름을 개발자가 점검합니다. |
 
 ---
 
