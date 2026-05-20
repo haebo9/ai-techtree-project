@@ -21,6 +21,7 @@
 
 ## 📖 Index
 - [Current Service Flow](#-current-service-flow): 현재 서비스 흐름 <br/>
+- [Project Highlights](#-project-highlights): 포트폴리오 관점의 핵심 구현 성과 <br/>
 - [Tech Stack](#-tech-stack): 사용 기술 및 도구 <br/>
 - [Architecture & Agent Workflow](#-architecture--agent-workflow): 시스템 구조 <br/>
 - [Documentation](#-documentation): 기획 및 설계 문서 <br/>
@@ -53,6 +54,20 @@
 
 ---
 
+## ⭐ Project Highlights
+
+> TechTree는 “AI를 실제 사용자 경험으로 연결한다”는 관점에서, 기획, 시스템 아키텍처 설계, AI 워크플로우 구현, 프론트엔드/백엔드 개발, Docker 기반 배포까지 단독으로 수행한 실서비스형 AI 프로젝트입니다.
+
+| Area | What was built |
+| --- | --- |
+| **Realtime AI UX** | 브라우저에서 OpenAI Realtime API에 WebRTC로 직접 연결하고, Space 기반 Push-to-Talk로 사용자가 답변 타이밍을 제어하는 음성 면접 경험을 구현했습니다. |
+| **Agent Workflow** | LangGraph 기반 manager/evaluator 흐름으로 면접 전 컨텍스트 준비, 질문 운영, 종료 후 구조화 평가 리포트 생성을 분리했습니다. |
+| **Multimodal Context** | PDF/TXT 이력서와 채용 공고 텍스트/이미지를 분석해 지원 직무에 맞는 질문 맥락을 구성하도록 설계했습니다. |
+| **Self-Improving Prompt Memory** | 면접 종료 후 원문이 아닌 비식별 Reflection/Policy를 저장하고, 다음 유사 면접에 운영 지침으로 선별 주입하는 구조를 구현했습니다. |
+| **Production Deployment** | Next.js standalone, FastAPI, Docker Compose, Nginx, Certbot, AWS EC2, MongoDB Atlas, Resend를 조합해 실제 도메인에서 접근 가능한 운영 환경을 구성했습니다. |
+
+---
+
 ## ⭐ Tech Stack
 
 > 프로젝트에 사용된 핵심 기술 및 인프라 구성입니다.
@@ -62,7 +77,7 @@
 | **Frontend** | ![Next.js](https://img.shields.io/badge/Next.js-000000?style=flat-square&logo=nextdotjs&logoColor=white) ![React](https://img.shields.io/badge/React-61DAFB?style=flat-square&logo=react&logoColor=black) ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=flat-square&logo=tailwind-css&logoColor=white) | Modern Web Application (App Router) |
 | **Backend** | ![Python](https://img.shields.io/badge/python-3670A0?style=flat-square&logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white) | High-Performance API & Realtime Session Server |
 | **AI / LLM** | ![OpenAI](https://img.shields.io/badge/OpenAI_Realtime-412991?style=flat-square&logo=openai&logoColor=white) ![LangGraph](https://img.shields.io/badge/LangGraph-FF4B4B?style=flat-square) ![LangChain](https://img.shields.io/badge/LangChain-1C3C3C?style=flat-square&logo=langchain&logoColor=white) | Realtime WebRTC & Agent Orchestration |
-| **ExternalAPI** | ![WebRTC](https://img.shields.io/badge/WebRTC-333333?style=flat-square&logo=webrtc&logoColor=white) ![Tavily](https://img.shields.io/badge/Tavily-4285F4?style=flat-square) ![Resend](https://img.shields.io/badge/Resend-000000?style=flat-square) | Realtime Communication & External Services |
+| **External API** | ![WebRTC](https://img.shields.io/badge/WebRTC-333333?style=flat-square&logo=webrtc&logoColor=white) ![Tavily](https://img.shields.io/badge/Tavily-4285F4?style=flat-square) ![Resend](https://img.shields.io/badge/Resend-000000?style=flat-square) | Realtime Communication & External Services |
 | **Cloud/DB** | ![AWS](https://img.shields.io/badge/AWS-232F3E?style=flat-square&logo=amazon-aws&logoColor=white) ![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=flat-square&logo=mongodb&logoColor=white) | Cloud Infrastructure & Database |
 
 --- 
@@ -85,6 +100,7 @@
 ## ⭐ Documentation
 
 > 프로젝트의 모든 기획 및 설계 문서는 [`docs`](docs/README.md) 디렉토리 내에서 코드와 함께 관리됩니다.
+> 처음 보는 사람은 [`docs/README.md`](docs/README.md)의 추천 읽기 순서를 따라가면 서비스 화면, 사용자 흐름, 기술 구조, 배포 절차를 차례대로 확인할 수 있습니다.
 
 ### 📂 Documentation Structure
 
@@ -113,7 +129,7 @@
 > 현재 운영 버전은 **v2.0.0 Realtime Voice Interview**입니다.<br/>
 > 아래는 프로젝트의 주요 릴리즈 및 변경 사항 내역입니다.<br/>
 
-| Version | Feature | KeyTechnology | Release Date |
+| Version | Feature | Key Technology | Release Date |
 | :--- | :--- | :--- | :--- |
 | [**v1.0.0**](https://github.com/haebo9/ai-techtree-project/tree/v1.0.0) | **MCP Tool Calling Agent**<br>MCP tool을 활용한 챗봇 서비스 | Langchain, MCP, FastAPI, AWS | 2026.01.15 |
 | [**v1.1.0**](https://github.com/haebo9/ai-techtree-project/tree/v1.1.0) | **Agentic Quiz System**<br>키워드 기반 동적 문제 풀이 서비스 | LangGraph, MongoDB, Streamlit | 2026.03.02 |
@@ -134,9 +150,9 @@
 
 - **API Keys**(.env):
    - OPENAI_API_KEY (Required)
-   - TAVILY_API_KEY (Job Search)
-   - RESEND_API_KEY (Email Report)
-   - MONGODB_URL (Optional reflection memory)
+   - TAVILY_API_KEY (Optional job context search)
+   - RESEND_API_KEY (Email report)
+   - MONGODB_URL (Optional invite/reflection memory)
 
 ### Local Development
 

@@ -8,6 +8,8 @@ TechTree는 이력서, 채용 공고, 지원 직무, 경력, 학력 정보를 �
 - 핵심 가치: 실제 면접에 가까운 음성 경험, 개인화 질문, 대화 기반 피드백, 반복 연습을 통한 개선
 - 현재 단계: MVP 이후 배포 안정화 및 Reflection/Policy 기반 면접관 자기개선 고도화
 
+포트폴리오 관점에서 TechTree는 “AI를 실제 사용자 경험으로 연결한다”는 방향성을 서비스로 검증한 프로젝트입니다. 단순한 데모가 아니라 기획, 시스템 아키텍처, AI 워크플로우, 사용자 화면, 백엔드 API, 배포와 운영까지 하나의 서비스 사이클을 끝까지 연결했습니다. 특히 실시간 음성 UX, LangGraph 기반 상태 관리, 비식별 Reflection/Policy 메모리, Docker/AWS 운영 구성을 함께 검증하는 데 초점을 두었습니다.
+
 ## 2. MVP에서 현재 버전까지의 진화
 
 ### 초기 MVP
@@ -123,6 +125,8 @@ TechTree는 이력서, 채용 공고, 지원 직무, 경력, 학력 정보를 �
 
 운영 구성:
 
+- Squarespace DNS: `techtree.haebo.pro` A 레코드를 EC2 Elastic IP에 연결
+- AWS EC2 Elastic IP/Security Group: AWS Console에서 설정
 - `backend/Dockerfile`: Python 3.12 FastAPI backend
 - `frontend/Dockerfile`: Node 22 Next.js standalone frontend
 - `docker-compose.yml`: 운영 컨테이너 구성
@@ -130,7 +134,16 @@ TechTree는 이력서, 채용 공고, 지원 직무, 경력, 학력 정보를 �
 - `docker-compose.bootstrap.yml`: 최초 인증서 발급 전 HTTP bootstrap
 - `certbot`: Let's Encrypt 인증서 발급/갱신
 
-운영 명령:
+초기 배포 순서:
+
+1. AWS Console에서 EC2, Security Group, Elastic IP를 준비합니다.
+2. Squarespace DNS에서 `techtree` A 레코드를 Elastic IP로 연결합니다.
+3. EC2에서 repository를 clone/pull하고 `backend/.env`를 작성합니다.
+4. `docker-compose.bootstrap.yml`로 HTTP 서비스를 먼저 올립니다.
+5. Certbot `certonly`로 최초 인증서를 발급합니다.
+6. 기본 `docker-compose.yml`로 HTTPS 운영 서비스를 재기동합니다.
+
+일반 재배포 명령:
 
 ```bash
 git pull

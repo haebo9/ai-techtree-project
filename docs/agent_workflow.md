@@ -7,7 +7,7 @@
 ## 🔴 v1.0: MCP Chatbot (Stateless)
 > 초기 버전은 정의한 **MCP(Model Context Protocol)** 도구를 활용하여 정확한 정보를 제공하는 데 집중합니다.
 1.  **Stateless Interaction**: 모든 쿼리를 독립적인 요청으로 처리하며, 사용자의 숙련도(Mastery)를 기억하지 않음.
-2.  **Tool Usage**: `Tavily Search`나 `Vector Embedding`를 사용하여 답변을 검색.
+2.  **Tool Usage**: `Tavily Search`나 `Vector Embedding`을 사용하여 답변을 검색.
 3.  **Simple Routing**: "Search"와 "Chat" 의도를 단순 구분하여 처리.
 
 > 사용자 입력에 따라 정의된 Tool을 선택하여 실행합니다. 
@@ -68,7 +68,8 @@
 - **Auxiliary Tool Data**: 추천 채용 공고는 리포트의 최종 목적지가 아닌, 면접 컨텍스트 구체화 및 에이전트 도구 실행 기록을 보조하는 데이터로 활용.
 
 
-> LangGraph는 면접 시작 전의 '준비 상태'와 면접 종료 후의 '평가 상태'를 트리거 조건에 따라 분기하여 제어
+> LangGraph는 면접 시작 전의 `준비 상태`와 면접 종료 후의 `평가 상태`를 트리거 조건에 따라 분기하여 제어한다.
+
 - `manager_agent`: 사용자가 제공한 공고/직무 정보가 부족하면 `search_korean_job_postings` 도구 호출을 판단한다.
 - `tools`: LangGraph `ToolNode`이며 Tavily 기반 `search_korean_job_postings`를 실행할 수 있다.
 - `manager_finalize`: 도구 결과와 사용자 입력을 모아 Realtime 면접관 시스템 프롬프트를 만든다.
@@ -77,35 +78,22 @@
 ![v2.0 agent logic](images/v2.0_agent_logic.png)
 
 > Reflection/Policy는 모델을 fine-tuning하는 구조가 아니다. 면접 운영에서 얻은 비식별 교훈을 저장하고 다음 면접 프롬프트에 일부만 주입하는 prompt memory 구조이다.
+
 선택 규칙:
 
 - promoted policy를 최대 3개까지 우선 검색한다.
-
 - 전체 주입 한도는 기본 `limit=5`이다.
-
 - policy와 중복되는 reflection은 제외한다.
-
 - 직무, 경력, 학력, 면접 모드, confidence, outcome, deprecated 여부를 기준으로 필터링한다.
-
 - 모든 reflection이 매번 쓰이는 것이 아니라 현재 면접 조건에 맞는 일부만 사용된다.
-
-- MongoDB Atlas collections:`interview_reflections`, `interview_policies`
+- MongoDB Atlas collections: `interview_reflections`, `interview_policies`
 
 ```mermaid
-
 flowchart LR
-
 Eval["evaluation_result"] --> Generate["reflection 후보 생성"]
-
 Generate --> Store["MongoDB and JSONL 저장"]
-
 Store --> Select["다음 면접 시작 시 관련 지침 선택"]
-
 Select --> Prompt["Realtime system prompt에 주입"]
-
 Prompt --> Outcome["면접 종료 후 피드백 기록"]
-
 Outcome --> Store
-
 ```
-

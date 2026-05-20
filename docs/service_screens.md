@@ -8,14 +8,14 @@
 | --- | --- | --- |
 | 1 | Home | 면접 프로필, 이력서, 채용 공고를 입력하고 AI 면접을 시작합니다. |
 | 2 | Interview | OpenAI Realtime WebRTC 기반 음성 면접을 진행합니다. |
-| 3 | Complete | 면접 종료 후 리포트 생성과 이메일 발송 상태를 확인합니다. |
-| 4 | Report | 점수, 강점, 개선점, 상세 Q&A 피드백을 확인합니다. |
+| 3 | Complete | 면접 종료 후 비동기 리포트 생성과 이메일 발송 안내를 확인합니다. |
+| 4 | Report | legacy/manual 화면에서 점수, 강점, 개선점, 상세 Q&A 피드백을 확인합니다. |
 | Dev | Debug | Realtime 연결, 이벤트 로그, 도구 호출을 개발자가 점검합니다. |
 
 ---
 
 ## 1. Home
-> 면접을 위한 초대코드 및 기본 페이지 입력 창입니다. 페이지 하단에 홈 화면 전체 캡쳐 이미지가 있습니다. 
+> 초대코드 인증, 지원자 정보, 이력서, 채용 공고, 면접 모드를 입력하는 시작 화면입니다. 페이지 하단에는 홈 화면 전체 캡처 이미지가 있습니다.
 
 ![TechTree home screen](../frontend/public/service/techtree-home-invite-code.png)
 ![TechTree home screen](../frontend/public/service/techtree-home.png)
@@ -30,12 +30,14 @@
 ---
 
 ## 3. Complete
+> 운영 기준의 기본 종료 화면입니다. 사용자는 이 화면에서 리포트가 이메일로 발송된다는 안내를 확인합니다.
 
 ![TechTree interview complete screen](../frontend/public/service/techtree-complete-wide.png)
 
 ---
 
 ## 4. Report
+> `/result`는 legacy/manual report view입니다. 운영 주 흐름은 `/complete` 이후 이메일 리포트를 확인하는 방식입니다.
 
 <table>
   <tr>

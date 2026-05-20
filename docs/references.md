@@ -13,10 +13,15 @@
 - [Gmarket Sans TTF](https://noonnu.cc/font_page/366): 메인 화면의 큰 제목, 섹션 헤드라인, CTA 등 강조 문구
 - [Noto Sans KR](https://noonnu.cc/font_page/34): 일반 본문, 폼, 안내 문구, 결과 리포트 등 기본 텍스트
 
-## Inspiration source for the service
+## Service Inspiration
+
+> 아래 서비스와 자료는 제품 방향과 사용자 경험을 설계할 때 참고한 레퍼런스입니다. 외부 서비스의 가격과 기능은 변경될 수 있으므로 운영 문서에서는 핵심 구조와 사용자 경험만 참고합니다.
+
 - [AI 에이전트 엔지니어링](https://www.oreilly.com/library/view/building-applications-with/9781098176495/) : Building Applications with AI Agents 번역본
-- [사람인 : Ai 모의면접](https://m.saramin.co.kr/member/ai-interview) : 이력서 기반 음성 면접 및 종합 피드백 / 지원기업 맞춤 선택 면접(사람인공고 URL) / 연습 5턴, 실전 11턴 진행 / (1회권: 10,000원)
-- [잘봐요 : AI 모의면접연습](https://welldone-interview.co.kr/) : 이력서 및 영상 촬영 음성 면접 및 평가리포트 제공 / 종료시까지 무제한 음성 면접 / 사용자 정보 누적 / (1회권: 4,900원)
+- [사람인 : AI 모의면접](https://m.saramin.co.kr/member/ai-interview) : 이력서 기반 음성 면접, 지원기업 맞춤 면접, 종합 피드백 흐름 참고
+  -  연습 5턴, 실전 11턴 진행 / (1회권: 10,000원)
+- [잘봐요 : AI 모의면접연습](https://welldone-interview.co.kr/) : 이력서 기반 면접, 영상/음성 답변, 평가 리포트 UX 참고
+  - 종료시까지 무제한 음성 면접 / 사용자 정보 누적 / (1회권: 4,900원)
 
 ## Core Technology
 

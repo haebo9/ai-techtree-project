@@ -39,7 +39,7 @@ flowchart LR
 - Frontend: Next.js 16 App Router, React 19, Tailwind CSS.
 - Backend API: FastAPI, Pydantic schema, invite/session guard, upload analysis, interview API.
 - AI Runtime: OpenAI Realtime WebRTC 음성 면접, LangGraph 평가 워크플로우, LangChain/OpenAI LLM 호출.
-- Operations: Docker Compose, Nginx reverse proxy, Certbot HTTPS, AWS EC2 배포.
+- Operations: Docker Compose, Nginx reverse proxy, Certbot HTTPS, AWS EC2 배포, Squarespace DNS와 AWS Elastic IP 기반 도메인 연결.
 
 ## 3. 사용자 입력과 초대코드 인증
 
@@ -112,6 +112,8 @@ FastAPI 진입점은 `backend/app/main.py`이며, `/api` 하위에 주요 라우
 4. `build_realtime_interviewer_prompt()`가 면접관 시스템 프롬프트를 생성한다.
 5. Backend가 OpenAI Realtime `client_secrets` API를 호출해 브라우저용 ephemeral token을 발급한다.
 6. Frontend는 이 token으로 OpenAI Realtime WebRTC에 직접 연결한다.
+
+시작 응답에는 `session_id`, `ephemeral_token`, `job_posting_analysis`, `prepared_jobs`, `interview_mode`, `prompt_variant`, `guideline_selection`이 포함된다. `prepared_jobs`는 면접 컨텍스트와 종료 평가 fallback에 쓰이는 실제 공고 데이터이며, 최종 리포트의 추천 공고 섹션을 의미하지 않는다.
 
 현재 Realtime 설정은 다음을 기준으로 한다.
 
@@ -245,6 +247,13 @@ Reflection/Policy 저장소는 두 계층으로 동작한다.
 - `nginx/`: reverse proxy 설정.
 - `certbot/`: Let’s Encrypt 인증서 발급/갱신용 볼륨 및 설정.
 
+도메인과 고정 IP 연결은 서버 터미널이 아니라 외부 웹 UI에서 설정한다.
+
+- `haebo.pro`: Squarespace에서 구매한 루트 도메인.
+- `techtree.haebo.pro`: Squarespace DNS에서 `techtree` A 레코드를 생성해 EC2 Elastic IP를 가리키는 서브도메인.
+- Elastic IP: AWS Console에서 생성해 EC2 instance에 연결하는 고정 퍼블릭 IP.
+- Security Group: AWS Console에서 `80`, `443`, 제한된 `22` inbound rule을 설정.
+
 운영 서버의 기본 절차는 다음과 같다.
 
 ```bash
@@ -254,8 +263,21 @@ cd ai-techtree-project
 # backend/.env는 Git에 포함하지 않는다.
 # 서버에서 직접 작성하거나 로컬에서 SCP/VS Code로 전송한다.
 
-docker compose up -d --build --remove-orphans
-docker compose logs -f backend
+# 최초 인증서 발급 전에는 HTTP bootstrap으로 먼저 올린다.
+docker compose -f docker-compose.yml -f docker-compose.bootstrap.yml up -d --build backend frontend nginx
+
+# HTTP 확인 후 Certbot certonly를 실행한다.
+docker compose run --rm --entrypoint certbot certbot certonly \
+  --webroot \
+  -w /var/www/certbot \
+  -d techtree.haebo.pro \
+  --email <email@example.com> \
+  --agree-tos \
+  --no-eff-email
+
+# 인증서 발급 후 운영 HTTPS compose로 전환한다.
+docker compose down
+docker compose up -d --build
 ```
 
 Nginx는 외부 80/443 요청을 받아 frontend와 backend로 라우팅한다. HTTPS는 Certbot이 발급한 Let’s Encrypt 인증서를 사용한다. 최초 발급 전에는 nginx가 인증서 파일을 찾지 못할 수 있으므로 bootstrap compose 또는 HTTP-only 설정으로 webroot challenge를 먼저 처리해야 한다.
